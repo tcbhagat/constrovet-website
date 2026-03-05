@@ -1,0 +1,60 @@
+<!-- ============================================================
+     SHARED NAVIGATION — nav.html
+     To edit the nav: change ONLY this file.
+     It is injected into every page via nav-loader.js
+     ============================================================ -->
+<nav class="cv-nav">
+  <div class="cv-nav__inner">
+
+    <!-- Logo -->
+    <a href="../index.html" class="cv-nav__logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
+        <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
+      </svg>
+      <span>Constrovet</span>
+    </a>
+
+    <!-- Desktop Links -->
+    <ul class="cv-nav__links">
+      <li><a href="../index.html">Home</a></li>
+      <li><a href="/pages/solution.html">Solution</a></li>
+      <li><a href="/pages/how-it-works.html">How it works</a></li>
+      <li><a href="/pages/industries.html">Industries</a></li>
+      <li><a href="/pages/demo.html">Demo</a></li>
+      <li><a href="/pages/knowledge.html">Knowledge Docs</a></li>
+      <li><a href="/pages/company.html">Company</a></li>
+      <li><a href="/pages/contact.html">Contact</a></li>
+      <!-- More dropdown -->
+      <li class="cv-nav__dropdown">
+        <button class="cv-nav__more-btn">More ▾</button>
+        <ul class="cv-nav__dropdown-menu">
+          <li><a href="/pages/team.html">Team</a></li>
+          <li><a href="/pages/client.html">Clients</a></li>
+          <li><a href="/pages/privacy.html">Privacy Policy</a></li>
+        </ul>
+      </li>
+    </ul>
+
+    <!-- Mobile hamburger -->
+    <button class="cv-nav__hamburger" id="cv-hamburger" aria-label="Open menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+
+  <!-- Mobile drawer -->
+   <div class="cv-nav__drawer" id="cv-drawer">
+    <a href="/">Home</a>
+    <a href="/pages/solution.html">Solution</a>
+    <a href="/pages/how-it-works.html">How it works</a>
+    <a href="/pages/industries.html">Industries</a>
+    <a href="/pages/demo.html">Demo</a>
+    <a href="/pages/knowledge.html">Knowledge Docs</a>
+    <a href="/pages/company.html">Company</a>
+    <a href="/pages/contact.html">Contact</a>
+    <a href="/pages/team.html">Team</a>
+    <a href="/pages/client.html">Clients</a>
+    <a href="/pages/privacy.html">Privacy Policy</a>
+  </div>
+</nav>

@@ -1,0 +1,28 @@
+<!-- ============================================================
+     SHARED FOOTER — footer.html
+     To edit the footer: change ONLY this file.
+     It is injected into every page via nav-loader.js
+     ============================================================ -->
+<footer class="cv-footer">
+  <div class="cv-footer__inner">
+    <div class="cv-footer__brand">
+      <div class="cv-footer__logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
+          <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
+        </svg>
+        <span>Constrovet</span>
+      </div>
+      <p>Empowering Financiers. Stopping Cost Bleeding.</p>
+    </div>
+    <div class="cv-footer__links">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="contact.html">Contact</a>
+    </div>
+  </div>
+  <div class="cv-footer__copy">
+    &copy; <span id="cv-year"></span> AInnoverse Tech Center LLP. All rights reserved.
+  </div>
+</footer>
+<script>document.getElementById('cv-year').textContent = new Date().getFullYear();</script>
