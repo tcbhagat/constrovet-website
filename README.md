@@ -13,7 +13,6 @@ constrovet/
 │   ├── solution.html
 │   ├── how-it-works.html
 │   ├── industries.html
-│   ├── demo.html
 │   ├── knowledge.html
 │   ├── company.html
 │   ├── contact.html

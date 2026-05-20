@@ -32,7 +32,6 @@
   ]).then(() => {
     initHamburger();
     highlightActiveLink();
-    initDropdown();
     // Re-run lucide if available
     if (window.lucide) lucide.createIcons();
   });
@@ -60,21 +59,4 @@
     });
   }
 
-  /* ── 4. DROPDOWN KEYBOARD / TOUCH SUPPORT ───────────────────── */
-  function initDropdown() {
-    const dd = document.querySelector(".cv-nav__dropdown");
-    if (!dd) return;
-    const menu = dd.querySelector(".cv-nav__dropdown-menu");
-    const btn  = dd.querySelector(".cv-nav__more-btn");
-    if (!btn || !menu) return;
-
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = menu.style.display === "block";
-      menu.style.display = isOpen ? "" : "block";
-    });
-    document.addEventListener("click", () => {
-      menu.style.display = "";
-    });
-  }
 })();

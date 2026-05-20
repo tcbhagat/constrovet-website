@@ -104,8 +104,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   gap: 2px;
   margin-left: auto;
 }
-.cv-nav__links a,
-.cv-nav__more-btn {
+.cv-nav__links a {
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   font-size: .875rem;
@@ -114,34 +113,8 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   transition: color .2s, background .2s;
   white-space: nowrap;
 }
-.cv-nav__links a:hover,
-.cv-nav__more-btn:hover { color: var(--brand-700); background: var(--brand-50); }
+.cv-nav__links a:hover { color: var(--brand-700); background: var(--brand-50); }
 .cv-nav__links a.active { color: var(--brand-700); font-weight: 600; }
-
-/* Dropdown */
-.cv-nav__dropdown { position: relative; }
-.cv-nav__dropdown-menu {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  background: var(--white);
-  border: 1px solid var(--slate-200);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  min-width: 160px;
-  padding: 6px;
-}
-.cv-nav__dropdown:hover .cv-nav__dropdown-menu,
-.cv-nav__dropdown:focus-within .cv-nav__dropdown-menu { display: block; }
-.cv-nav__dropdown-menu li a {
-  display: block;
-  padding: 8px 12px;
-  font-size: .875rem;
-  border-radius: var(--radius-sm);
-  color: var(--slate-700);
-}
-.cv-nav__dropdown-menu li a:hover { background: var(--brand-50); color: var(--brand-700); }
 
 /* Hamburger */
 .cv-nav__hamburger {
