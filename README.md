@@ -78,6 +78,8 @@ Do not add a GitHub Actions deployment workflow unless the Cloud Build trigger i
 
 The older duplicate production trigger for `asia-south1/constrovet-site` is intentionally disabled. Keep it disabled unless production is moved away from `www.constrovet.com`'s `asia-southeast1` service.
 
+Cloud Run Console's **Source** tab can show a stale archive from an older source-based deploy. For this image-based Cloud Build deploy path, treat the Cloud Build `COMMIT_SHA`, the Cloud Run image tag, the Cloud Run `commit-sha` label, and the live HTML response as authoritative.
+
 ### Manual deploy fallback
 
 Only use this if the Cloud Build trigger is unavailable:
@@ -111,6 +113,12 @@ curl -I -L https://www.constrovet.com
 ```
 
 The Cloud Run `commit-sha` label should match `COMMIT_SHA`, traffic should be `100% LATEST`, and the site should return HTTP `200`.
+
+For a single command verification, run:
+
+```bash
+bash scripts/verify-production-deploy.sh
+```
 
 ---
 
