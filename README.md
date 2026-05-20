@@ -71,7 +71,8 @@ The production deployment target is:
 5. Cloud Build pushes the image to Artifact Registry:
    `asia-southeast1-docker.pkg.dev/gen-lang-client-0006884360/cloud-run-source-deploy/constrovet-website/constrovet-site:$COMMIT_SHA`
 6. Cloud Build updates Cloud Run service `constrovet-site` in `asia-southeast1`.
-7. `www.constrovet.com` serves the updated Cloud Run revision.
+7. Cloud Run routes `100% LATEST` traffic to the new ready revision.
+8. `www.constrovet.com` serves the updated Cloud Run revision.
 
 Do not add a GitHub Actions deployment workflow unless the Cloud Build trigger is intentionally removed. The production deploy path is GCP Cloud Build.
 
@@ -104,12 +105,12 @@ gcloud builds list \
 
 gcloud run services describe constrovet-site \
   --region asia-southeast1 \
-  --format='value(metadata.labels.commit-sha)'
+  --format='yaml(metadata.labels.commit-sha,spec.traffic,status.traffic,status.latestReadyRevisionName)'
 
 curl -I -L https://www.constrovet.com
 ```
 
-The Cloud Run `commit-sha` label should match `COMMIT_SHA`, and the site should return HTTP `200`.
+The Cloud Run `commit-sha` label should match `COMMIT_SHA`, traffic should be `100% LATEST`, and the site should return HTTP `200`.
 
 ---
 
