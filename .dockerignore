@@ -6,6 +6,7 @@ node_modules
 npm-debug.log
 Dockerfile
 README.md
+docs/
 scripts/
 *.log
 .env

@@ -1,52 +1,48 @@
 <!-- ============================================================
      SHARED NAVIGATION — nav.html
      To edit the nav: change ONLY this file.
-     It is injected into every page via nav-loader.js
+     It is injected into every page via assets/js/main.js
      ============================================================ -->
 <nav class="cv-nav">
   <div class="cv-nav__inner">
 
-    <!-- Logo -->
-    <a href="../index.html" class="cv-nav__logo">
+    <a href="/" class="cv-nav__logo" aria-label="Constrovet home">
       <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/>
         <rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>
       </svg>
       <span>Constrovet</span>
     </a>
 
-    <!-- Desktop Links -->
     <ul class="cv-nav__links">
-      <li><a href="../index.html">Home</a></li>
+      <li><a href="/">Home</a></li>
       <li><a href="/pages/solution.html">Solution</a></li>
-      <li><a href="/pages/how-it-works.html">How it works</a></li>
-      <li><a href="/pages/industries.html">Industries</a></li>
-      <li><a href="/pages/knowledge.html">Knowledge Docs</a></li>
+      <li><a href="/pages/construction-cost-leakage-audit.html">Cost Leakage</a></li>
+      <li><a href="/pages/construction-esg-carbon-audit.html">ESG Audit</a></li>
+      <li><a href="/pages/construction-due-diligence-financiers.html">Due Diligence</a></li>
+      <li><a href="/pages/knowledge.html">Knowledge</a></li>
       <li><a href="/pages/company.html">Company</a></li>
       <li><a href="/pages/contact.html">Contact</a></li>
-      <li><a href="/pages/team.html">Team</a></li>
-      <li><a href="/pages/client.html">Clients</a></li>
-      <li><a href="/pages/privacy.html">Privacy Policy</a></li>
     </ul>
 
-    <!-- Mobile hamburger -->
-    <button class="cv-nav__hamburger" id="cv-hamburger" aria-label="Open menu">
+    <button class="cv-nav__hamburger" id="cv-hamburger" aria-label="Open menu" type="button">
       <span></span><span></span><span></span>
     </button>
   </div>
 
-  <!-- Mobile drawer -->
-   <div class="cv-nav__drawer" id="cv-drawer">
+  <div class="cv-nav__drawer" id="cv-drawer">
     <a href="/">Home</a>
     <a href="/pages/solution.html">Solution</a>
-    <a href="/pages/how-it-works.html">How it works</a>
-    <a href="/pages/industries.html">Industries</a>
-    <a href="/pages/knowledge.html">Knowledge Docs</a>
+    <a href="/pages/construction-cost-leakage-audit.html">Construction cost leakage audit</a>
+    <a href="/pages/construction-cost-overrun-analysis.html">Cost overrun analysis</a>
+    <a href="/pages/construction-esg-carbon-audit.html">ESG and carbon audit</a>
+    <a href="/pages/schedule-slippage-recovery.html">Schedule recovery</a>
+    <a href="/pages/construction-due-diligence-financiers.html">Financier due diligence</a>
+    <a href="/pages/knowledge.html">Knowledge</a>
     <a href="/pages/company.html">Company</a>
-    <a href="/pages/contact.html">Contact</a>
     <a href="/pages/team.html">Team</a>
-    <a href="/pages/client.html">Clients</a>
-    <a href="/pages/privacy.html">Privacy Policy</a>
+    <a href="/pages/client.html">Use cases</a>
+    <a href="/pages/contact.html">Contact</a>
   </div>
 </nav>

@@ -13,6 +13,7 @@
   async function loadPartial(selector, url) {
     const el = document.querySelector(selector);
     if (!el) return;
+    if (el.innerHTML.trim()) return;
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error("Fetch failed: " + url);
@@ -32,6 +33,7 @@
   ]).then(() => {
     initHamburger();
     highlightActiveLink();
+    setFooterYear();
     // Re-run lucide if available
     if (window.lucide) lucide.createIcons();
   });
@@ -52,11 +54,18 @@
 
   /* ── 3. ACTIVE LINK HIGHLIGHT ───────────────────────────────── */
   function highlightActiveLink() {
-    const current = window.location.pathname.split("/").pop() || "index.html";
+    const currentPath = window.location.pathname;
+    const current = currentPath === "/" ? "index.html" : (currentPath.split("/").pop() || "index.html");
     document.querySelectorAll(".cv-nav__links a, .cv-nav__drawer a").forEach(a => {
-      const href = a.getAttribute("href")?.split("/").pop();
+      const hrefPath = new URL(a.getAttribute("href") || "/", window.location.origin).pathname;
+      const href = hrefPath === "/" ? "index.html" : hrefPath.split("/").pop();
       if (href === current) a.classList.add("active");
     });
+  }
+
+  function setFooterYear() {
+    const year = document.getElementById("cv-year");
+    if (year) year.textContent = new Date().getFullYear();
   }
 
 })();

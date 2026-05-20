@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <!-- ============================================================
      PAGE: Home  (index.html — root of project)
-     To edit: only touch content inside <main>
      Nav/footer live in assets/nav.html & assets/footer.html
      Styles live in assets/css/style.css
      ============================================================ -->
@@ -9,21 +8,66 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Constrovet — Stop Cost Bleeding. Maximize ROI.</title>
-  <meta name="description" content="Intelligent project cost audit and ESG compliance for financiers and developers.">
+  <title>Constrovet | Construction Cost Leakage, ESG &amp; Overrun Audit</title>
+  <meta name="description" content="Constrovet helps Indian financiers and developers turn project documents into cited cost leakage, schedule slippage, ESG, and recovery action findings.">
+  <link rel="canonical" href="https://www.constrovet.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Constrovet">
+  <meta property="og:title" content="Constrovet | Construction Cost Leakage, ESG &amp; Overrun Audit">
+  <meta property="og:description" content="Evidence-backed construction cost, schedule, ESG, and leakage intelligence for India B2B projects.">
+  <meta property="og:url" content="https://www.constrovet.com/">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&amp;fit=crop&amp;w=1200&amp;q=72">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Constrovet | Construction Cost Leakage, ESG &amp; Overrun Audit">
+  <meta name="twitter:description" content="Cited cost leakage, schedule slippage, ESG, and recovery action findings for construction decision-makers.">
+  <meta name="twitter:image" content="https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&amp;fit=crop&amp;w=1200&amp;q=72">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.constrovet.com/#organization",
+        "name": "Constrovet",
+        "legalName": "AInnoverse Tech Center LLP",
+        "url": "https://www.constrovet.com/",
+        "description": "Construction cost, schedule, ESG, and leakage intelligence for Indian B2B project stakeholders."
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://www.constrovet.com/#software",
+        "name": "Constrovet",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://www.constrovet.com/",
+        "publisher": {
+          "@id": "https://www.constrovet.com/#organization"
+        },
+        "description": "A web-based construction project intelligence workflow for cited cost leakage, schedule slippage, ESG, and recovery action findings."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.constrovet.com/#website",
+        "name": "Constrovet",
+        "url": "https://www.constrovet.com/",
+        "publisher": {
+          "@id": "https://www.constrovet.com/#organization"
+        }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
-  <!-- NAV — do not edit here; edit assets/nav.html -->
   <div id="cv-nav-placeholder"></div>
 
   <main>
 
-    <!-- ── HERO ─────────────────────────────────────────────── -->
     <section class="home-hero">
       <img
         class="home-hero__bg"
@@ -35,51 +79,54 @@
         decoding="async"
         fetchpriority="high">
       <div class="home-hero__content">
-        <span class="home-hero__badge">Intelligent Project Cost Audit</span>
-        <h1>Stop Cost Bleeding.<br><em>Maximize ROI</em> for Financiers.</h1>
+        <span class="home-hero__badge">Construction Cost Intelligence for India</span>
+        <h1>Find Cost Leakage.<br><em>Prioritize Recovery</em> Actions.</h1>
         <p>
-          Ingest project data to instantly generate cost leakage reports.
-          Analyze schedule slippage, audit ESG carbon footprints, and get
-          actionable 7/30/90-day executive recovery plans.
+          Constrovet converts project documents into cited findings on budget variance,
+          overrun, schedule slippage, ESG metrics, and executive 7/30/90-day actions.
         </p>
         <div class="home-hero__cta">
           <a href="https://prod-constrovet4mobile-759832881234.asia-south1.run.app"
              target="_blank" rel="noopener noreferrer" class="cv-btn cv-btn--outline">
-            View Cost &amp; ESG Dashboard
+            View Public Cost &amp; ESG Dashboard
+          </a>
+          <a href="/pages/contact.html" class="cv-btn cv-btn--try">
+            Request an audit discussion
           </a>
         </div>
       </div>
     </section>
 
-    <!-- ── THREE PILLARS ─────────────────────────────────────── -->
     <section class="pillars">
       <div style="max-width:var(--max-w);margin:0 auto;">
         <div class="cv-section__header cv-section__header--center">
           <h2 class="cv-section__title">Three Pillars of Project Certainty</h2>
+          <p class="cv-section__sub">
+            Built for financiers, developers, and project governance teams that need defensible answers from available documents.
+          </p>
         </div>
         <div class="pillars__grid">
 
-          <div class="cv-card">
+          <a class="cv-card" href="/pages/construction-cost-leakage-audit.html">
             <div class="cv-icon-chip cv-icon-chip--red">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" stroke-width="2">
+                stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
                 <polyline points="17 18 23 18 23 12"/>
               </svg>
             </div>
             <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--slate-900);margin-bottom:10px;">
-              Cost &amp; Schedule Slippage
+              Cost Leakage &amp; Overrun
             </h3>
             <p style="color:var(--slate-600);font-size:.95rem;">
-              We convert schedule delays directly into financial impact, pinpointing
-              exactly where cost leakage and bleeding occur in real-time.
+              Separate baseline budget from leakage signals such as penalties, wastage, rework, excess consumption, and calculated overruns.
             </p>
-          </div>
+          </a>
 
-          <div class="cv-card">
+          <a class="cv-card" href="/pages/construction-esg-carbon-audit.html">
             <div class="cv-icon-chip cv-icon-chip--green">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" stroke-width="2">
+                stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <path d="M17 8C8 10 5.9 16.17 3.82 19.5C5.23 20.48 7 21 9 21c5 0 9-4 9-9V8z"/>
               </svg>
             </div>
@@ -87,36 +134,69 @@
               ESG &amp; Carbon Audit
             </h3>
             <p style="color:var(--slate-600);font-size:.95rem;">
-              Automated tracking of your environmental footprint with built-in compliance
-              alerts tuned for NGT (National Green Tribunal) notices.
+              Extract carbon, diesel, electricity, water, fuel, waste diversion, and emissions metrics when those values are present in evidence.
             </p>
-          </div>
+          </a>
 
-          <div class="cv-card">
+          <a class="cv-card" href="/pages/schedule-slippage-recovery.html">
             <div class="cv-icon-chip cv-icon-chip--blue">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" stroke-width="2">
+                stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
             </div>
             <h3 style="font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--slate-900);margin-bottom:10px;">
-              Executive Action Plans
+              7/30/90-Day Recovery
             </h3>
             <p style="color:var(--slate-600);font-size:.95rem;">
-              Don't just get data — get direction. Automatically generated 7, 30, and
-              90-day recovery plans to save costs and secure financier ROI.
+              Turn cited findings into phased executive actions so decision-makers can address the most material issues first.
             </p>
-          </div>
+          </a>
 
         </div>
       </div>
     </section>
 
+    <section class="cv-section cv-section--bg-slate">
+      <div class="cv-section__header cv-section__header--center">
+        <h2 class="cv-section__title">India B2B Search Topics</h2>
+        <p class="cv-section__sub">Focused pages for the questions buyers and AI search systems need answered clearly.</p>
+      </div>
+      <div class="cv-topic-grid">
+        <a class="cv-topic-card" href="/pages/construction-cost-overrun-analysis.html">
+          <h3>Construction cost overrun analysis</h3>
+          <p>Compare budget and actual values, then isolate evidence-backed overrun findings.</p>
+          <span>Read the overrun workflow</span>
+        </a>
+        <a class="cv-topic-card" href="/pages/construction-due-diligence-financiers.html">
+          <h3>Project due diligence for financiers</h3>
+          <p>Prepare cited risk, leakage, ESG, and recovery notes before funding or review meetings.</p>
+          <span>Review due diligence use case</span>
+        </a>
+        <a class="cv-topic-card" href="/pages/knowledge.html">
+          <h3>Knowledge resources</h3>
+          <p>Browse concise explainers on cost leakage, ESG metrics, and schedule recovery.</p>
+          <span>Open knowledge hub</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="cv-section cv-section--bg-white cv-link-strip" aria-label="Constrovet topics">
+      <div class="cv-link-strip__inner">
+        <span class="cv-link-strip__label">Explore</span>
+        <a href="/pages/construction-cost-leakage-audit.html">Cost leakage audit</a>
+        <a href="/pages/construction-cost-overrun-analysis.html">Cost overrun analysis</a>
+        <a href="/pages/construction-esg-carbon-audit.html">ESG carbon audit</a>
+        <a href="/pages/schedule-slippage-recovery.html">Schedule recovery</a>
+        <a href="/pages/construction-due-diligence-financiers.html">Financier due diligence</a>
+        <a href="/pages/contact.html">Contact</a>
+      </div>
+    </section>
+
   </main>
 
-  <!-- FOOTER — do not edit here; edit assets/footer.html -->
   <div id="cv-footer-placeholder"></div>
 
   <script src="assets/js/main.js"></script>
