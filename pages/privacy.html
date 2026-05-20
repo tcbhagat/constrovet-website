@@ -29,9 +29,9 @@
         <h2>1. Data Ingestion &amp; Security</h2>
         <p>
           Constrovet provides project cost auditing services which require the ingestion of highly
-          sensitive financial, schedule, and procurement data. We utilize bank-level encryption (AES-256)
-          both in transit and at rest to ensure that your project baseline data and actuals are
-          completely secure.
+          sensitive financial, schedule, and procurement data. Production deployments should use TLS,
+          Google Cloud Secret Manager, private database access, and cloud-provider encryption controls
+          for data in transit and at rest.
         </p>
 
         <h2>2. Use of Data for Audit Purposes</h2>
