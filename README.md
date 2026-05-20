@@ -46,48 +46,70 @@ constrovet/
 
 ---
 
-## 🚀 Deploy to Google Cloud Run (Copy-Paste Steps)
+## 🚀 Production Deploys
 
-### Step 1 — One-time setup (run in Google Cloud Shell)
+Production is hosted on **Google Cloud Run** behind `www.constrovet.com`.
+
+The production deployment target is:
+
+| Setting | Value |
+|---|---|
+| GCP project | `gen-lang-client-0006884360` |
+| GitHub repo | `tcbhagat/constrovet-website` |
+| Branch | `main` |
+| Cloud Run service | `constrovet-site` |
+| Region | `asia-southeast1` |
+| Production domain | `www.constrovet.com` |
+| Cloud Build trigger ID | `89b8aca5-e812-4e7d-9392-552100669b0f` |
+
+### Automatic deploy flow
+
+1. Edit files in this repo.
+2. Commit changes to `main`.
+3. Push to `origin/main`.
+4. Cloud Build trigger `89b8aca5-e812-4e7d-9392-552100669b0f` builds the repo `Dockerfile`.
+5. Cloud Build pushes the image to Artifact Registry:
+   `asia-southeast1-docker.pkg.dev/gen-lang-client-0006884360/cloud-run-source-deploy/constrovet-website/constrovet-site:$COMMIT_SHA`
+6. Cloud Build updates Cloud Run service `constrovet-site` in `asia-southeast1`.
+7. `www.constrovet.com` serves the updated Cloud Run revision.
+
+Do not add a GitHub Actions deployment workflow unless the Cloud Build trigger is intentionally removed. The production deploy path is GCP Cloud Build.
+
+The older duplicate production trigger for `asia-south1/constrovet-site` is intentionally disabled. Keep it disabled unless production is moved away from `www.constrovet.com`'s `asia-southeast1` service.
+
+### Manual deploy fallback
+
+Only use this if the Cloud Build trigger is unavailable:
 
 ```bash
-# Set your project ID (find it in GCP Console)
-gcloud config set project YOUR_PROJECT_ID
+gcloud config set project gen-lang-client-0006884360
 
-# Enable required APIs
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com
-```
-
-### Step 2 — Deploy (run this every time you push changes)
-
-```bash
-# From the root of this repo:
-gcloud run deploy constrovet \
+gcloud run deploy constrovet-site \
   --source . \
   --platform managed \
-  --region asia-south1 \
+  --region asia-southeast1 \
   --allow-unauthenticated \
   --port 8080
 ```
 
-Cloud Run will build the Docker image, push it, and give you a live HTTPS URL.
+### Verify deployment
 
-### Step 3 — Map your custom domain (constrovet.com)
+```bash
+COMMIT_SHA="$(git rev-parse HEAD)"
 
-1. Go to **Cloud Run → constrovet → Custom Domains → Add mapping**
-2. Enter `www.constrovet.com`
-3. Copy the DNS records shown and add them in your domain registrar
-4. GCP auto-provisions an SSL certificate (takes ~15 min)
+gcloud builds list \
+  --filter='trigger_id=89b8aca5-e812-4e7d-9392-552100669b0f' \
+  --limit=1 \
+  --format='table(id,status,createTime,substitutions.COMMIT_SHA)'
 
----
+gcloud run services describe constrovet-site \
+  --region asia-southeast1 \
+  --format='value(metadata.labels.commit-sha)'
 
-## 🔄 GitHub → Auto-deploy (Cloud Build trigger)
+curl -I -L https://www.constrovet.com
+```
 
-1. Push this repo to GitHub
-2. In GCP Console → **Cloud Build → Triggers → Create Trigger**
-3. Connect your GitHub repo, branch: `main`
-4. Build config: **Dockerfile**
-5. Add deploy step — every push to `main` auto-deploys to Cloud Run
+The Cloud Run `commit-sha` label should match `COMMIT_SHA`, and the site should return HTTP `200`.
 
 ---
 
