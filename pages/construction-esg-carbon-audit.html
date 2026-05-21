@@ -23,12 +23,83 @@
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": "Construction ESG and Carbon Audit for Indian Projects",
-    "description": "How Constrovet handles ESG and carbon metrics from construction project evidence.",
-    "author": {"@type": "Organization", "name": "Constrovet"},
-    "publisher": {"@type": "Organization", "name": "Constrovet"},
-    "mainEntityOfPage": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html"
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.constrovet.com/#organization",
+        "name": "Constrovet",
+        "legalName": "AInnoverse Tech Centre LLP",
+        "url": "https://www.constrovet.com/",
+        "description": "Construction cost, schedule, ESG, and leakage intelligence for Indian B2B project stakeholders."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.constrovet.com/#website",
+        "name": "Constrovet",
+        "url": "https://www.constrovet.com/",
+        "publisher": {
+          "@id": "https://www.constrovet.com/#organization"
+        }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html#webpage",
+        "url": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html",
+        "name": "Construction ESG and Carbon Audit for Indian Projects",
+        "description": "Evidence-backed ESG and carbon metric extraction for construction projects.",
+        "isPartOf": {
+          "@id": "https://www.constrovet.com/#website"
+        },
+        "publisher": {
+          "@id": "https://www.constrovet.com/#organization"
+        }
+      },
+      {
+        "@type": "Article",
+        "@id": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html#article",
+        "headline": "Construction ESG and Carbon Audit for Indian Projects",
+        "description": "How Constrovet handles ESG and carbon metrics from construction project evidence.",
+        "author": {
+          "@id": "https://www.constrovet.com/#organization"
+        },
+        "publisher": {
+          "@id": "https://www.constrovet.com/#organization"
+        },
+        "mainEntityOfPage": {
+          "@id": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html#webpage"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does Constrovet claim automatic compliance certification?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The public website describes evidence extraction and review workflows, not a blanket certification or assurance."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can ESG data support executive actions?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, when cited ESG findings indicate a review, documentation, monitoring, or recovery action for the project team."
+            }
+          }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html#breadcrumb",
+        "itemListElement": [
+          {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.constrovet.com/"},
+          {"@type": "ListItem", "position": 2, "name": "ESG Carbon Audit", "item": "https://www.constrovet.com/pages/construction-esg-carbon-audit.html"}
+        ]
+      }
+    ]
   }
   </script>
 </head>
@@ -46,6 +117,18 @@
     <section class="cv-section cv-section--bg-white">
       <div class="cv-copy-grid">
         <article class="cv-article">
+          <h2>In one paragraph</h2>
+          <p>
+            <strong>In one paragraph:</strong> Constrovet supports construction ESG and carbon audit preparation by organizing project records for fuel, diesel, electricity, water, waste, material quantity, emissions, and carbon evidence. ESG metrics remain separate from financial leakage unless the documents also support a specific financial finding, and unverified compliance or certification claims should not be made.
+          </p>
+          <table class="cv-data-table">
+            <thead><tr><th>Record</th><th>Metric</th><th>Output</th></tr></thead>
+            <tbody>
+              <tr><td>Diesel or fuel log</td><td>ESG_METRIC</td><td>Consumption evidence and missing-record notes.</td></tr>
+              <tr><td>Electricity bill</td><td>ESG_METRIC</td><td>Energy usage by period where documented.</td></tr>
+              <tr><td>Waste register</td><td>ESG_METRIC</td><td>Waste or diversion evidence for review.</td></tr>
+            </tbody>
+          </table>
           <h2>What ESG metrics can be captured?</h2>
           <p>
             When documents contain the values, Constrovet can structure carbon, waste diversion,
@@ -72,7 +155,7 @@
         <aside class="cv-note-panel">
           <h2>Honesty check</h2>
           <p>If carbon, fuel, water, energy, or waste evidence is missing, the report should state that gap rather than invent a metric.</p>
-          <a href="/pages/contact.html">Discuss ESG review</a>
+          <a href="/pages/contact.html">Request Pilot Access</a>
         </aside>
       </div>
     </section>
@@ -98,6 +181,8 @@
         <a href="/pages/schedule-slippage-recovery.html">Schedule recovery</a>
         <a href="/pages/construction-due-diligence-financiers.html">Financier due diligence</a>
         <a href="/pages/knowledge.html">Knowledge hub</a>
+        <a href="/demo">Demo</a>
+        <a href="/blog/construction-carbon-audit-india">Carbon audit article</a>
         <a href="/pages/contact.html">Contact</a>
       </div>
     </section>

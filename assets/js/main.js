@@ -4,10 +4,16 @@
    1. Nav & footer injection
    2. Mobile hamburger toggle
    3. Active nav link highlight
+   4. Branded app URL handling
    ================================================================ */
 
 (function () {
   "use strict";
+
+  const APP_URL = "https://app.constrovet.com";
+  const APP_URL_FALLBACK = "https://prod-constrovet4mobile-759832881234.asia-south1.run.app";
+  const USE_APP_URL_FALLBACK = false;
+  const ACTIVE_APP_URL = USE_APP_URL_FALLBACK ? APP_URL_FALLBACK : APP_URL;
 
   /* ── 1. INJECT NAV & FOOTER ─────────────────────────────────── */
   async function loadPartial(selector, url) {
@@ -23,14 +29,15 @@
     }
   }
 
-  /* Resolve path depth — pages/ is one level deep, index.html is root */
-  const isRoot = !window.location.pathname.includes("/pages/");
+  /* Resolve path depth — pages/ and blog/ are one level deep. */
+  const isRoot = !window.location.pathname.includes("/pages/") && !window.location.pathname.includes("/blog/");
   const base   = isRoot ? "assets/" : "../assets/";
 
   Promise.all([
     loadPartial("#cv-nav-placeholder",    base + "nav.html"),
     loadPartial("#cv-footer-placeholder", base + "footer.html"),
   ]).then(() => {
+    configureAppLinks();
     initHamburger();
     highlightActiveLink();
     setFooterYear();
@@ -66,6 +73,15 @@
   function setFooterYear() {
     const year = document.getElementById("cv-year");
     if (year) year.textContent = new Date().getFullYear();
+  }
+
+  function configureAppLinks() {
+    document.querySelectorAll("[data-cv-app-link]").forEach(a => {
+      a.href = ACTIVE_APP_URL;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.setAttribute("aria-label", "Open Constrovet Executive Demo");
+    });
   }
 
 })();

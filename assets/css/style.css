@@ -814,6 +814,30 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   border-radius: 50%;
   background: var(--brand-600);
 }
+.cv-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 28px;
+  background: var(--white);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.cv-data-table th,
+.cv-data-table td {
+  border-bottom: 1px solid var(--slate-200);
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  color: var(--slate-700);
+  font-size: .94rem;
+}
+.cv-data-table th {
+  background: var(--brand-50);
+  color: var(--slate-900);
+  font-weight: 700;
+}
+.cv-data-table tr:last-child td { border-bottom: 0; }
 .cv-note-panel {
   background: var(--brand-50);
   border: 1px solid var(--brand-100);
