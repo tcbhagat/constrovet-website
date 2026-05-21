@@ -126,15 +126,53 @@
 <body>
   <div id="cv-nav-placeholder"></div>
   <main>
-    <div class="cv-hero-band">
-      <h1>Constrovet Synthetic Executive Demo</h1>
-      <p>Example cost leakage, schedule delay, ESG, citation, and 7/30/90 recovery outputs for executive review.</p>
-    </div>
+    <section class="demo-hero demo-hero--executive">
+      <div class="demo-hero__inner">
+        <span class="home-hero__badge">Synthetic demonstration data</span>
+        <h1>Constrovet Synthetic Executive Demo</h1>
+        <p>Example cost leakage, schedule delay, ESG, citation, and 7/30/90 recovery outputs for executive review.</p>
+        <div class="home-hero__cta cv-cta-center">
+          <a href="/pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
+          <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--outline">
+            Open Live Dashboard
+          </a>
+        </div>
+
+        <div class="cv-demo-dashboard" aria-label="Synthetic Constrovet executive dashboard preview">
+          <div class="cv-demo-dashboard__top">
+            <div>
+              <span>Read-only executive view</span>
+              <strong>Synthetic Mid-Rise Commercial Building Project</strong>
+            </div>
+            <p>No real client data. No audited savings claim.</p>
+          </div>
+          <div class="cv-demo-metrics">
+            <div><span>Baseline budget</span><strong>₹12.50 crore</strong></div>
+            <div><span>Leakage exposure</span><strong>₹38.75 lakh</strong></div>
+            <div><span>Schedule delay</span><strong>21 days</strong></div>
+            <div><span>ESG findings</span><strong>4</strong></div>
+          </div>
+          <div class="cv-demo-visuals">
+            <div class="cv-bar-chart cv-bar-chart--dark" aria-label="Synthetic leakage exposure bars">
+              <div class="cv-bar-row"><span>PO delay</span><div class="cv-bar cv-bar--orange"><i style="width:82%"></i></div></div>
+              <div class="cv-bar-row"><span>Material variance</span><div class="cv-bar cv-bar--orange"><i style="width:54%"></i></div></div>
+              <div class="cv-bar-row"><span>Idle resources</span><div class="cv-bar cv-bar--orange"><i style="width:47%"></i></div></div>
+              <div class="cv-bar-row"><span>Rework cost</span><div class="cv-bar cv-bar--orange"><i style="width:34%"></i></div></div>
+            </div>
+            <div class="cv-action-lanes cv-action-lanes--dark">
+              <span>7 day evidence check</span>
+              <span>30 day recovery review</span>
+              <span>90 day control reset</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section class="cv-section cv-section--bg-white">
       <div class="cv-copy-grid">
         <article class="cv-article">
-          <h2>Executive summary</h2>
+          <h2>Synthetic executive report format</h2>
           <p><strong>This is a synthetic demonstration project. No real client data is shown.</strong></p>
           <p>
             The Constrovet demo is a static, synthetic example that shows how an executive report can summarize cost leakage exposure, schedule delay, ESG findings, document count, evidence citations, and 7/30/90 recovery actions. It should be cited only as a product-format demonstration, not as a real client outcome, audited savings claim, accuracy benchmark, testimonial, or proof that a project recovered money.
@@ -249,7 +287,7 @@
           </p>
         </article>
 
-        <aside class="cv-note-panel">
+        <aside class="cv-note-panel cv-note-panel--accent">
           <h2>Demo label</h2>
           <p><strong>This is a synthetic demonstration project. No real client data is shown.</strong></p>
           <p>
@@ -257,14 +295,16 @@
             The numbers are intentionally labelled as synthetic so they are not confused with client outcomes.
           </p>
           <h3>Demo metrics</h3>
-          <p>Baseline Budget: ₹12.50 crore</p>
-          <p>Detected Leakage Exposure: ₹38.75 lakh</p>
-          <p>Schedule Delay: 21 days</p>
-          <p>ESG Findings: 4</p>
-          <p>Documents Reviewed: 8</p>
-          <a href="/pages/contact.html">Request Pilot Access</a>
-          <br>
-          <a href="https://app.constrovet.com" data-cv-app-link>Open Live Read-Only Dashboard</a>
+          <div class="cv-side-metrics">
+            <div><span>Baseline Budget</span><strong>₹12.50 crore</strong></div>
+            <div><span>Detected Leakage Exposure</span><strong>₹38.75 lakh</strong></div>
+            <div><span>Schedule Delay</span><strong>21 days</strong></div>
+            <div><span>Documents Reviewed</span><strong>8</strong></div>
+          </div>
+          <div class="home-hero__cta">
+            <a href="/pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
+            <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--primary">Open Live Dashboard</a>
+          </div>
           <p>No sign-up required to view published demo projects. Analysis tools require approved access.</p>
         </aside>
       </div>
@@ -305,7 +345,7 @@
         <p class="cv-section__sub">
           Start with the synthetic demo page, request a pilot discussion for authorized project documents, or open the live read-only dashboard.
         </p>
-        <div class="home-hero__cta" style="justify-content:center;margin-top:24px;">
+        <div class="home-hero__cta cv-cta-center">
           <a href="/pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
           <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--primary">
             Open Live Dashboard

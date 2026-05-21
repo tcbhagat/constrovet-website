@@ -139,7 +139,7 @@
 
   <main>
 
-    <section class="home-hero">
+    <section class="home-hero home-hero--dashboard">
       <img
         class="home-hero__bg"
         src="https://images.unsplash.com/photo-1541888086425-d81bb19240f5?auto=format&fit=crop&w=1800&q=72"
@@ -149,24 +149,55 @@
         loading="eager"
         decoding="async"
         fetchpriority="high">
-      <div class="home-hero__content">
-        <span class="home-hero__badge">AI Construction Project Management India</span>
-        <h1>Construction Cost Leakage Audit for Project Owners, Contractors, and Financiers</h1>
-        <p>
-          Constrovet converts project documents into evidence-backed cost, schedule,
-          ESG, and recovery insights for construction project cost control and executive review.
-        </p>
-        <div class="home-hero__cta">
-          <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--outline">
-            Open Live Dashboard
-          </a>
-          <a href="/pages/contact.html" class="cv-btn cv-btn--try">
-            Request Pilot Access
-          </a>
+      <div class="home-hero__content home-hero__layout">
+        <div class="home-hero__copy">
+          <span class="home-hero__badge">AI Construction Project Management India</span>
+          <h1>Construction Cost Leakage Audit for <em>Executive Review</em></h1>
+          <p>
+            Constrovet converts project documents into evidence-backed cost, schedule,
+            ESG, and recovery insights for project owners, contractors, and financiers.
+          </p>
+          <div class="home-hero__cta">
+            <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--outline">
+              Open Live Dashboard
+            </a>
+            <a href="/pages/contact.html" class="cv-btn cv-btn--try">
+              Request Pilot Access
+            </a>
+          </div>
+          <p class="home-hero__footnote">
+            No sign-up required to view published demo projects. Analysis tools require approved access.
+          </p>
         </div>
-        <p>
-          No sign-up required to view published demo projects. Analysis tools require approved access.
-        </p>
+        <aside class="cv-intel-panel" aria-label="Constrovet executive intelligence preview">
+          <div class="cv-intel-panel__bar">
+            <span></span><span></span><span></span>
+            <strong>Constrovet Executive Intelligence</strong>
+          </div>
+          <div class="cv-intel-panel__body">
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--orange">Leakage</span>
+                <h2>Cost leakage audit</h2>
+                <p>Separate baseline spend from penalties, wastage, rework, delay cost, idle resources, and overruns.</p>
+              </div>
+            </div>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--blue">Schedule</span>
+                <h2>Delay impact review</h2>
+                <p>Connect schedule slippage to cost only when the documents support the link.</p>
+              </div>
+            </div>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--green">ESG</span>
+                <h2>Carbon and resource findings</h2>
+                <p>Extract fuel, electricity, water, waste, energy, emissions, and carbon metrics from project records.</p>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -206,7 +237,7 @@
     </section>
 
     <section class="cv-section cv-section--bg-slate">
-      <div class="cv-copy-grid">
+      <div class="cv-dashboard-grid">
         <article class="cv-article">
           <h2>Construction Project Risk Is Often Hidden in Everyday Records</h2>
           <p>
@@ -214,27 +245,50 @@
             procurement logs, schedules, delay notes, site reports, material consumption,
             and ESG records. The problem is that these files rarely produce a clear executive view.
           </p>
-          <ul>
-            <li>Cost overruns can remain mixed with baseline budget and planned spend.</li>
-            <li>Delayed procurement can create schedule slippage and cost exposure.</li>
-            <li>Schedule delay cost impact can be hard to separate from general progress updates.</li>
-            <li>Fuel, diesel, electricity, water, waste, and carbon exposure may sit outside financial reporting.</li>
-            <li>Executives, financiers, and consultants may not see what needs action first.</li>
-          </ul>
+          <div class="cv-metric-grid cv-metric-grid--compact">
+            <div class="cv-metric-card">
+              <span>Cost</span>
+              <strong>Baseline vs leakage</strong>
+              <p>Separate planned spend from overrun and recovery candidates.</p>
+            </div>
+            <div class="cv-metric-card">
+              <span>Schedule</span>
+              <strong>Delay to cost</strong>
+              <p>Connect slippage to financial impact only with supporting evidence.</p>
+            </div>
+            <div class="cv-metric-card">
+              <span>ESG</span>
+              <strong>Resource exposure</strong>
+              <p>Keep fuel, water, electricity, waste, and carbon findings distinct.</p>
+            </div>
+          </div>
         </article>
-        <aside class="cv-note-panel">
-          <h2>Executive visibility</h2>
-          <p>
-            Constrovet is designed to show what the documents support, what they do not
-            support, and which recovery actions deserve review.
-          </p>
+        <aside class="cv-dashboard-card cv-dashboard-card--dark">
+          <div class="cv-dashboard-card__header">
+            <span>Executive review queue</span>
+            <strong>Evidence first</strong>
+          </div>
+          <div class="cv-review-list">
+            <div>
+              <span class="cv-review-list__dot cv-review-list__dot--orange"></span>
+              <p>Cost overruns can remain mixed with baseline budget and planned spend.</p>
+            </div>
+            <div>
+              <span class="cv-review-list__dot cv-review-list__dot--blue"></span>
+              <p>Delayed procurement can create schedule slippage and cost exposure.</p>
+            </div>
+            <div>
+              <span class="cv-review-list__dot cv-review-list__dot--green"></span>
+              <p>Fuel, diesel, electricity, water, waste, and carbon exposure may sit outside financial reporting.</p>
+            </div>
+          </div>
           <a href="/pages/construction-cost-leakage-audit.html">Review cost leakage audit</a>
         </aside>
       </div>
     </section>
 
     <section class="pillars">
-      <div style="max-width:var(--max-w);margin:0 auto;">
+      <div class="cv-contained">
         <div class="cv-section__header cv-section__header--center">
           <h2 class="cv-section__title">A Document-Grounded Project Recovery Workflow</h2>
           <p class="cv-section__sub">
@@ -292,7 +346,7 @@
           </a>
 
         </div>
-        <div class="cv-topic-grid" style="margin-top:20px;">
+        <div class="cv-topic-grid cv-topic-grid--spaced">
           <a class="cv-topic-card" href="/pages/construction-esg-carbon-audit.html">
             <h3>Construction ESG carbon audit findings</h3>
             <p>Extract fuel, diesel, electricity, water, waste, emissions, and carbon metrics when those values are present in project evidence.</p>
@@ -304,6 +358,51 @@
             <span>Open recovery page</span>
           </a>
         </div>
+      </div>
+    </section>
+
+    <section class="cv-section cv-section--bg-slate">
+      <div class="cv-section__header cv-section__header--center">
+        <h2 class="cv-section__title">Leakage, Schedule, and ESG in One Review View</h2>
+        <p class="cv-section__sub">Static preview cards show the dashboard style without adding external scripts or client-result claims.</p>
+      </div>
+      <div class="cv-insight-grid">
+        <article class="cv-insight-card">
+          <span class="cv-insight-card__eyebrow">Cost leakage</span>
+          <h3>Baseline stays separate from leakage</h3>
+          <p>Standard contract value, cumulative work done, planned spend, BOQ value, and advance recovery remain baseline budget. Penalties, wastage, rework, delay cost, idle resources, excess consumption, and calculated overruns become leakage candidates only when evidence supports them.</p>
+          <div class="cv-bar-chart" aria-label="Illustrative static cost classification bars">
+            <div class="cv-bar-row"><span>Baseline budget</span><div class="cv-bar"><i style="width:78%"></i></div></div>
+            <div class="cv-bar-row"><span>Leakage signal</span><div class="cv-bar cv-bar--orange"><i style="width:28%"></i></div></div>
+            <div class="cv-bar-row"><span>Missing evidence</span><div class="cv-bar cv-bar--muted"><i style="width:18%"></i></div></div>
+          </div>
+          <a href="/construction-cost-leakage-audit">Open cost leakage page</a>
+        </article>
+        <article class="cv-insight-card">
+          <span class="cv-insight-card__eyebrow">ESG audit</span>
+          <h3>Resource metrics stay out of financial claims</h3>
+          <p>Constrovet extracts fuel, diesel, electricity, water, waste, energy, emissions, and carbon values when those values are present in project records, then reports them as ESG metrics.</p>
+          <div class="cv-donut-list" aria-label="Illustrative static ESG metric split">
+            <div class="cv-donut cv-donut--esg"><span>ESG</span></div>
+            <ul>
+              <li>Diesel and fuel logs</li>
+              <li>Electricity and water records</li>
+              <li>Waste and carbon evidence</li>
+            </ul>
+          </div>
+          <a href="/construction-esg-carbon-audit">Open ESG audit page</a>
+        </article>
+        <article class="cv-insight-card">
+          <span class="cv-insight-card__eyebrow">Financier risk</span>
+          <h3>Prepared for lender and board review</h3>
+          <p>Constrovet does not replace professional audit or legal review. It prepares cited findings, calculations, confidence, and missing-evidence notes so review teams can focus on supported decisions.</p>
+          <div class="cv-action-lanes">
+            <span>7 day evidence check</span>
+            <span>30 day recovery review</span>
+            <span>90 day control reset</span>
+          </div>
+          <a href="/construction-financier-risk-audit">Open financier risk page</a>
+        </article>
       </div>
     </section>
 
@@ -365,12 +464,13 @@
           </div>
           <p>No sign-up required to view published demo projects. Analysis tools require approved access.</p>
         </article>
-        <aside class="cv-note-panel">
+        <aside class="cv-note-panel cv-note-panel--accent">
           <h2>Synthetic demo available</h2>
           <p>
             Engagement-specific reviews should use authorized project documents. The public demo
             is for workflow orientation and conservative product evaluation.
           </p>
+          <a href="/demo">View synthetic demo format</a>
         </aside>
       </div>
     </section>
@@ -482,7 +582,7 @@
       <div class="cv-section__header cv-section__header--center">
         <h2 class="cv-section__title">Request a Pilot or Open the Live Dashboard</h2>
         <p class="cv-section__sub">Open the read-only dashboard to inspect published demo projects, or request a pilot discussion for authorized project documents.</p>
-        <div class="home-hero__cta" style="justify-content:center;margin-top:24px;">
+        <div class="home-hero__cta cv-cta-center">
           <a href="/pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
           <a href="https://app.constrovet.com" data-cv-app-link class="cv-btn cv-btn--primary">
             Open Live Dashboard
