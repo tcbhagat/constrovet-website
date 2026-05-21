@@ -8,7 +8,7 @@ Optimise the static Constrovet website for AI answer engines while keeping claim
 
 ## Changes Implemented
 
-- Added visible `In one paragraph:` answer blocks across public HTML pages.
+- Added visible executive summary answer blocks across public HTML pages.
 - Added compact comparison or summary tables where pages needed a structured answer format.
 - Added FAQ sections to pages that did not previously have visible FAQ content.
 - Added relevant blog links from service pages so answer engines can connect service intent with supporting explainers.
@@ -19,7 +19,7 @@ Optimise the static Constrovet website for AI answer engines while keeping claim
 Each important page should include:
 
 - One clear H1.
-- A short answer block using the visible phrase `In one paragraph:`.
+- A short answer block with a page-specific executive heading near the top.
 - A table that compares categories, inputs, outputs, or citation rules.
 - FAQ content written in direct question-and-answer form.
 - Internal links to demo, contact, related service pages, and relevant blog articles.
@@ -59,7 +59,7 @@ Each important page should include:
 
 Before publishing a new page or article:
 
-- [ ] Add an `In one paragraph:` direct answer near the top.
+- [ ] Add a page-specific executive summary answer near the top.
 - [ ] Add one useful table.
 - [ ] Add visible FAQs.
 - [ ] Add relevant internal links.

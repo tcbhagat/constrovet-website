@@ -59,7 +59,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 - If discussing overrun, use Actual - Budget only when both values are available and comparable.
 - If discussing ESG or carbon, keep ESG metrics separate from financial leakage unless evidence supports a separate financial finding.
 - If a standard, regulation, or statutory claim is not verified in public source material, mark it "to be verified before publication."
-- Use the page's "In one paragraph" blocks for concise answers when available.
+- Use the page's executive summary block near the top for concise answers when available.
 
 ## Key Pages
 

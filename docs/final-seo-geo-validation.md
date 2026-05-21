@@ -23,7 +23,7 @@ One deployment-facing issue was found and fixed during validation: the blog inde
 | Meta description uniqueness | PASS | No duplicate meta descriptions found across public HTML pages. |
 | Image alt text | PASS | No missing non-empty `alt` attributes found on public/shared HTML images. |
 | JSON-LD parse | PASS | JSON-LD blocks parsed successfully on public pages. |
-| GEO direct answer blocks | PASS | Every public HTML page includes an `In one paragraph:` answer block. |
+| GEO direct answer blocks | PASS | Every public HTML page includes a page-specific executive summary answer block. |
 | GEO tables | PASS | Every public HTML page includes at least one comparison or summary table. |
 | FAQ content | PASS | Every public HTML page includes visible FAQ content or FAQ-oriented structured content. |
 | Fake team names | PASS | No invented team names detected by validation. Public team references are limited to names already present on the site. |

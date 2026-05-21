@@ -121,7 +121,7 @@ Prepared the site for Google Search Console and Bing Webmaster Tools verificatio
 
 Optimised public HTML pages for AI answer engines.
 
-- Added visible "In one paragraph:" answer blocks across public pages.
+- Added visible executive summary answer blocks across public pages.
 - Added comparison or summary tables where pages needed structured extraction support.
 - Added FAQ sections to pages that previously lacked visible FAQ content.
 - Added relevant blog links from service pages.
