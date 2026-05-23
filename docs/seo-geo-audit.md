@@ -8,40 +8,35 @@ GEO in this report means generative engine optimization: making pages easier for
 
 Constrovet already has a solid static-site SEO foundation. The repository includes `robots.txt`, `sitemap.xml`, canonical tags, page-specific titles, meta descriptions, basic OpenGraph metadata, and partial JSON-LD schema. The sitemap covers every local HTML page: the homepage plus 14 files under `pages/`.
 
-The main blockers are not missing baseline SEO files. They are answer-engine readiness, schema completeness, product URL branding, and evidence discipline. The site lacks `llms.txt`, several pages have no JSON-LD schema, visible FAQ sections are not represented as `FAQPage` schema, and the homepage still links to the raw Cloud Run product URL instead of a branded `app.constrovet.com` URL.
+The main remaining blockers are not missing baseline SEO files. They are schema completeness, branded product URL mapping, and evidence discipline. The site now includes `llms.txt`, the public contact form posts to FormSubmit with CSP allowing that endpoint, several pages still have no JSON-LD schema, visible FAQ sections are not represented as `FAQPage` schema, and public app CTAs intentionally keep the raw Cloud Run fallback until `app.constrovet.com` resolves.
 
 No duplicate titles were found. No missing image `alt` attributes or missing iframe `title` attributes were found in the audited local HTML. No fake client names, fake testimonials, fake audited-capital claims, or fake accuracy numbers were found in the audited local site. The current site does include evidence-safe language that client-specific logos, names, and testimonials are published only with approval.
 
-Live checks showed `https://www.constrovet.com`, `/robots.txt`, and `/sitemap.xml` returning current expected content. `https://app.constrovet.com` did not resolve during the audit, while the raw Cloud Run product app returned HTTP 200 with `X-Robots-Tag: noindex, nofollow`.
+Live checks on 2026-05-23 showed `https://www.constrovet.com`, `/demo`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` returning HTTP 200. The live contact page posts to `https://formsubmit.co/admin@constrovet.com`, and CSP includes `form-action 'self' https://formsubmit.co`. `https://app.constrovet.com` still did not resolve, while the raw Cloud Run product app returned HTTP 200 with `X-Robots-Tag: noindex, nofollow`.
 
 ## Critical issues
 
-1. Missing `llms.txt`
-   - Evidence: `test -f llms.txt` returned missing in `/home/taran/constrovet-website`.
-   - Impact: answer engines do not get a concise, crawler-friendly summary of Constrovet, its public pages, permitted claims, founder-led attribution, and product/demo boundaries.
-   - Recommendation: add `/llms.txt` with evidence-safe positioning, key URLs, app URL policy, founder/legal attribution after legal-name verification, and a clear note that demo/synthetic data must be labelled.
-
-2. Homepage links to raw Cloud Run product URL
-   - Evidence: `index.html:89` links to `https://prod-constrovet4mobile-759832881234.asia-south1.run.app`.
+1. Public app CTAs still use the raw Cloud Run fallback
+   - Evidence: `assets/js/main.js` keeps `USE_APP_URL_FALLBACK = true`, and public CTA hrefs still include `https://prod-constrovet4mobile-759832881234.asia-south1.run.app`.
    - Impact: raw infrastructure URLs weaken brand trust, are poor for GEO citations, and conflict with the durable product mapping strategy.
-   - Recommendation: map the product to `https://app.constrovet.com` first, then replace public CTAs with the branded URL.
+   - Recommendation: keep the fallback until `https://app.constrovet.com` is mapped and HTTPS-verified, then set `USE_APP_URL_FALLBACK = false` and replace visible CTA hrefs with the branded URL.
 
-3. `app.constrovet.com` currently does not resolve
+2. `app.constrovet.com` currently does not resolve
    - Evidence: `curl -I -L https://app.constrovet.com` returned DNS resolution failure during audit.
    - Impact: switching links before DNS and Cloud Run domain mapping are ready would create a broken product CTA.
    - Recommendation: configure DNS and Cloud Run domain mapping, verify HTTPS, then update public site links.
 
-4. Structured data is incomplete
+3. Structured data is incomplete
    - Evidence: `client.html`, `team.html`, and `privacy.html` have no JSON-LD blocks. Several pages only have `BreadcrumbList` or page-specific schema.
    - Impact: search engines and answer engines get uneven entity context across public pages.
    - Recommendation: add schema only where claims are verified: `Organization`, `WebSite`, `SoftwareApplication`, `WebPage`, `Article`, `FAQPage`, `ContactPage`, and conservative `Person` schema for verified founder/advisor pages.
 
-5. FAQ content is not marked up as `FAQPage`
+4. FAQ content is not marked up as `FAQPage`
    - Evidence: visible `.cv-faq` sections exist on cost leakage, overrun, ESG, schedule recovery, and financier due diligence pages, but no `FAQPage` or `Question` JSON-LD appears.
    - Impact: answer engines can read visible questions, but structured extraction is weaker.
    - Recommendation: add matching `FAQPage` schema for existing visible FAQs without inventing new answers.
 
-6. Thin content risk on strategic pages
+5. Thin content risk on strategic pages
    - Evidence from local text extraction:
      - `pages/team.html`: about 82 words.
      - `pages/industries.html`: about 92 words.
@@ -51,37 +46,23 @@ Live checks showed `https://www.constrovet.com`, `/robots.txt`, and `/sitemap.xm
    - Impact: pages may be indexed but may not answer buyer or answer-engine questions deeply enough.
    - Recommendation: add short answer blocks, verified founder/legal context, use-case summaries, and FAQ sections without unsupported claims.
 
-7. Heading structure needs cleanup
+6. Heading structure needs cleanup
    - Evidence: `pages/industries.html` has one `h1`, zero `h2`, and four `h3` headings. `pages/how-it-works.html` uses `h3` process headings before the next `h2`.
    - Impact: semantic outline is less clear for crawlers, accessibility, and answer extraction.
    - Recommendation: insert appropriate `h2` section headings and keep card titles in a consistent hierarchy.
 
-8. JS-injected navigation and footer create a crawler fallback risk
+7. JS-injected navigation and footer create a crawler fallback risk
    - Evidence: `assets/js/main.js` fetches `assets/nav.html` and `assets/footer.html` into placeholders.
    - Impact: modern search crawlers can render JavaScript, but some LLM crawlers and simple link extractors may miss navigation and footer links in raw HTML.
    - Recommendation: keep the sitemap, but consider server-side/static inclusion or duplicate key crawl links in no-JS HTML for critical pages.
 
-9. Contact form may be blocked by Content Security Policy
-   - Evidence: `pages/contact.html:50` posts to `https://formsubmit.co/...`; `nginx.conf` sets `form-action 'self'`.
-   - Impact: this is primarily a conversion/deployment risk, but failed contact submissions can reduce lead capture from SEO traffic.
-   - Recommendation: allow the verified form endpoint in `form-action`, or move the form endpoint to same-origin infrastructure.
-
-10. Legal entity spelling must be verified
+8. Legal entity spelling must be verified
    - Evidence: site copy uses `AInnoverse Tech Center LLP`; the implementation prompt says `AInnoverse Tech Centre LLP`.
    - Impact: inconsistent legal naming can weaken trust, entity matching, schema confidence, and compliance clarity.
    - Recommendation: verify the legal spelling from official incorporation evidence, then make the website, schema, footer, and `llms.txt` consistent.
 
 ## Quick wins
 
-- Add `/llms.txt` with concise, evidence-safe answers:
-  - What Constrovet is.
-  - Who operates it.
-  - Founder-led attribution.
-  - What the product analyzes.
-  - What claims are not made.
-  - Public page index.
-  - Product app URL policy: `app.constrovet.com`.
-  - Demo data policy: synthetic demo data must be labelled.
 - Configure `app.constrovet.com`, verify HTTPS, then replace the raw Cloud Run homepage CTA.
 - Add `FAQPage` schema to pages that already have visible FAQs.
 - Add JSON-LD to `client.html`, `team.html`, and `privacy.html`.
@@ -89,7 +70,7 @@ Live checks showed `https://www.constrovet.com`, `/robots.txt`, and `/sitemap.xm
 - Fix `industries.html` and `how-it-works.html` heading hierarchy.
 - Expand thin pages with short, structured, answer-engine-friendly copy.
 - Resolve the legal spelling before changing schema or `llms.txt`.
-- Adjust CSP `form-action` after confirming the desired contact form endpoint.
+- Keep the current FormSubmit contact form and `form-action 'self' https://formsubmit.co` CSP until a same-origin form backend is intentionally deployed for the marketing site.
 
 ## Page-by-page findings
 
@@ -252,10 +233,9 @@ Live checks showed `https://www.constrovet.com`, `/robots.txt`, and `/sitemap.xm
 - SEO status: title, meta description, canonical, OG tags, Twitter tags, and `ContactPage` schema are present.
 - Issues:
   - Thin content risk: about 99 extracted words.
-  - CSP `form-action 'self'` conflicts with the FormSubmit endpoint.
   - No `og:image` or Twitter image in the current metadata count.
 - Recommended changes:
-  - Fix CSP or form infrastructure before relying on SEO lead capture.
+  - Keep FormSubmit configured to `admin@constrovet.com`; do not collect project documents through the public form.
   - Add short answer copy about what to include in an audit discussion.
   - Add OG/Twitter image metadata if this page is shared externally.
 
@@ -275,9 +255,6 @@ Live checks showed `https://www.constrovet.com`, `/robots.txt`, and `/sitemap.xm
 
 These are recommended future implementation changes. They were not made in this audit.
 
-- `llms.txt`
-  - Create a root-level LLM crawler summary with verified brand, legal, founder, product, audience, public pages, app URL, demo-data, and claim-safety policy.
-
 - `index.html`
   - Replace the raw Cloud Run app link only after `app.constrovet.com` resolves and serves HTTPS.
   - Add a short-answer homepage section and FAQ.
@@ -290,7 +267,7 @@ These are recommended future implementation changes. They were not made in this 
   - Fix heading hierarchy on `industries.html` and `how-it-works.html`.
 
 - `nginx.conf`
-  - Update `form-action` only after the desired production contact-form endpoint is confirmed.
+  - Keep FormSubmit in `form-action` while the static marketing form remains the active lead-capture path.
 
 - `sitemap.xml`
   - Keep the sitemap synchronized with every public HTML page.
@@ -309,7 +286,7 @@ These are recommended future implementation changes. They were not made in this 
 
 - Unverified claims: adding fake clients, fake testimonials, audited-capital numbers, accuracy percentages, or unsupported performance metrics would create brand, legal, and GEO trust risk.
 - Broken app CTA: replacing the homepage app link before `app.constrovet.com` is live would break the product path.
-- Contact conversion failure: CSP currently appears to block the external FormSubmit action.
+- Contact conversion dependency: FormSubmit is an external dependency; keep the `mailto:admin@constrovet.com` fallback visible.
 - Entity mismatch: `Center` versus `Centre` must be resolved before schema and `llms.txt` use the legal name.
 - Crawl completeness: JS-injected nav/footer may be missed by basic crawlers even though the sitemap mitigates page discovery.
 - External media dependency: Unsplash and Google Drive assets can affect previews, render speed, and reliability.
@@ -319,11 +296,9 @@ These are recommended future implementation changes. They were not made in this 
 
 1. Verify legal entity spelling and app-domain ownership.
 2. Configure `app.constrovet.com`, verify DNS, HTTPS, Cloud Run routing, and desired robot policy.
-3. Add `/llms.txt` with evidence-safe, founder-led, synthetic-demo-aware guidance.
-4. Replace raw Cloud Run links with the branded app URL after step 2 passes.
-5. Add missing JSON-LD and `FAQPage` schema using only visible page content.
-6. Expand thin pages with structured short answers and buyer-specific questions.
-7. Fix heading hierarchy on `industries.html` and `how-it-works.html`.
-8. Add missing OG/Twitter images.
-9. Fix the contact form CSP or endpoint.
-10. Re-run sitemap, metadata, structured data, live HTTP, and app-domain checks before deployment.
+3. Replace raw Cloud Run links with the branded app URL after step 2 passes.
+4. Add missing JSON-LD and `FAQPage` schema using only visible page content.
+5. Expand thin pages with structured short answers and buyer-specific questions.
+6. Fix heading hierarchy on `industries.html` and `how-it-works.html`.
+7. Add missing OG/Twitter images.
+8. Re-run sitemap, metadata, structured data, live HTTP, and app-domain checks before deployment.
