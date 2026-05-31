@@ -12,7 +12,7 @@
 
   const APP_URL = "https://app.constrovet.com";
   const APP_URL_FALLBACK = "https://prod-constrovet4mobile-759832881234.asia-south1.run.app";
-  const USE_APP_URL_FALLBACK = false;
+  const USE_APP_URL_FALLBACK = true;
   const ACTIVE_APP_URL = USE_APP_URL_FALLBACK ? APP_URL_FALLBACK : APP_URL;
 
   /* ── 1. INJECT NAV & FOOTER ─────────────────────────────────── */
