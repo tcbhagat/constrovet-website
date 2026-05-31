@@ -12,7 +12,7 @@ Public website: https://www.constrovet.com/
 
 Product app target: https://app.constrovet.com/
 
-Current app-domain note: app.constrovet.com is the intended branded product domain. Until domain verification and Cloud Run mapping are completed, the public website temporarily routes the executive demo through the existing infrastructure URL.
+Current app-domain note: app.constrovet.com is the verified branded product domain for the public app and synthetic demo surface. Private analysis workflows still require approved access.
 
 ## Company
 
@@ -104,7 +104,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 ## Pages Not To Cite For Claims
 
-- Do not cite `https://app.constrovet.com` for public marketing claims until it is mapped, verified, and intentionally published for that purpose.
+- `https://app.constrovet.com` may be cited only as the public app/demo entry point. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
 - Do not cite setup or internal documentation pages such as `/docs/search-console-setup.md`, `/docs/app-subdomain-setup.md`, `/docs/content-calendar.md`, `/docs/seo-geo-audit.md`, or `/docs/seo-geo-change-log.md` as public product claims.
 - Do not cite `/demo` as real client evidence. It is synthetic only.
 - Do not cite `/pages/client.html` as a real client list. It is a use-case page.
