@@ -11,9 +11,6 @@
   "use strict";
 
   const APP_URL = "https://app.constrovet.com";
-  const APP_URL_FALLBACK = "https://prod-constrovet4mobile-759832881234.asia-south1.run.app";
-  const USE_APP_URL_FALLBACK = true;
-  const ACTIVE_APP_URL = USE_APP_URL_FALLBACK ? APP_URL_FALLBACK : APP_URL;
 
   /* ── 1. INJECT NAV & FOOTER ─────────────────────────────────── */
   async function loadPartial(selector, url) {
@@ -77,7 +74,7 @@
 
   function configureAppLinks() {
     document.querySelectorAll("[data-cv-app-link]").forEach(a => {
-      a.href = ACTIVE_APP_URL;
+      a.href = APP_URL;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       a.setAttribute("aria-label", "Open Constrovet live dashboard");
