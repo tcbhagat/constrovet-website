@@ -1,8 +1,7 @@
-
 <!DOCTYPE html>
-<!-- saved from url=(0056)file:///home/taran/constrovet-website/pages/contact.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contact Constrovet | Pilot Discussion</title>
   <meta name="description" content="Contact Constrovet with the project review objective. Do not send confidential documents through the public form.">
@@ -17,10 +16,10 @@
   <meta name="twitter:title" content="Contact Constrovet | Pilot Discussion">
   <meta name="twitter:description" content="Request a pilot discussion without sending confidential files through the form.">
   <meta name="twitter:image" content="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&amp;fit=crop&amp;w=1200&amp;q=72">
-  <link rel="preconnect" href="https://fonts.googleapis.com/">
-  <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
-  <link href="./contact_files/css2" rel="stylesheet">
-  <link rel="stylesheet" href="./contact_files/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -38,9 +37,7 @@
         "@id": "https://www.constrovet.com/#website",
         "name": "Constrovet",
         "url": "https://www.constrovet.com/",
-        "publisher": {
-          "@id": "https://www.constrovet.com/#organization"
-        }
+        "publisher": {"@id": "https://www.constrovet.com/#organization"}
       },
       {
         "@type": "ContactPage",
@@ -48,12 +45,8 @@
         "name": "Contact Constrovet",
         "url": "https://www.constrovet.com/pages/contact.html",
         "description": "Contact Constrovet with the project review objective. Do not send confidential documents through the public form.",
-        "isPartOf": {
-          "@id": "https://www.constrovet.com/#website"
-        },
-        "publisher": {
-          "@id": "https://www.constrovet.com/#organization"
-        }
+        "isPartOf": {"@id": "https://www.constrovet.com/#website"},
+        "publisher": {"@id": "https://www.constrovet.com/#organization"}
       },
       {
         "@type": "BreadcrumbList",
@@ -68,80 +61,84 @@
   </script>
 </head>
 <body>
-
   <div id="cv-nav-placeholder"></div>
 
   <main>
-
-    
-
-    
+    <div class="cv-hero-band">
+      <h1>Contact Constrovet</h1>
+      <p>Request a pilot discussion without sending confidential project files through the public form.</p>
+    </div>
 
     <section class="cv-section cv-section--bg-slate">
       <div class="cv-copy-grid">
-        <div>
-          <div class="cv-card">
-            <form action="https://formsubmit.co/admin@constrovet.com" method="POST" class="cv-form">
+        <article class="cv-card">
+          <h2>Start a Project Intelligence Discussion</h2>
+          <p>
+            Share the review objective, project stage, and the type of intelligence needed: cost leakage, BOQ variance, schedule delay, ESG evidence, procurement risk, or financier review.
+          </p>
+          <p>
+            Do not attach or paste confidential BOQs, invoices, contracts, or project files here. Real project documents belong inside the authenticated app workflow.
+          </p>
+          <p>
+            If the form does not submit, email <a href="mailto:admin@constrovet.com">admin@constrovet.com</a>.
+          </p>
+        </article>
 
-              <input type="hidden" name="_next" value="https://www.constrovet.com/pages/contact.html">
-              <input type="hidden" name="_subject" value="New Contact Inquiry from Constrovet Website">
-              <input type="hidden" name="_captcha" value="false">
-              <input type="hidden" name="_template" value="table">
+        <div class="cv-card">
+          <form action="https://formsubmit.co/admin@constrovet.com" method="POST" class="cv-form">
+            <input type="hidden" name="_next" value="https://www.constrovet.com/pages/contact.html">
+            <input type="hidden" name="_subject" value="New Contact Inquiry from Constrovet Website">
+            <input type="hidden" name="_captcha" value="false">
+            <input type="hidden" name="_template" value="table">
 
-              <div class="cv-form__row">
-                <div>
-                  <label for="first-name">First name *</label>
-                  <input type="text" id="first-name" name="First name" required="" autocomplete="given-name">
-                </div>
-                <div>
-                  <label for="last-name">Last name *</label>
-                  <input type="text" id="last-name" name="Last name" required="" autocomplete="family-name">
-                </div>
-              </div>
-
+            <div class="cv-form__row">
               <div>
-                <label for="email">Work email *</label>
-                <input type="email" id="email" name="email" required="" autocomplete="email">
+                <label for="first-name">First name *</label>
+                <input type="text" id="first-name" name="First name" required autocomplete="given-name">
               </div>
-
               <div>
-                <label for="company">Company / organization</label>
-                <input type="text" id="company" name="Company" autocomplete="organization">
+                <label for="last-name">Last name *</label>
+                <input type="text" id="last-name" name="Last name" required autocomplete="family-name">
               </div>
+            </div>
 
-              <div>
-                <label for="message">Project review need *</label>
-                <textarea id="message" name="Message" rows="5" required="" placeholder="Example: cost overrun review, ESG/carbon metrics, delay impact, financier due diligence, or document-backed recovery actions"></textarea>
-              </div>
+            <div>
+              <label for="email">Work email *</label>
+              <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
 
-              <button type="submit" class="cv-btn cv-btn--primary" style="width:100%;justify-content:center;">
-                Send Message
-              </button>
-              
-            </form>
-          </div>
+            <div>
+              <label for="company">Company / organization</label>
+              <input type="text" id="company" name="Company" autocomplete="organization">
+            </div>
+
+            <div>
+              <label for="message">Project review need *</label>
+              <textarea id="message" name="Message" rows="5" required placeholder="Example: cost overrun review, ESG/carbon metrics, delay impact, financier due diligence, or document-backed recovery actions"></textarea>
+            </div>
+
+            <button type="submit" class="cv-btn cv-btn--primary" style="width:100%;justify-content:center;">
+              Send Message
+            </button>
+          </form>
         </div>
-        
       </div>
     </section>
-
-    
 
     <section class="cv-section cv-section--bg-white cv-link-strip" aria-label="Constrovet topics">
       <div class="cv-link-strip__inner">
         <span class="cv-link-strip__label">Explore</span>
-        <a href="file:///pages/construction-cost-leakage-audit.html">Cost leakage audit</a>
-        <a href="file:///pages/construction-cost-overrun-analysis.html">Cost overrun analysis</a>
-        <a href="file:///pages/construction-esg-carbon-audit.html">ESG carbon audit</a>
-        <a href="file:///pages/schedule-slippage-recovery.html">Schedule recovery</a>
-        <a href="file:///pages/construction-due-diligence-financiers.html">Financier due diligence</a>
-        <a href="file:///pages/knowledge.html">Knowledge</a>
+        <a href="construction-cost-leakage-audit.html">Cost leakage audit</a>
+        <a href="construction-cost-overrun-analysis.html">Cost overrun analysis</a>
+        <a href="construction-esg-carbon-audit.html">ESG carbon audit</a>
+        <a href="schedule-slippage-recovery.html">Schedule recovery</a>
+        <a href="construction-due-diligence-financiers.html">Financier due diligence</a>
+        <a href="knowledge.html">Knowledge</a>
       </div>
     </section>
-
   </main>
 
   <div id="cv-footer-placeholder"></div>
-  <script src="./contact_files/main.js"></script>
-
-</body></html>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

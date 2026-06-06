@@ -1,6 +1,6 @@
 # Constrovet App Subdomain Setup
 
-Date: 2026-05-21
+Date: 2026-06-06
 
 ## Goal
 
@@ -8,11 +8,11 @@ Serve the Constrovet product/demo app from:
 
 `https://app.constrovet.com`
 
-Current temporary Cloud Run service URL:
+Previous temporary Cloud Run service URL:
 
 `https://prod-constrovet4mobile-759832881234.asia-south1.run.app`
 
-The public marketing site should use the Cloud Run URL in visible CTAs while DNS and Cloud Run domain mapping are still incomplete. After `app.constrovet.com` resolves and HTTPS is active, switch visible CTAs back to the branded app URL.
+The public marketing site should use the branded app URL in visible CTAs. The raw Cloud Run URL is no longer the public app path and may return `421` because the app rejects unexpected hosts.
 
 ## Marketing Site Config
 
@@ -20,17 +20,17 @@ The static website centralizes app CTA behavior in:
 
 `assets/js/main.js`
 
-Current constants:
+Current constant:
 
 ```js
 const APP_URL = "https://app.constrovet.com";
-const APP_URL_FALLBACK = "https://prod-constrovet4mobile-759832881234.asia-south1.run.app";
-const USE_APP_URL_FALLBACK = true;
 ```
 
-Use `APP_URL_FALLBACK` for the active destination until the branded subdomain is ready. After `app.constrovet.com` is live, set `USE_APP_URL_FALLBACK` to `false` and restore visible dashboard CTA hrefs to `APP_URL`.
+Use `APP_URL` for the active destination. Do not restore the raw Cloud Run URL in public CTAs unless the branded app domain is unavailable and a rollback is explicitly approved.
 
-## Cloud Run Mapping Steps
+## Cloud Run Mapping Status
+
+`https://app.constrovet.com` is the expected public app URL. Use these steps only if the mapping is broken or must be recreated.
 
 1. Open Google Cloud Console for the project that hosts the Constrovet product/demo app.
 2. Go to Cloud Run and select the service currently served by the temporary Cloud Run URL.
@@ -72,10 +72,9 @@ After the custom domain is active:
 5. Confirm public marketing CTAs labelled "Open Live Dashboard" route to the branded domain.
 6. Keep marketing-site canonicals on `https://www.constrovet.com/...`; do not set marketing page canonicals to the app subdomain.
 
-## Post-Mapping Cleanup
+## Operational Checks
 
 - Keep `APP_URL` as `https://app.constrovet.com`.
-- Set `USE_APP_URL_FALLBACK` as `false`.
-- Restore public dashboard CTA hrefs from the Cloud Run fallback URL to `https://app.constrovet.com`.
-- Retain the fallback constant only as a short-term rollback aid until the branded app domain is stable.
-- Re-run a repo search for the raw Cloud Run URL and confirm it appears only in setup documentation or the fallback constant.
+- Keep public dashboard CTA hrefs on `https://app.constrovet.com`.
+- Run health checks against `https://app.constrovet.com/api/health`.
+- Treat `421` from the raw Cloud Run hostname as expected host-hardening behavior unless an explicit monitoring exception is approved.

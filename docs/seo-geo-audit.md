@@ -8,35 +8,25 @@ GEO in this report means generative engine optimization: making pages easier for
 
 Constrovet already has a solid static-site SEO foundation. The repository includes `robots.txt`, `sitemap.xml`, canonical tags, page-specific titles, meta descriptions, basic OpenGraph metadata, and partial JSON-LD schema. The sitemap covers every local HTML page: the homepage plus 14 files under `pages/`.
 
-The main remaining blockers are not missing baseline SEO files. They are schema completeness, branded product URL mapping, and evidence discipline. The site now includes `llms.txt`, the public contact form posts to FormSubmit with CSP allowing that endpoint, several pages still have no JSON-LD schema, visible FAQ sections are not represented as `FAQPage` schema, and public app CTAs intentionally keep the raw Cloud Run fallback until `app.constrovet.com` resolves.
+The main remaining blockers are not missing baseline SEO files. They are schema completeness, evidence discipline, and ongoing content depth. The site now includes `llms.txt`, the public contact form posts to FormSubmit with CSP allowing that endpoint, `app.constrovet.com` is the branded app URL, several pages still need stronger structured data, and visible FAQ sections are not consistently represented as `FAQPage` schema.
 
 No duplicate titles were found. No missing image `alt` attributes or missing iframe `title` attributes were found in the audited local HTML. No fake client names, fake testimonials, fake audited-capital claims, or fake accuracy numbers were found in the audited local site. The current site does include evidence-safe language that client-specific logos, names, and testimonials are published only with approval.
 
-Live checks on 2026-05-23 showed `https://www.constrovet.com`, `/demo`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` returning HTTP 200. The live contact page posts to `https://formsubmit.co/admin@constrovet.com`, and CSP includes `form-action 'self' https://formsubmit.co`. `https://app.constrovet.com` still did not resolve, while the raw Cloud Run product app returned HTTP 200 with `X-Robots-Tag: noindex, nofollow`.
+Live checks on 2026-06-06 showed `https://www.constrovet.com`, `/demo`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt` returning HTTP 200. The live contact page posts to `https://formsubmit.co/admin@constrovet.com`, and CSP includes `form-action 'self' https://formsubmit.co`. `https://app.constrovet.com` resolves and serves the app with security headers; the raw Cloud Run app hostname may return `421` due host allowlisting.
 
 ## Critical issues
 
-1. Public app CTAs still use the raw Cloud Run fallback
-   - Evidence: `assets/js/main.js` keeps `USE_APP_URL_FALLBACK = true`, and public CTA hrefs still include `https://prod-constrovet4mobile-759832881234.asia-south1.run.app`.
-   - Impact: raw infrastructure URLs weaken brand trust, are poor for GEO citations, and conflict with the durable product mapping strategy.
-   - Recommendation: keep the fallback until `https://app.constrovet.com` is mapped and HTTPS-verified, then set `USE_APP_URL_FALLBACK = false` and replace visible CTA hrefs with the branded URL.
-
-2. `app.constrovet.com` currently does not resolve
-   - Evidence: `curl -I -L https://app.constrovet.com` returned DNS resolution failure during audit.
-   - Impact: switching links before DNS and Cloud Run domain mapping are ready would create a broken product CTA.
-   - Recommendation: configure DNS and Cloud Run domain mapping, verify HTTPS, then update public site links.
-
-3. Structured data is incomplete
+1. Structured data is incomplete
    - Evidence: `client.html`, `team.html`, and `privacy.html` have no JSON-LD blocks. Several pages only have `BreadcrumbList` or page-specific schema.
    - Impact: search engines and answer engines get uneven entity context across public pages.
    - Recommendation: add schema only where claims are verified: `Organization`, `WebSite`, `SoftwareApplication`, `WebPage`, `Article`, `FAQPage`, `ContactPage`, and conservative `Person` schema for verified founder/advisor pages.
 
-4. FAQ content is not marked up as `FAQPage`
+2. FAQ content is not marked up as `FAQPage`
    - Evidence: visible `.cv-faq` sections exist on cost leakage, overrun, ESG, schedule recovery, and financier due diligence pages, but no `FAQPage` or `Question` JSON-LD appears.
    - Impact: answer engines can read visible questions, but structured extraction is weaker.
    - Recommendation: add matching `FAQPage` schema for existing visible FAQs without inventing new answers.
 
-5. Thin content risk on strategic pages
+3. Thin content risk on strategic pages
    - Evidence from local text extraction:
      - `pages/team.html`: about 82 words.
      - `pages/industries.html`: about 92 words.
@@ -46,24 +36,23 @@ Live checks on 2026-05-23 showed `https://www.constrovet.com`, `/demo`, `/robots
    - Impact: pages may be indexed but may not answer buyer or answer-engine questions deeply enough.
    - Recommendation: add short answer blocks, verified founder/legal context, use-case summaries, and FAQ sections without unsupported claims.
 
-6. Heading structure needs cleanup
+4. Heading structure needs cleanup
    - Evidence: `pages/industries.html` has one `h1`, zero `h2`, and four `h3` headings. `pages/how-it-works.html` uses `h3` process headings before the next `h2`.
    - Impact: semantic outline is less clear for crawlers, accessibility, and answer extraction.
    - Recommendation: insert appropriate `h2` section headings and keep card titles in a consistent hierarchy.
 
-7. JS-injected navigation and footer create a crawler fallback risk
+5. JS-injected navigation and footer create a crawler fallback risk
    - Evidence: `assets/js/main.js` fetches `assets/nav.html` and `assets/footer.html` into placeholders.
    - Impact: modern search crawlers can render JavaScript, but some LLM crawlers and simple link extractors may miss navigation and footer links in raw HTML.
    - Recommendation: keep the sitemap, but consider server-side/static inclusion or duplicate key crawl links in no-JS HTML for critical pages.
 
-8. Legal entity spelling must be verified
+6. Legal entity spelling must be verified
    - Evidence: site copy uses `AInnoverse Tech Center LLP`; the implementation prompt says `AInnoverse Tech Centre LLP`.
    - Impact: inconsistent legal naming can weaken trust, entity matching, schema confidence, and compliance clarity.
    - Recommendation: verify the legal spelling from official incorporation evidence, then make the website, schema, footer, and `llms.txt` consistent.
 
 ## Quick wins
 
-- Configure `app.constrovet.com`, verify HTTPS, then replace the raw Cloud Run homepage CTA.
 - Add `FAQPage` schema to pages that already have visible FAQs.
 - Add JSON-LD to `client.html`, `team.html`, and `privacy.html`.
 - Add `og:image` and matching Twitter image metadata to pages that currently use only summary card metadata.
@@ -79,11 +68,9 @@ Live checks on 2026-05-23 showed `https://www.constrovet.com`, `/demo`, `/robots
 - SEO status: title, meta description, canonical, OG tags, Twitter tags, and JSON-LD are present.
 - Schema status: includes `Organization`, `SoftwareApplication`, and `WebSite`.
 - Issues:
-  - Raw Cloud Run product link at `index.html:89`.
   - No visible FAQ or `FAQPage` schema.
   - Legal name in schema uses `AInnoverse Tech Center LLP`; verify against the requested `Centre` spelling.
 - Recommended changes:
-  - Replace product CTA with `https://app.constrovet.com` after DNS is live.
   - Add a short "What is Constrovet?" answer block and homepage FAQ.
   - Keep claims limited to document-backed cost leakage, schedule slippage, ESG/carbon audit, and 7/30/90 recovery planning.
 
