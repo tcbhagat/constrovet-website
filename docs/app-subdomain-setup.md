@@ -14,6 +14,14 @@ Previous temporary Cloud Run service URL:
 
 The public marketing site should use the branded app URL in visible CTAs. The raw Cloud Run URL is no longer the public app path and may return `421` because the app rejects unexpected hosts.
 
+## Integrated Memory
+
+Canonical cross-session development memory is maintained in:
+
+`/home/taran/app4constrovet/docs/CONSTROVET_INTEGRATED_MEMORY.md`
+
+Read it before changing website CTAs, app-domain behavior, contact flows, deployment, billing controls, or project intelligence workflows.
+
 ## Marketing Site Config
 
 The static website centralizes app CTA behavior in:
