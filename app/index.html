@@ -34,7 +34,7 @@
           <span class="home-hero__badge">GCP-free live workflow</span>
           <h1>Constrovet File Analysis Dashboard</h1>
           <p>
-            Upload authorized construction PDFs and CSVs, run a free browser-side review, and download cited cost, schedule, ESG, and leakage findings.
+            Upload authorized construction PDFs and CSVs, run a free browser-side review, and copy cited findings for optional Gemini verification.
           </p>
           <div class="home-hero__cta">
             <a href="#dashboard-upload" class="cv-btn cv-btn--outline">Upload PDF/CSV</a>
@@ -67,8 +67,8 @@
             <div class="cv-intel-row">
               <div>
                 <span class="cv-intel-row__tag cv-intel-row__tag--orange">Outputs</span>
-                <h2>Download reports</h2>
-                <p>Save strict JSON and Markdown outputs. Use Drive separately for durable storage.</p>
+                <h2>Review and verify</h2>
+                <p>Review the browser report, copy the cited Gemini input, and use Colab only when verification is needed.</p>
               </div>
             </div>
           </div>
@@ -81,7 +81,7 @@
         <span class="cv-section__eyebrow">Live browser dashboard</span>
         <h2 class="cv-section__title">Upload Construction Project PDFs And CSVs</h2>
         <p class="cv-section__sub">
-          Run a no-cost deterministic analysis in your browser. For sensitive records, save the downloaded outputs into the Workspace Drive project folder after review.
+          Run a no-cost deterministic analysis in your browser. For sensitive records, keep source files and optional Colab verifier outputs in the Workspace Drive project folder after review.
         </p>
       </div>
       <div class="cv-upload-dashboard" data-cv-local-analyzer>
@@ -111,11 +111,12 @@
             Select files and run analysis to generate cited findings.
           </div>
           <div class="cv-upload-dashboard__rationale" data-cv-analysis-rationale hidden></div>
-          <pre class="cv-upload-dashboard__json" data-cv-analysis-json hidden>{}</pre>
+          <p class="cv-gemini-note" data-cv-gemini-note hidden>
+            Gemini is optional and runs only in Colab after explicit user action. Browser analysis does not call Gemini or upload files.
+          </p>
           <div class="cv-upload-dashboard__actions">
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-toggle-rationale disabled>Citations and Rationale</button>
-            <button type="button" class="cv-btn cv-btn--primary" data-cv-download-json disabled>Download JSON</button>
-            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-download-md disabled>Download Markdown</button>
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-copy-gemini hidden>Copy Gemini Input</button>
             <a class="cv-btn cv-btn--outline cv-btn--muted" href="https://colab.research.google.com/github/tcbhagat/constrovet-website/blob/main/colab/constrovet_gemini_verifier.ipynb" target="_blank" rel="noopener" data-cv-open-gemini hidden>Open Gemini Verifier</a>
           </div>
         </div>

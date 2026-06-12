@@ -9,11 +9,10 @@
   const filesEl = root.querySelector("[data-cv-analysis-files]");
   const summaryEl = root.querySelector("[data-cv-analysis-summary]");
   const rationaleEl = root.querySelector("[data-cv-analysis-rationale]");
-  const jsonEl = root.querySelector("[data-cv-analysis-json]");
   const rationaleButton = root.querySelector("[data-cv-toggle-rationale]");
-  const downloadJson = root.querySelector("[data-cv-download-json]");
-  const downloadMd = root.querySelector("[data-cv-download-md]");
+  const copyGeminiButton = root.querySelector("[data-cv-copy-gemini]");
   const geminiLink = root.querySelector("[data-cv-open-gemini]");
+  const geminiNote = root.querySelector("[data-cv-gemini-note]");
 
   const MAX_FILES = 10;
   const MAX_BYTES = 15 * 1024 * 1024;
@@ -25,7 +24,6 @@
   const LEAKAGE_RE = /overrun|cost variance|actual exceeds|spent more|ld|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|late|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
   const ESG_RE = /carbon|waste diversion|energy|water|fuel|diesel|electricity|emission|scope 1|scope 2|scope 3/;
   let latestOutput = null;
-  let latestMarkdown = "";
 
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -34,10 +32,9 @@
 
   input.addEventListener("change", () => {
     latestOutput = null;
-    latestMarkdown = "";
     resetResults();
     renderSelectedFiles();
-    setDownloads(false);
+    setResultActions(false);
   });
 
   runButton.addEventListener("click", async () => {
@@ -49,22 +46,19 @@
     }
 
     setStatus("Reading files in this browser session...");
-    setDownloads(false);
+    setResultActions(false);
     latestOutput = null;
-    latestMarkdown = "";
 
     try {
       const documents = [];
       for (const file of files) documents.push(await readDocument(file));
       latestOutput = buildOutput(documents);
-      latestMarkdown = buildMarkdown(latestOutput);
-      jsonEl.textContent = JSON.stringify(latestOutput, null, 2);
       summaryEl.innerHTML = summaryHtml(latestOutput);
       rationaleEl.innerHTML = rationaleHtml(latestOutput);
       rationaleEl.hidden = true;
       rationaleButton.textContent = "Citations and Rationale";
       setStatus(`Analysis complete: ${latestOutput.findings.length} cited findings from ${documents.length} file(s).`);
-      setDownloads(true);
+      setResultActions(true);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
     }
@@ -73,15 +67,13 @@
   clearButton.addEventListener("click", () => {
     input.value = "";
     latestOutput = null;
-    latestMarkdown = "";
     filesEl.innerHTML = "";
     resetResults();
     setStatus("No files selected.");
-    setDownloads(false);
+    setResultActions(false);
   });
 
   function resetResults() {
-    jsonEl.textContent = "{}";
     rationaleEl.innerHTML = "";
     rationaleEl.hidden = true;
     rationaleButton.textContent = "Citations and Rationale";
@@ -95,12 +87,15 @@
     rationaleButton.textContent = nextHidden ? "Citations and Rationale" : "Hide Citations and Rationale";
   });
 
-  downloadJson.addEventListener("click", () => {
-    if (latestOutput) download("executive_synthesis.json", JSON.stringify(latestOutput, null, 2), "application/json");
-  });
-
-  downloadMd.addEventListener("click", () => {
-    if (latestMarkdown) download("executive_report.md", latestMarkdown, "text/markdown");
+  copyGeminiButton.addEventListener("click", async () => {
+    if (!latestOutput) return;
+    const payload = JSON.stringify(buildGeminiInputPayload(latestOutput), null, 2);
+    try {
+      await copyText(payload);
+      setStatus("Gemini input copied. Paste it into BROWSER_JSON_TEXT in the Colab verifier, then run Gemini only if needed.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), true);
+    }
   });
 
   function validateFiles(files) {
@@ -228,7 +223,7 @@
       model_audit_trail: modelAuditTrail,
       gemini_verifier_result: {
         status: "NOT_RUN",
-        reason: "The static browser dashboard does not call Gemini. Download this JSON and use the optional Colab verifier for Gemini-backed executive wording and support checks.",
+        reason: "The static browser dashboard does not call Gemini. Copy the cited Gemini input and use the optional Colab verifier only after explicit user action.",
         allowed_input_policy: "Send only findings, cited spans, calculations, action plan, and honesty check to Gemini."
       },
       honesty_check: {
@@ -487,6 +482,9 @@
     if (item.financial_category === "LEAKAGE_AND_OVERRUN" && item.days > 0) {
       return `Validate ${item.days} cited delay day(s), then connect delay ownership and cost support before recovery action.`;
     }
+    if (item.financial_category === "LEAKAGE_AND_OVERRUN") {
+      return "Treat this as a cited leakage watchlist item; require amount, delay-day, invoice, or recovery support before executive recovery action.";
+    }
     if (item.financial_category === "ESG_METRIC") return "Keep the ESG metric in the monitoring pack unless separate financial evidence supports a cost finding.";
     return "Use this as approved context for variance review; do not count it as leakage.";
   }
@@ -586,7 +584,7 @@
         ),
         action(
           "Prepare executive review pack",
-          ranked.length ? "Use the downloaded JSON and Markdown report as the evidence index for management review; keep citations attached to every action." : "Prepare a revised document set with budget, actual, invoice, schedule, and ESG records before the next review.",
+          ranked.length ? "Use the on-screen report and copied Gemini input as the evidence index for management review; keep citations attached to every action." : "Prepare a revised document set with budget, actual, invoice, schedule, and ESG records before the next review.",
           ranked.slice(0, 5).map((item) => findings.indexOf(item) + 1),
           ranked.length ? "MEDIUM" : "LOW"
         )
@@ -784,100 +782,46 @@
     </div>`;
   }
 
-  function buildMarkdown(output) {
-    const lines = [
-      "# Constrovet Executive Cost Intelligence Memo",
-      "",
-      "## One-Page Executive Brief",
-      "",
-      output.executive_brief.headline,
-      output.executive_brief.decision_focus,
-      output.executive_brief.caveat,
-      "",
-      "## Top 5 Executive Actions",
-      ""
-    ];
-    if (output.top_5_actions.length) {
-      output.top_5_actions.forEach((item) => {
-        lines.push(`- ${item.rank}. ${item.title}: ${item.action}`);
-        lines.push(`  - Finding: ${item.source_finding_index}`);
-        lines.push(`  - Risk: ${item.risk_score}/100 | Severity: ${item.severity} | Recoverability: ${item.recoverability} | Evidence: ${item.evidence_quality}`);
-      });
-    } else {
-      lines.push("- No cited action was extracted; improve budget, actual, invoice, delay, and ESG records before executive decision.");
-    }
-    lines.push(
-      "",
-      "## Recoverable Cost Exposure",
-      "",
-      `- Total cited amount INR: ${output.recoverable_cost_exposure.total_cited_amount_inr}`,
-      `- Exposure items: ${output.recoverable_cost_exposure.item_count}`,
-      `- High recoverability items: ${output.recoverable_cost_exposure.high_recoverability_count}`,
-      `- Finding indexes: ${output.recoverable_cost_exposure.finding_indexes.join(", ") || "None"}`,
-      "",
-      "## Immediate Control Failures",
-      ""
-    );
-    if (output.immediate_control_failures.length) {
-      output.immediate_control_failures.forEach((item) => {
-        lines.push(`- Finding ${item.source_finding_index}: ${item.control_theme} | ${item.severity} | ${item.action}`);
-      });
-    } else {
-      lines.push("- No immediate control failure was proven by cited leakage evidence.");
-    }
-    lines.push("", "## Missing Evidence Blocking Recovery", "");
-    output.missing_evidence_blocking_recovery.forEach((item) => lines.push(`- ${item}`));
-    lines.push("", "## 7/30/90 Executive Action Plan", "");
-    Object.entries(output.executive_action_plan).forEach(([period, actions]) => {
-      lines.push(`### ${period.replace("_", " ")}`, "");
-      actions.forEach((item) => {
-        lines.push(`- ${item.title}: ${item.recommendation}`);
-        lines.push(`  - Source findings: ${item.source_finding_indexes.length ? item.source_finding_indexes.join(", ") : "None extracted"}`);
-        lines.push(`  - Confidence: ${item.confidence}`);
-      });
-      lines.push("");
-    });
-    lines.push("## Risk Table", "");
-    output.findings.forEach((item, index) => {
-      lines.push(`- Finding ${index + 1}: ${item.financial_category} | INR ${item.amount_inr} | ${item.days} day(s) | Risk ${item.risk_score}/100 | ${item.severity} | ${item.recoverability} | ${item.evidence_quality}`);
-    });
-    lines.push("", "## Citations Appendix", "");
-    output.findings.forEach((item, index) => {
-      const citation = item.citations[0];
-      lines.push(`### ${index + 1}. ${item.financial_category}`);
-      lines.push(`- Statement: ${item.statement}`);
-      lines.push(`- Amount INR: ${item.amount_inr}`);
-      lines.push(`- Days: ${item.days}`);
-      lines.push(`- Risk score: ${item.risk_score}`);
-      lines.push(`- Severity: ${item.severity}`);
-      lines.push(`- Recoverability: ${item.recoverability}`);
-      lines.push(`- Evidence quality: ${item.evidence_quality}`);
-      lines.push(`- Confidence: ${item.confidence}`);
-      lines.push(`- Citation: ${citation.file} (${citation.page_or_sheet}) - "${citation.quoted_span}"`, "");
-    });
-    lines.push("## Citations And Rationale", "");
-    output.model_audit_trail.xai_method.forEach((item) => lines.push(`- ${item}`));
-    lines.push("## Honesty Check", "");
-    output.honesty_check.missing_evidence.forEach((item) => lines.push(`- ${item}`));
-    output.honesty_check.documents_not_processed.forEach((item) => lines.push(`- ${item}`));
-    output.honesty_check.assumptions.forEach((item) => lines.push(`- ${item}`));
-    return `${lines.join("\n")}\n`;
+  function buildGeminiInputPayload(output) {
+    return {
+      findings: output.findings,
+      executive_brief: output.executive_brief,
+      top_5_actions: output.top_5_actions,
+      recoverable_cost_exposure: output.recoverable_cost_exposure,
+      immediate_control_failures: output.immediate_control_failures,
+      missing_evidence_blocking_recovery: output.missing_evidence_blocking_recovery,
+      executive_action_plan: output.executive_action_plan,
+      rationale: output.rationale,
+      model_audit_trail: output.model_audit_trail,
+      honesty_check: output.honesty_check,
+      gemini_verifier_result: output.gemini_verifier_result,
+      input_guardrail: {
+        raw_documents_sent: false,
+        source: "browser analysis clipboard payload",
+        allowed_content: "findings, citations, calculations, action plan, honesty check, and audit metadata only"
+      }
+    };
   }
 
   function shortStatement(span) {
     return span.length > 140 ? `${span.slice(0, 137)}...` : span;
   }
 
-  function download(name, content, type) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+  async function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "-9999px";
+    document.body.appendChild(area);
+    area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    if (!copied) throw new Error("Copy failed. Select the browser report and use the Colab Drive/file fallback.");
   }
 
   function setStatus(message, isError) {
@@ -885,11 +829,11 @@
     statusEl.classList.toggle("is-error", Boolean(isError));
   }
 
-  function setDownloads(enabled) {
-    downloadJson.disabled = !enabled;
-    downloadMd.disabled = !enabled;
+  function setResultActions(enabled) {
     rationaleButton.disabled = !enabled;
+    if (copyGeminiButton) copyGeminiButton.hidden = !enabled;
     if (geminiLink) geminiLink.hidden = !enabled;
+    if (geminiNote) geminiNote.hidden = !enabled;
   }
 
   function formatBytes(bytes) {

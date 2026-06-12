@@ -29,16 +29,17 @@ My Drive/Constrovet/projects/<project_id>/outputs/
 
 The public `/app/` dashboard lets users choose authorized PDFs and CSVs from
 their local machine and run a deterministic browser-side analysis. Files are not
-uploaded to a server. Save downloaded JSON and Markdown outputs in `outputs/`
-when durable records are needed.
+uploaded to a server. Use **Copy Gemini Input** for optional verifier runs, and
+save verifier outputs in `outputs/` when durable records are needed.
 
 For optional Colab runs, put authorized project PDFs and CSVs in `input/`. The
 Colab notebook writes strict JSON, Markdown reports, and audit trail files to
 `outputs/`.
 
-For high-ROI executive review, run the static browser dashboard first and save
-the downloaded `executive_synthesis.json` into `outputs/`. Then open the
-optional verifier notebook, which sends only cited findings, quoted spans,
+For high-ROI executive review, run the static browser dashboard first and copy
+the cited Gemini input. Then open the optional verifier notebook, paste the
+payload into `BROWSER_JSON_TEXT`, and call Gemini only after setting
+`RUN_GEMINI = True`. The verifier sends only cited findings, quoted spans,
 calculations, action plans, honesty check, and audit metadata to Gemini.
 
 Notebook URL template:
@@ -86,7 +87,7 @@ zero-GCP model.
 
 The current `/app/` page is a static upload-and-analysis dashboard. It does not
 upload files to Drive or call Gemini from the browser. Users store source files
-and downloaded outputs in Workspace Drive manually.
+and optional Colab verifier outputs in Workspace Drive manually.
 
 ## Budget Checklist
 

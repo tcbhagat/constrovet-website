@@ -692,6 +692,21 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   line-height: 1.45;
 }
 
+.cv-gemini-note {
+  margin-top: 16px;
+  border: 1px solid var(--brand-200);
+  border-radius: 8px;
+  background: var(--brand-50);
+  color: var(--slate-700);
+  padding: 12px 14px;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+.cv-gemini-note[hidden] {
+  display: none;
+}
+
 .cv-btn--muted {
   color: var(--slate-700);
   border-color: var(--slate-300);

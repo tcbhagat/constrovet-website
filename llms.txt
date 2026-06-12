@@ -12,7 +12,7 @@ Public website: https://www.constrovet.com/
 
 Product app target: https://www.constrovet.com/app/
 
-Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users can choose PDF and CSV construction project files for a browser-side deterministic first-pass analysis. Files are not uploaded to a server. Durable source files and downloaded outputs should be stored in the admin-owned Workspace Drive folder structure. Optional deeper analysis may use Google Colab and approved Gemini access.
+Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users can choose PDF and CSV construction project files for a browser-side deterministic first-pass analysis. Files are not uploaded to a server. Durable source files and optional Colab verifier outputs should be stored in the admin-owned Workspace Drive folder structure. Optional Gemini analysis uses copied cited verifier input in Colab after explicit user action.
 
 ## Company
 

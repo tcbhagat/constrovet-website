@@ -62,8 +62,8 @@ The active GCP-free app workflow is:
 - Storage: Google Workspace Drive owned by `admin@constrovet.com`
 - Optional deeper execution: Google Colab free runtime with approved Gemini
   access. The preferred high-ROI path is browser triage first, then optional
-  public `constrovet_gemini_verifier.ipynb` on the downloaded
-  `executive_synthesis.json`.
+  public `constrovet_gemini_verifier.ipynb` on copied cited Gemini input or a
+  fallback Drive JSON file.
 - GCP status: all visible projects have been moved to `DELETE_REQUESTED`
 
 Legacy Cloud Run/GCP notes in this repository are retained only as rollback
@@ -77,8 +77,9 @@ static and free-tier by default.
 
 The browser dashboard now produces risk scoring, top executive actions,
 recoverable exposure, control-failure notes, missing-evidence blockers, a
-7/30/90 action plan, and cited JSON/Markdown downloads. Gemini verification is
-optional and must receive only cited findings, quoted spans, calculations,
+7/30/90 action plan, citations/rationale, and a clipboard-safe Gemini verifier
+payload. Gemini verification is optional, runs only from Colab after explicit
+user action, and must receive only cited findings, quoted spans, calculations,
 action plans, honesty check, and audit metadata.
 
 The production deployment target is:
