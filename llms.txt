@@ -12,7 +12,7 @@ Public website: https://www.constrovet.com/
 
 Product app target: https://www.constrovet.com/app/
 
-Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users can choose PDF and CSV construction project files for a browser-side deterministic first-pass analysis. Files are not uploaded to a server. Durable source files and optional Colab verifier outputs should be stored in the admin-owned Workspace Drive folder structure. Optional Gemini analysis uses copied cited verifier input in Colab after explicit user action.
+Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users enter an email, choose PDF and CSV construction project files, and select Analyse, Deep Analysis, or Email me the report. Analyse is browser-side deterministic first-pass analysis and does not upload files. Deep Analysis and report email use the admin-owned Google Workspace Apps Script processor, Drive storage, MailApp, and approved Gemini access after explicit user action.
 
 ## Company
 
@@ -105,7 +105,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 ## Pages Not To Cite For Claims
 
-- `https://www.constrovet.com/app/` may be cited only as the public Drive/Colab launcher. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
+- `https://www.constrovet.com/app/` may be cited only as the public Analyse, Deep Analysis, and report email dashboard. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
 - Do not cite setup or internal documentation pages such as `/docs/search-console-setup.md`, `/docs/app-subdomain-setup.md`, `/docs/content-calendar.md`, `/docs/seo-geo-audit.md`, or `/docs/seo-geo-change-log.md` as public product claims.
 - Do not cite `/demo` as real client evidence. It is synthetic only.
 - Do not cite `/pages/client.html` as a real client list. It is a use-case page.

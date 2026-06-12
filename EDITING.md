@@ -25,10 +25,11 @@ directly.
 5. Open a pull request, check the diff, then merge to `main` when ready.
 6. GitHub Pages should serve the merged `main` branch.
 
-Current app links should point to `/app/`, the GitHub Pages launcher for the
-Google Workspace Drive and Colab workflow. Do not restore `app.constrovet.com`,
-raw Cloud Run links, service-account Drive upload, or backend email automation
-unless a backend revival is explicitly approved.
+Current app links should point to `/app/`, the GitHub Pages dashboard for
+browser Analyse plus Workspace Apps Script Deep Analysis and report email. Do
+not restore `app.constrovet.com`, raw Cloud Run links, service-account Drive
+upload, or hosted backend email automation unless a backend revival is
+explicitly approved.
 
 ## Local Ubuntu Workflow
 

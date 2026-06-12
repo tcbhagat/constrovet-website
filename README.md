@@ -27,9 +27,11 @@ constrovet/
 │   └── js/
 │       └── main.js         ← Nav loader + hamburger logic
 ├── app/
-│   └── index.html          ← GCP-free Drive + Colab dashboard launcher
+│   └── index.html          ← GCP-free Analyse / Deep Analysis dashboard
+├── apps-script/
+│   └── Code.gs             ← Workspace Apps Script processor for Deep Analysis + email
 ├── colab/
-│   └── constrovet_gemini_verifier.ipynb ← optional public Gemini verifier
+│   └── constrovet_gemini_verifier.ipynb ← legacy verifier reference
 ├── Dockerfile              ← Legacy Cloud Run rollback reference
 ├── nginx.conf              ← Legacy web server config
 └── .gitignore
@@ -59,28 +61,29 @@ The active GCP-free app workflow is:
 - App launcher: `https://www.constrovet.com/app/`
 - First-pass execution: browser-side PDF/CSV analysis from the static `/app/`
   dashboard
-- Storage: Google Workspace Drive owned by `admin@constrovet.com`
-- Optional deeper execution: Google Colab free runtime with approved Gemini
-  access. The preferred high-ROI path is browser triage first, then optional
-  public `constrovet_gemini_verifier.ipynb` on copied cited Gemini input or a
-  fallback Drive JSON file.
+- Storage and async processing: Google Workspace Drive and Apps Script owned by
+  `admin@constrovet.com`
+- Optional deeper execution: the **Deep Analysis** button submits an
+  evidence-bound payload to the Workspace Apps Script processor, which uses the
+  approved Gemini key from Script Properties and emails the report.
 - GCP status: all visible projects have been moved to `DELETE_REQUESTED`
 
 Legacy Cloud Run/GCP notes in this repository are retained only as rollback
 references. Do not re-enable GCP hosting or paid infrastructure without an
 explicit approval and a new rollback plan.
 
-Do not add service-account Drive upload, backend email automation, GCS, Cloud
-Run, Cloud SQL, Firestore, or a hosted app backend to the active workflow unless
-a future backend revival is explicitly approved. The public dashboard must stay
-static and free-tier by default.
+Do not add service-account Drive upload, GCS, Cloud Run, Cloud SQL, Firestore,
+or a hosted app backend to the active workflow unless a future backend revival
+is explicitly approved. Workspace Apps Script is the approved free-tier
+processor for Deep Analysis and email.
 
 The browser dashboard now produces risk scoring, top executive actions,
 recoverable exposure, control-failure notes, missing-evidence blockers, a
-7/30/90 action plan, citations/rationale, and a clipboard-safe Gemini verifier
-payload. Gemini verification is optional, runs only from Colab after explicit
-user action, and must receive only cited findings, quoted spans, calculations,
-action plans, honesty check, and audit metadata.
+7/30/90 action plan, citations/rationale, and optional Workspace report
+submission. **Analyse** is browser-only and no-cost. **Deep Analysis** calls
+Gemini only through the deployed Apps Script processor after explicit user
+action and must receive only cited findings, quoted spans, calculations, action
+plans, honesty check, and audit metadata.
 
 The production deployment target is:
 

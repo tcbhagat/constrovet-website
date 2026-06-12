@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Constrovet Live Dashboard | PDF and CSV Cost Analysis</title>
-  <meta name="description" content="Upload construction project PDFs and CSVs for a browser-only Constrovet cost, delay, ESG, and leakage analysis without Google Cloud Platform services.">
+  <meta name="description" content="Upload construction project PDFs and CSVs for Constrovet browser analysis, optional Workspace Apps Script Gemini deep analysis, and email reports without Google Cloud Platform services.">
   <link rel="canonical" href="https://www.constrovet.com/app/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Constrovet">
   <meta property="og:title" content="Constrovet Live Dashboard | PDF and CSV Cost Analysis">
-  <meta property="og:description" content="A GCP-free Constrovet dashboard for browser-side PDF and CSV analysis with cited executive reports.">
+  <meta property="og:description" content="A GCP-free Constrovet dashboard for browser-side PDF and CSV analysis, optional Workspace Gemini review, and emailed executive reports.">
   <meta property="og:url" content="https://www.constrovet.com/app/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,17 +34,17 @@
           <span class="home-hero__badge">GCP-free live workflow</span>
           <h1>Constrovet File Analysis Dashboard</h1>
           <p>
-            Upload authorized construction PDFs and CSVs, run a free browser-side review, and copy cited findings for optional Gemini verification.
+            Enter your email, upload authorized construction PDFs and CSVs, then choose instant analysis, deep Gemini review, or an emailed executive report.
           </p>
           <div class="home-hero__cta">
             <a href="#dashboard-upload" class="cv-btn cv-btn--outline">Upload PDF/CSV</a>
             <a href="../pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
           </div>
           <p class="home-hero__footnote">
-            Files stay in this browser session. No Cloud Run, Cloud SQL, GCS, Firestore, service account, or GCP project is required for this first-pass workflow.
+            Analyse runs in this browser. Deep Analysis and email use Google Workspace Apps Script, Drive, Mail, and approved Gemini access without Cloud Run, Cloud SQL, GCS, Firestore, service accounts, or active GCP projects.
           </p>
         </div>
-        <aside class="cv-intel-panel" aria-label="Constrovet Drive and Colab run checklist">
+        <aside class="cv-intel-panel" aria-label="Constrovet Analyse and Deep Analysis checklist">
           <div class="cv-intel-panel__bar">
             <span></span><span></span><span></span>
             <strong>Run checklist</strong>
@@ -59,16 +59,16 @@
             </div>
             <div class="cv-intel-row">
               <div>
-                <span class="cv-intel-row__tag cv-intel-row__tag--green">Analyze</span>
-                <h2>Run in browser</h2>
-                <p>The dashboard extracts evidence windows and classifies baseline, leakage, overrun, schedule, and ESG signals.</p>
+                <span class="cv-intel-row__tag cv-intel-row__tag--green">Analyse</span>
+                <h2>Choose review depth</h2>
+                <p>Analyse stays local and instant. Deep Analysis sends evidence to the Workspace processor for Gemini-backed executive review.</p>
               </div>
             </div>
             <div class="cv-intel-row">
               <div>
                 <span class="cv-intel-row__tag cv-intel-row__tag--orange">Outputs</span>
-                <h2>Review and verify</h2>
-                <p>Review the browser report, copy the cited Gemini input, and use Colab only when verification is needed.</p>
+                <h2>Receive the report</h2>
+                <p>Review results on screen or send the executive report to the email address provided for the run.</p>
               </div>
             </div>
           </div>
@@ -81,18 +81,28 @@
         <span class="cv-section__eyebrow">Live browser dashboard</span>
         <h2 class="cv-section__title">Upload Construction Project PDFs And CSVs</h2>
         <p class="cv-section__sub">
-          Run a no-cost deterministic analysis in your browser. For sensitive records, keep source files and optional Colab verifier outputs in the Workspace Drive project folder after review.
+          Run a no-cost deterministic analysis in your browser. Deep Analysis and report email use the Workspace Apps Script processor after explicit user action.
         </p>
       </div>
       <div class="cv-upload-dashboard" data-cv-local-analyzer>
         <div class="cv-upload-dashboard__panel">
+          <label class="cv-email-field" for="cv-analysis-email">
+            <span>Email for report delivery</span>
+            <input id="cv-analysis-email" type="email" inputmode="email" autocomplete="email" placeholder="name@company.com" required data-cv-analysis-email>
+          </label>
+          <label class="cv-honeypot" for="cv-analysis-company">
+            Company website
+            <input id="cv-analysis-company" type="text" tabindex="-1" autocomplete="off" data-cv-honeypot>
+          </label>
           <label class="cv-upload-drop" for="cv-analysis-files">
             <span class="cv-upload-drop__label">Drop or choose PDF/CSV files</span>
-            <span class="cv-upload-drop__hint">Up to 10 files, 15 MB each. Files are not uploaded to a server.</span>
+            <span class="cv-upload-drop__hint">Up to 10 files, 15 MB each. Analyse keeps files in browser; Deep Analysis stores them in Workspace Drive.</span>
             <input id="cv-analysis-files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple>
           </label>
           <div class="cv-upload-dashboard__actions">
-            <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyze Files</button>
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyse</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-deep-analysis>Deep Analysis</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-email-report disabled>Email me the report</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
             <a class="cv-btn cv-btn--outline cv-btn--muted" href="../assets/templates/constrovet-executive-upload-template.csv" download>CSV Template</a>
           </div>
@@ -108,16 +118,12 @@
             <strong>Executive findings</strong>
           </div>
           <div class="cv-upload-dashboard__summary" data-cv-analysis-summary>
-            Select files and run analysis to generate cited findings.
+            Enter email, select files, and run Analyse to generate cited findings.
           </div>
           <div class="cv-upload-dashboard__rationale" data-cv-analysis-rationale hidden></div>
-          <p class="cv-gemini-note" data-cv-gemini-note hidden>
-            Gemini is optional and runs only in Colab after explicit user action. Browser analysis does not call Gemini or upload files.
-          </p>
+          <p class="cv-workspace-note" data-cv-workspace-note hidden></p>
           <div class="cv-upload-dashboard__actions">
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-toggle-rationale disabled>Citations and Rationale</button>
-            <button type="button" class="cv-btn cv-btn--primary" data-cv-copy-gemini hidden>Copy Gemini Input</button>
-            <a class="cv-btn cv-btn--outline cv-btn--muted" href="https://colab.research.google.com/github/tcbhagat/constrovet-website/blob/main/colab/constrovet_gemini_verifier.ipynb" target="_blank" rel="noopener" data-cv-open-gemini hidden>Open Gemini Verifier</a>
           </div>
         </div>
       </div>
@@ -126,6 +132,7 @@
   <div id="cv-footer-placeholder"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/constrovet-app-config.js"></script>
   <script src="../assets/js/dashboard-analyzer.js"></script>
 </body>
 </html>

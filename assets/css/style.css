@@ -678,6 +678,33 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   color: var(--slate-700);
 }
 
+.cv-email-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--slate-800);
+  font-weight: 700;
+}
+
+.cv-email-field input {
+  width: 100%;
+  border: 1px solid var(--slate-300);
+  border-radius: 8px;
+  color: var(--slate-900);
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.cv-email-field input:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(14, 111, 92, .12);
+  outline: none;
+}
+
+.cv-honeypot {
+  display: none;
+}
+
 .cv-upload-dashboard__actions {
   display: flex;
   flex-wrap: wrap;
@@ -692,7 +719,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   line-height: 1.45;
 }
 
-.cv-gemini-note {
+.cv-workspace-note {
   margin-top: 16px;
   border: 1px solid var(--brand-200);
   border-radius: 8px;
@@ -703,7 +730,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   line-height: 1.45;
 }
 
-.cv-gemini-note[hidden] {
+.cv-workspace-note[hidden] {
   display: none;
 }
 

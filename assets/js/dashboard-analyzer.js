@@ -3,19 +3,23 @@
   if (!root) return;
 
   const input = root.querySelector("#cv-analysis-files");
+  const emailInput = root.querySelector("[data-cv-analysis-email]");
+  const honeypotInput = root.querySelector("[data-cv-honeypot]");
   const runButton = root.querySelector("[data-cv-run-analysis]");
+  const deepButton = root.querySelector("[data-cv-deep-analysis]");
+  const emailButton = root.querySelector("[data-cv-email-report]");
   const clearButton = root.querySelector("[data-cv-clear-analysis]");
   const statusEl = root.querySelector("[data-cv-analysis-status]");
   const filesEl = root.querySelector("[data-cv-analysis-files]");
   const summaryEl = root.querySelector("[data-cv-analysis-summary]");
   const rationaleEl = root.querySelector("[data-cv-analysis-rationale]");
   const rationaleButton = root.querySelector("[data-cv-toggle-rationale]");
-  const copyGeminiButton = root.querySelector("[data-cv-copy-gemini]");
-  const geminiLink = root.querySelector("[data-cv-open-gemini]");
-  const geminiNote = root.querySelector("[data-cv-gemini-note]");
+  const workspaceNote = root.querySelector("[data-cv-workspace-note]");
 
   const MAX_FILES = 10;
   const MAX_BYTES = 15 * 1024 * 1024;
+  const WORKSPACE_MAX_BYTES = 10 * 1024 * 1024;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const CASH_HIGH = 5000000;
   const CASH_MEDIUM = 500000;
   const CONSTRUCTION_SIGNAL_RE = /budget|boq|actual|overrun|delay|penalty|ld|liquidated damages|eot|extension of time|variation|change order|debit note|wastage|waste|rework|idle|idle plant|idle labour|idle equipment|excess|consumption|invoice|ra bill|running account|ipc|interim payment|paid|spent|escalation|reconciliation|retention|deduction|back charge|delayed po|purchase order delay|carbon|energy|water|diesel|fuel|electricity|emission|scope|days?|₹|inr|rs\.?/i;
@@ -23,35 +27,86 @@
   const ACTUAL_RE = /actual|spent|cost incurred|paid|invoice|expenditure|consumption|debit note|deduction|back charge/;
   const LEAKAGE_RE = /overrun|cost variance|actual exceeds|spent more|ld|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|late|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
   const ESG_RE = /carbon|waste diversion|energy|water|fuel|diesel|electricity|emission|scope 1|scope 2|scope 3/;
+  const APP_CONFIG = window.CONSTROVET_APP_CONFIG || {};
   let latestOutput = null;
+  let latestDocuments = [];
+  let latestEmail = "";
 
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
+  setResultActions(false);
 
   input.addEventListener("change", () => {
     latestOutput = null;
+    latestDocuments = [];
     resetResults();
     renderSelectedFiles();
     setResultActions(false);
   });
 
   runButton.addEventListener("click", async () => {
+    await runBrowserAnalysis();
+  });
+
+  deepButton.addEventListener("click", async () => {
+    const output = await runBrowserAnalysis();
+    if (!output) return;
+    try {
+      setBusy(true);
+      setStatus("Submitting Deep Analysis to the Workspace processor...");
+      const response = await submitWorkspaceJob("DEEP_ANALYSIS");
+      setWorkspaceNote(response.message || "Deep Analysis request received. The Gemini-enhanced report will be emailed after processing.");
+      setStatus(`Deep Analysis request received${response.job_id ? `: ${response.job_id}` : ""}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), true);
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  emailButton.addEventListener("click", async () => {
+    const emailValidation = validateEmailField();
+    if (emailValidation) {
+      setStatus(emailValidation, true);
+      return;
+    }
+    if (!latestOutput) {
+      setStatus("Run Analyse first, then email the report.", true);
+      return;
+    }
+    try {
+      setBusy(true);
+      setStatus("Submitting browser report email request...");
+      const response = await submitWorkspaceJob("EMAIL_BROWSER_REPORT");
+      setWorkspaceNote(response.message || "Email request received. The browser report will be emailed after processing.");
+      setStatus(`Email request received${response.job_id ? `: ${response.job_id}` : ""}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error), true);
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  async function runBrowserAnalysis() {
     const files = Array.from(input.files || []);
-    const validation = validateFiles(files);
+    const validation = validateInputs(files);
     if (validation) {
       setStatus(validation, true);
-      return;
+      return null;
     }
 
     setStatus("Reading files in this browser session...");
     setResultActions(false);
     latestOutput = null;
+    latestDocuments = [];
+    latestEmail = normalizeEmail(emailInput.value);
 
     try {
       const documents = [];
       for (const file of files) documents.push(await readDocument(file));
+      latestDocuments = documents;
       latestOutput = buildOutput(documents);
       summaryEl.innerHTML = summaryHtml(latestOutput);
       rationaleEl.innerHTML = rationaleHtml(latestOutput);
@@ -59,14 +114,21 @@
       rationaleButton.textContent = "Citations and Rationale";
       setStatus(`Analysis complete: ${latestOutput.findings.length} cited findings from ${documents.length} file(s).`);
       setResultActions(true);
+      setWorkspaceNote("");
+      return latestOutput;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
+      return null;
     }
-  });
+  }
 
   clearButton.addEventListener("click", () => {
     input.value = "";
+    emailInput.value = "";
+    if (honeypotInput) honeypotInput.value = "";
     latestOutput = null;
+    latestDocuments = [];
+    latestEmail = "";
     filesEl.innerHTML = "";
     resetResults();
     setStatus("No files selected.");
@@ -87,17 +149,6 @@
     rationaleButton.textContent = nextHidden ? "Citations and Rationale" : "Hide Citations and Rationale";
   });
 
-  copyGeminiButton.addEventListener("click", async () => {
-    if (!latestOutput) return;
-    const payload = JSON.stringify(buildGeminiInputPayload(latestOutput), null, 2);
-    try {
-      await copyText(payload);
-      setStatus("Gemini input copied. Paste it into BROWSER_JSON_TEXT in the Colab verifier, then run Gemini only if needed.");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error), true);
-    }
-  });
-
   function validateFiles(files) {
     if (!files.length) return "Choose at least one PDF or CSV file.";
     if (files.length > MAX_FILES) return `Choose ${MAX_FILES} files or fewer.`;
@@ -108,6 +159,24 @@
       if (file.size > MAX_BYTES) return `${file.name} is larger than 15 MB.`;
     }
     return "";
+  }
+
+  function validateInputs(files) {
+    const emailValidation = validateEmailField();
+    if (emailValidation) return emailValidation;
+    if (honeypotInput && honeypotInput.value.trim()) return "Submission rejected.";
+    return validateFiles(files);
+  }
+
+  function validateEmailField() {
+    const email = normalizeEmail(emailInput.value);
+    if (!email) return "Enter an email address before analysis.";
+    if (!EMAIL_RE.test(email)) return "Enter a valid email address.";
+    return "";
+  }
+
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
   }
 
   function renderSelectedFiles() {
@@ -207,7 +276,7 @@
         "When budget and actual are both cited and actual is greater than budget, overrun is calculated as Actual - Budget.",
         "Risk score combines cash impact, category, urgency, evidence quality, and confidence; it does not create new facts.",
         "Confidence is higher when structured budget and actual evidence is present, and lower when only narrative keyword evidence is present.",
-        "Gemini and other LLM verification are not run inside this static free-tier dashboard."
+        "Gemini and other LLM verification are not run by the Analyse button."
       ]
     };
     const executiveBrief = buildExecutiveBrief(citedFindings, documentsNotProcessed);
@@ -223,13 +292,13 @@
       model_audit_trail: modelAuditTrail,
       gemini_verifier_result: {
         status: "NOT_RUN",
-        reason: "The static browser dashboard does not call Gemini. Copy the cited Gemini input and use the optional Colab verifier only after explicit user action.",
+        reason: "The Analyse button does not call Gemini. Deep Analysis sends an evidence-bound payload to the Workspace Apps Script processor after explicit user action.",
         allowed_input_policy: "Send only findings, cited spans, calculations, action plan, and honesty check to Gemini."
       },
       honesty_check: {
         missing_evidence: [
           "Browser analysis is deterministic and keyword based; review citations before using findings for decisions.",
-          "Gemini/LLM verification is not run in this static free-tier dashboard."
+          "Gemini/LLM verification is not run by the Analyse button."
         ],
         documents_not_processed: documentsNotProcessed,
         assumptions: [
@@ -584,7 +653,7 @@
         ),
         action(
           "Prepare executive review pack",
-          ranked.length ? "Use the on-screen report and copied Gemini input as the evidence index for management review; keep citations attached to every action." : "Prepare a revised document set with budget, actual, invoice, schedule, and ESG records before the next review.",
+          ranked.length ? "Use the on-screen report and Citations and Rationale panel as the evidence index for management review; keep citations attached to every action." : "Prepare a revised document set with budget, actual, invoice, schedule, and ESG records before the next review.",
           ranked.slice(0, 5).map((item) => findings.indexOf(item) + 1),
           ranked.length ? "MEDIUM" : "LOW"
         )
@@ -782,7 +851,7 @@
     </div>`;
   }
 
-  function buildGeminiInputPayload(output) {
+  function buildEvidencePayload(output) {
     return {
       findings: output.findings,
       executive_brief: output.executive_brief,
@@ -797,31 +866,109 @@
       gemini_verifier_result: output.gemini_verifier_result,
       input_guardrail: {
         raw_documents_sent: false,
-        source: "browser analysis clipboard payload",
+        source: "browser analysis evidence payload",
         allowed_content: "findings, citations, calculations, action plan, honesty check, and audit metadata only"
       }
     };
   }
 
-  function shortStatement(span) {
-    return span.length > 140 ? `${span.slice(0, 137)}...` : span;
+  async function submitWorkspaceJob(mode) {
+    const endpoint = String(APP_CONFIG.appsScriptEndpoint || "").trim();
+    if (!endpoint) {
+      throw new Error("Workspace processor is not configured yet. Deploy the Apps Script web app and set appsScriptEndpoint in assets/js/constrovet-app-config.js.");
+    }
+    if (!latestOutput) throw new Error("Run Analyse first.");
+    const payload = await buildWorkspaceJobPayload(mode);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      const text = await response.text();
+      const body = text ? JSON.parse(text) : {};
+      if (!response.ok || body.ok === false) throw new Error(body.error || `Workspace processor returned HTTP ${response.status}.`);
+      return body;
+    } catch (error) {
+      if (error instanceof SyntaxError) throw new Error("Workspace processor returned an invalid response.");
+      return submitWorkspaceJobNoCors(endpoint, payload, error);
+    }
   }
 
-  async function copyText(text) {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return;
+  async function submitWorkspaceJobNoCors(endpoint, payload, originalError) {
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+      return {
+        ok: true,
+        job_id: payload.job_id,
+        message: "Request submitted to the Workspace processor. The browser could not read the cross-origin response, so check email and Drive outputs for completion."
+      };
+    } catch (_fallbackError) {
+      throw originalError instanceof Error ? originalError : new Error("Workspace processor submission failed.");
     }
-    const area = document.createElement("textarea");
-    area.value = text;
-    area.setAttribute("readonly", "");
-    area.style.position = "fixed";
-    area.style.top = "-9999px";
-    document.body.appendChild(area);
-    area.select();
-    const copied = document.execCommand("copy");
-    area.remove();
-    if (!copied) throw new Error("Copy failed. Select the browser report and use the Colab Drive/file fallback.");
+  }
+
+  async function buildWorkspaceJobPayload(mode) {
+    const files = Array.from(input.files || []);
+    const includeFiles = mode === "DEEP_ANALYSIS";
+    if (includeFiles) {
+      for (const file of files) {
+        if (file.size > WORKSPACE_MAX_BYTES) {
+          throw new Error(`${file.name} is larger than the 10 MB Deep Analysis upload limit.`);
+        }
+      }
+    }
+    return {
+      mode,
+      email: latestEmail || normalizeEmail(emailInput.value),
+      files: includeFiles ? await Promise.all(files.map(fileToPayload)) : [],
+      browser_report: buildEvidencePayload(latestOutput),
+      submitted_at: new Date().toISOString(),
+      site_version: String(APP_CONFIG.siteVersion || "workspace-apps-script-v1"),
+      job_id: makeJobId(),
+      client_audit: {
+        file_count: files.length,
+        deterministic_documents_processed: latestDocuments.length,
+        raw_documents_in_browser_report: false
+      }
+    };
+  }
+
+  function fileToPayload(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const comma = result.indexOf(",");
+        resolve({
+          name: file.name,
+          mime_type: file.type || mimeTypeForName(file.name),
+          size_bytes: file.size,
+          base64: comma >= 0 ? result.slice(comma + 1) : result
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function mimeTypeForName(name) {
+    return name.toLowerCase().endsWith(".pdf") ? "application/pdf" : "text/csv";
+  }
+
+  function makeJobId() {
+    const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+    const random = Math.random().toString(36).slice(2, 8);
+    return `cv-${stamp}-${random}`;
+  }
+
+  function shortStatement(span) {
+    return span.length > 140 ? `${span.slice(0, 137)}...` : span;
   }
 
   function setStatus(message, isError) {
@@ -831,9 +978,20 @@
 
   function setResultActions(enabled) {
     rationaleButton.disabled = !enabled;
-    if (copyGeminiButton) copyGeminiButton.hidden = !enabled;
-    if (geminiLink) geminiLink.hidden = !enabled;
-    if (geminiNote) geminiNote.hidden = !enabled;
+    emailButton.disabled = !enabled;
+  }
+
+  function setWorkspaceNote(message) {
+    if (!workspaceNote) return;
+    workspaceNote.textContent = message;
+    workspaceNote.hidden = !message;
+  }
+
+  function setBusy(isBusy) {
+    runButton.disabled = isBusy;
+    deepButton.disabled = isBusy;
+    clearButton.disabled = isBusy;
+    emailButton.disabled = isBusy || !latestOutput;
   }
 
   function formatBytes(bytes) {
