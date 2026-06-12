@@ -1,0 +1,4 @@
+package,budget,actual,invoice,delay_days,cause,owner,document_reference,status
+Civil works,INR 1000000,INR 1250000,RA Bill 04,12,Rework and excess concrete consumption,Project Controls,Site report page 4,Needs recovery review
+MEP procurement,INR 750000,INR 750000,PO 118,0,Baseline BOQ value,Commercial Manager,BOQ sheet MEP,Approved baseline
+ESG utilities,INR 0,INR 0,Utility log,0,Diesel 450 litres and water 18000 litres,HSE Manager,ESG log sheet 2,Track ESG metric

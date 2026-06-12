@@ -685,6 +685,13 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   margin-top: 16px;
 }
 
+.cv-template-guidance {
+  margin-top: 12px;
+  color: var(--slate-600);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
 .cv-btn--muted {
   color: var(--slate-700);
   border-color: var(--slate-300);
@@ -756,6 +763,91 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   color: var(--slate-950);
   font-family: var(--font-display);
   font-size: 1.12rem;
+}
+
+.cv-executive-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.cv-executive-section {
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 14px;
+}
+
+.cv-executive-section--brief {
+  border-color: var(--brand-300);
+  background: var(--brand-50);
+}
+
+.cv-executive-section h3 {
+  font-family: var(--font-display);
+  color: var(--slate-900);
+  font-size: 1.18rem;
+  line-height: 1.15;
+  margin: 0 0 10px;
+}
+
+.cv-executive-section p {
+  margin: 0 0 8px;
+  color: var(--slate-700);
+}
+
+.cv-executive-section p:last-child {
+  margin-bottom: 0;
+}
+
+.cv-executive-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.cv-executive-list li {
+  color: var(--slate-700);
+  overflow-wrap: anywhere;
+}
+
+.cv-executive-list strong,
+.cv-executive-list span,
+.cv-executive-list em {
+  display: block;
+}
+
+.cv-executive-list strong {
+  color: var(--slate-900);
+  font-weight: 800;
+}
+
+.cv-executive-list em {
+  margin-top: 4px;
+  color: var(--brand-700);
+  font-size: .8rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.cv-risk-table {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cv-risk-table span {
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  background: var(--slate-50);
+  padding: 10px;
+}
+
+.cv-risk-table strong {
+  display: block;
+  color: var(--slate-950);
+  font-family: var(--font-display);
 }
 
 .cv-upload-dashboard__json {
@@ -1734,6 +1826,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 	  }
 	  .cv-metric-grid,
 	  .cv-upload-dashboard__metrics,
+	  .cv-risk-table,
 	  .cv-demo-metrics {
 	    grid-template-columns: 1fr;
 	  }

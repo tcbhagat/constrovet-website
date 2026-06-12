@@ -94,7 +94,11 @@
           <div class="cv-upload-dashboard__actions">
             <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyze Files</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
+            <a class="cv-btn cv-btn--outline cv-btn--muted" href="../assets/templates/constrovet-executive-upload-template.csv" download>CSV Template</a>
           </div>
+          <p class="cv-template-guidance">
+            Best CSV columns: package, budget, actual, invoice, delay days, cause, owner, document reference, and status.
+          </p>
           <p class="cv-upload-dashboard__status" data-cv-analysis-status>No files selected.</p>
           <ul class="cv-upload-dashboard__files" data-cv-analysis-files></ul>
         </div>
@@ -112,6 +116,7 @@
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-toggle-rationale disabled>Citations and Rationale</button>
             <button type="button" class="cv-btn cv-btn--primary" data-cv-download-json disabled>Download JSON</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-download-md disabled>Download Markdown</button>
+            <a class="cv-btn cv-btn--outline cv-btn--muted" href="https://colab.research.google.com/github/tcbhagat/ConstroVet4mobile/blob/main/colab/constrovet_gemini_verifier.ipynb" target="_blank" rel="noopener" data-cv-open-gemini hidden>Open Gemini Verifier</a>
           </div>
         </div>
       </div>
