@@ -9,6 +9,8 @@ Last updated: 2026-06-12
 - Storage: Google Workspace Drive owned by `admin@constrovet.com`.
 - Execution: Google Colab free runtime with approved Gemini access.
 - Durable project memory: AgentMemory.
+- GCP status: all visible Google Cloud projects have been moved to
+  `DELETE_REQUESTED`; no active workflow depends on GCP.
 
 No active workflow should require Cloud Run, Cloud SQL, GCS buckets, Firestore,
 Cloud Armor, paid VMs, paid Colab Pro, paid vector databases, or non-Gemini
@@ -33,21 +35,32 @@ Local rollback refs were created before this migration:
 - `constrovet-website`: branch and tag `pre-gcp-free-migration-20260612`.
 - `app4constrovet`: branch and tag `pre-gcp-free-migration-20260612`.
 
-The legacy Cloud Run and app-domain docs are retained as rollback/reference
-material only. Do not use them as the active deployment path.
+The legacy Cloud Run, app-domain, storage-bucket, and backend SaaS docs are
+retained as rollback/reference material only. Do not use them as the active
+deployment path.
 
-## GCP Deletion Gate
+## GCP Deletion Status
 
-Do not delete any GCP project until all of these are true:
+The GCP cleanup completed on 2026-06-12:
 
-- Required Cloud SQL/GCS/export data has been captured or explicitly waived.
-- Project/resource manifests have been captured if the account is accessible.
-- `https://www.constrovet.com`, `/demo`, `/app/`, `/llms.txt`, `/sitemap.xml`,
-  and `/robots.txt` pass HTTP checks from GitHub Pages.
-- Public pages do not link to `app.constrovet.com` or raw Cloud Run URLs.
-- At least one Drive-backed Colab run has produced valid strict JSON and
-  Markdown outputs.
-- AgentMemory has the migration decision and rollback gotchas saved.
+- `gcloud projects list --filter="lifecycleState:ACTIVE"` returned no active
+  projects after cleanup.
+- `https://www.constrovet.com`, `/demo`, and `/app/` passed HTTP checks from
+  GitHub Pages after cleanup.
+- Public entry pages did not link to `app.constrovet.com` or raw Cloud Run URLs.
+- Google Workspace Drive and Colab folders remained visible after cleanup.
+- AgentMemory records the deletion audit and rollback gotchas.
+
+## Rejected For Now
+
+Do not implement the service-account backend upload plan as the active workflow.
+That plan depends on `DRIVE_SERVICE_ACCOUNT_JSON`, `googleapis`, upload API
+routes, trigger endpoints, and backend email automation. It would require a
+running backend and operational credentials, which conflicts with the current
+zero-GCP model.
+
+The current `/app/` page is a static operator launcher. Users place files in
+Workspace Drive manually and run the Colab notebook manually.
 
 ## Budget Checklist
 

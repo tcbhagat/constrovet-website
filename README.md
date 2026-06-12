@@ -57,10 +57,15 @@ The active GCP-free app workflow is:
 - App launcher: `https://www.constrovet.com/app/`
 - Storage: Google Workspace Drive owned by `admin@constrovet.com`
 - Execution: Google Colab free runtime with approved Gemini access
+- GCP status: all visible projects have been moved to `DELETE_REQUESTED`
 
 Legacy Cloud Run/GCP notes in this repository are retained only as rollback
 references. Do not re-enable GCP hosting or paid infrastructure without an
 explicit approval and a new rollback plan.
+
+Do not add service-account Drive upload, backend email automation, GCS, Cloud
+Run, Cloud SQL, Firestore, or a hosted app backend to the active workflow unless
+a future backend revival is explicitly approved.
 
 The production deployment target is:
 

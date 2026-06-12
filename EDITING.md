@@ -1,6 +1,8 @@
 # Constrovet Website Editing Guide
 
-Use GitHub web editing as the normal workflow. It gives you history, review, and a clean path to Cloud Build deployment without touching production servers directly.
+Use GitHub web editing as the normal workflow. It gives you history, review,
+and a clean path to GitHub Pages deployment without touching production servers
+directly.
 
 ## What to Edit
 
@@ -24,8 +26,9 @@ Use GitHub web editing as the normal workflow. It gives you history, review, and
 6. GitHub Pages should serve the merged `main` branch.
 
 Current app links should point to `/app/`, the GitHub Pages launcher for the
-Google Workspace Drive and Colab workflow. Do not restore `app.constrovet.com`
-or raw Cloud Run links unless a rollback is explicitly approved.
+Google Workspace Drive and Colab workflow. Do not restore `app.constrovet.com`,
+raw Cloud Run links, service-account Drive upload, or backend email automation
+unless a backend revival is explicitly approved.
 
 ## Local Ubuntu Workflow
 
