@@ -28,6 +28,12 @@ My Drive/Constrovet/projects/<project_id>/outputs/
 Put authorized project PDFs and CSVs in `input/`. The Colab notebook writes
 strict JSON, Markdown reports, and audit trail files to `outputs/`.
 
+Notebook URL template:
+
+```text
+https://colab.research.google.com/github/tcbhagat/ConstroVet4mobile/blob/main/colab/constrovet_colab_demo.ipynb?project_id=<project_id>
+```
+
 ## Rollback References
 
 Local rollback refs were created before this migration:
