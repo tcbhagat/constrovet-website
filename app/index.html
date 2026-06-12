@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Constrovet Live Dashboard | Google Drive and Colab</title>
+  <meta name="description" content="Run Constrovet construction cost, delay, ESG, and leakage analysis from Google Workspace Drive and Google Colab without Google Cloud Platform services.">
+  <link rel="canonical" href="https://www.constrovet.com/app/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Constrovet">
+  <meta property="og:title" content="Constrovet Live Dashboard | Google Drive and Colab">
+  <meta property="og:description" content="A GCP-free Constrovet launcher for Drive-backed Colab analysis and cited executive reports.">
+  <meta property="og:url" content="https://www.constrovet.com/app/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div id="cv-nav-placeholder"></div>
+  <main>
+    <section class="home-hero home-hero--dashboard">
+      <img
+        class="home-hero__bg"
+        src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1800&q=72"
+        alt="Construction project team reviewing site documents"
+        width="1800"
+        height="1200"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high">
+      <div class="home-hero__content home-hero__layout">
+        <div class="home-hero__copy">
+          <span class="home-hero__badge">GCP-free live workflow</span>
+          <h1>Constrovet Drive and Colab Dashboard</h1>
+          <p>
+            Store authorized project PDFs and CSVs in Google Workspace Drive, run the Colab notebook, and receive cited cost, schedule, ESG, and leakage reports in the project output folder.
+          </p>
+          <div class="home-hero__cta">
+            <a href="https://colab.research.google.com/" class="cv-btn cv-btn--outline" target="_blank" rel="noopener noreferrer">Open Google Colab</a>
+            <a href="../pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
+          </div>
+          <p class="home-hero__footnote">
+            Uses Google Workspace Drive, Google Colab free runtime, and approved Gemini access. No Cloud Run, Cloud SQL, GCS, Firestore, or GCP project is required for this workflow.
+          </p>
+        </div>
+        <aside class="cv-intel-panel" aria-label="Constrovet Drive and Colab run checklist">
+          <div class="cv-intel-panel__bar">
+            <span></span><span></span><span></span>
+            <strong>Run checklist</strong>
+          </div>
+          <div class="cv-intel-panel__body">
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--blue">Drive</span>
+                <h2>Prepare input files</h2>
+                <p>Use <code>My Drive/Constrovet/projects/&lt;project_id&gt;/input/</code> for PDFs and CSVs.</p>
+              </div>
+            </div>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--green">Colab</span>
+                <h2>Run notebook</h2>
+                <p>Mount Drive, set <code>PROJECT_ID</code>, run smoke tests, then run the analysis cells.</p>
+              </div>
+            </div>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--orange">Outputs</span>
+                <h2>Review reports</h2>
+                <p>Find JSON, Markdown, and audit outputs in <code>My Drive/Constrovet/projects/&lt;project_id&gt;/outputs/</code>.</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="cv-section cv-section--bg-white">
+      <div class="cv-section__header">
+        <span class="cv-section__eyebrow">Storage structure</span>
+        <h2 class="cv-section__title">Use Workspace Drive Instead of GCP Buckets</h2>
+        <p class="cv-section__sub">
+          Admin-owned Drive folders replace GCS buckets for the active lightweight workflow.
+        </p>
+      </div>
+      <div class="cv-dashboard-grid">
+        <article class="cv-dashboard-card">
+          <div class="cv-dashboard-card__header">
+            <span>Input</span>
+            <strong>Project evidence</strong>
+          </div>
+          <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/input/</code></p>
+          <p>Place authorized PDFs and CSVs here before running Colab. Keep original filenames stable for citation traceability.</p>
+        </article>
+        <article class="cv-dashboard-card">
+          <div class="cv-dashboard-card__header">
+            <span>Output</span>
+            <strong>Executive reports</strong>
+          </div>
+          <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/outputs/</code></p>
+          <p>Colab writes strict JSON findings, Markdown reports, and an audit trail here.</p>
+        </article>
+        <article class="cv-dashboard-card cv-dashboard-card--dark">
+          <div class="cv-dashboard-card__header">
+            <span>Budget</span>
+            <strong>No new paid infrastructure</strong>
+          </div>
+          <p>Allowed: GitHub Pages, Workspace Drive, Colab free runtime, and approved Gemini access.</p>
+          <p>Blocked without approval: Cloud Run, Cloud SQL, GCS, Firestore, paid VMs, paid Colab Pro, paid vector databases, and non-Gemini model APIs.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="cv-section cv-section--bg-slate">
+      <div class="cv-section__header cv-section__header--center">
+        <span class="cv-section__eyebrow">Evidence rules</span>
+        <h2 class="cv-section__title">What The Notebook Must Prove</h2>
+        <p class="cv-section__sub">
+          The output remains decision-support only and must stay tied to retrieved document evidence.
+        </p>
+      </div>
+      <div class="cv-faq">
+        <article>
+          <h3>Every finding needs a citation</h3>
+          <p>Each finding must include file, page or sheet, and quoted span. Missing evidence goes into the honesty check.</p>
+        </article>
+        <article>
+          <h3>Overruns are calculated only when supported</h3>
+          <p>If Budget and Actual are both available, overrun is calculated as Actual - Budget. Positive overruns are separate leakage findings.</p>
+        </article>
+        <article>
+          <h3>Baseline is not leakage</h3>
+          <p>Contract value, BOQ value, planned spend, cumulative work done, and advance recovery remain baseline budget signals.</p>
+        </article>
+        <article>
+          <h3>ESG stays separate</h3>
+          <p>Carbon, energy, water, fuel, diesel, electricity, waste, and emissions are ESG metrics unless separate financial evidence is cited.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="cv-section cv-section--bg-white">
+      <div class="cv-section__header cv-section__header--center">
+        <span class="cv-section__eyebrow">Rollback gate</span>
+        <h2 class="cv-section__title">GCP Deletion Is Blocked Until Cutover Passes</h2>
+        <p class="cv-section__sub">
+          Before deleting any Google Cloud project, preserve exports, rollback refs, and at least one successful Drive-backed Colab run.
+        </p>
+      </div>
+    </section>
+  </main>
+  <div id="cv-footer-placeholder"></div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

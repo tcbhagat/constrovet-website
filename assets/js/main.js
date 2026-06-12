@@ -10,7 +10,7 @@
 (function () {
   "use strict";
 
-  const APP_URL = "https://app.constrovet.com";
+  const APP_URL = "/app/";
 
   /* ── 1. INJECT NAV & FOOTER ─────────────────────────────────── */
   async function loadPartial(selector, url) {
@@ -26,9 +26,12 @@
     }
   }
 
-  /* Resolve path depth — pages/ and blog/ are one level deep. */
-  const isRoot = !window.location.pathname.includes("/pages/") && !window.location.pathname.includes("/blog/");
-  const base   = isRoot ? "assets/" : "../assets/";
+  /* Resolve path depth — pages/, blog/, and app/ are one level deep. */
+  const isNested =
+    window.location.pathname.includes("/pages/") ||
+    window.location.pathname.includes("/blog/") ||
+    window.location.pathname.includes("/app/");
+  const base = isNested ? "../assets/" : "assets/";
 
   Promise.all([
     loadPartial("#cv-nav-placeholder",    base + "nav.html"),
@@ -75,8 +78,8 @@
   function configureAppLinks() {
     document.querySelectorAll("[data-cv-app-link]").forEach(a => {
       a.href = APP_URL;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
+      a.removeAttribute("target");
+      a.removeAttribute("rel");
       a.setAttribute("aria-label", "Open Constrovet live dashboard");
     });
   }

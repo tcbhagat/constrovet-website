@@ -12,7 +12,7 @@ Use GitHub web editing as the normal workflow. It gives you history, review, and
 | Footer links and text | `assets/footer.html` |
 | Colours, typography, spacing, mobile layout | `assets/css/style.css` |
 | Browser behavior such as mobile menu | `assets/js/main.js` |
-| Cloud Run web server headers and caching | `nginx.conf` |
+| Legacy Cloud Run web server headers and caching | `nginx.conf` |
 
 ## GitHub Web Workflow
 
@@ -21,7 +21,11 @@ Use GitHub web editing as the normal workflow. It gives you history, review, and
 3. Use the pencil icon, make the text-only change, and preview the diff.
 4. Commit to a short branch name such as `content/home-copy`.
 5. Open a pull request, check the diff, then merge to `main` when ready.
-6. Cloud Build should deploy the merged `main` branch to Cloud Run.
+6. GitHub Pages should serve the merged `main` branch.
+
+Current app links should point to `/app/`, the GitHub Pages launcher for the
+Google Workspace Drive and Colab workflow. Do not restore `app.constrovet.com`
+or raw Cloud Run links unless a rollback is explicitly approved.
 
 ## Local Ubuntu Workflow
 

@@ -10,9 +10,9 @@ Primary users: Indian SMB contractors, project managers, developers, financiers,
 
 Public website: https://www.constrovet.com/
 
-Product app target: https://app.constrovet.com/
+Product app target: https://www.constrovet.com/app/
 
-Current app-domain note: app.constrovet.com is the verified branded product domain for the public app and synthetic demo surface. Private analysis workflows still require approved access.
+Current app workflow note: the active public app entry point is the GitHub Pages launcher at https://www.constrovet.com/app/. Analysis runs from Google Workspace Drive and Google Colab using approved Gemini access. Private project documents should be stored in the admin-owned Workspace Drive folder structure, not on the public website.
 
 ## Company
 
@@ -64,6 +64,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 ## Key Pages
 
 - Home: https://www.constrovet.com/
+- GCP-free app launcher: https://www.constrovet.com/app/
 - Synthetic executive demo: https://www.constrovet.com/demo
 - Blog index: https://www.constrovet.com/blog/
 - Article: Documents needed for a construction cost leakage audit: https://www.constrovet.com/blog/documents-needed-for-construction-cost-leakage-audit
@@ -104,7 +105,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 ## Pages Not To Cite For Claims
 
-- `https://app.constrovet.com` may be cited only as the public app/demo entry point. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
+- `https://www.constrovet.com/app/` may be cited only as the public Drive/Colab launcher. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
 - Do not cite setup or internal documentation pages such as `/docs/search-console-setup.md`, `/docs/app-subdomain-setup.md`, `/docs/content-calendar.md`, `/docs/seo-geo-audit.md`, or `/docs/seo-geo-change-log.md` as public product claims.
 - Do not cite `/demo` as real client evidence. It is synthetic only.
 - Do not cite `/pages/client.html` as a real client list. It is a use-case page.
