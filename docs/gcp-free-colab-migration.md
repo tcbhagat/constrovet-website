@@ -5,9 +5,11 @@ Last updated: 2026-06-12
 ## Active Hosting And Execution
 
 - Public website: GitHub Pages at `https://www.constrovet.com`.
-- Live dashboard launcher: `https://www.constrovet.com/app/`.
+- Live dashboard: `https://www.constrovet.com/app/`.
+- First-pass execution: browser-side PDF/CSV analysis from the static dashboard.
 - Storage: Google Workspace Drive owned by `admin@constrovet.com`.
-- Execution: Google Colab free runtime with approved Gemini access.
+- Optional deeper execution: Google Colab free runtime with approved Gemini
+  access.
 - Durable project memory: AgentMemory.
 - GCP status: all visible Google Cloud projects have been moved to
   `DELETE_REQUESTED`; no active workflow depends on GCP.
@@ -25,8 +27,14 @@ My Drive/Constrovet/projects/<project_id>/input/
 My Drive/Constrovet/projects/<project_id>/outputs/
 ```
 
-Put authorized project PDFs and CSVs in `input/`. The Colab notebook writes
-strict JSON, Markdown reports, and audit trail files to `outputs/`.
+The public `/app/` dashboard lets users choose authorized PDFs and CSVs from
+their local machine and run a deterministic browser-side analysis. Files are not
+uploaded to a server. Save downloaded JSON and Markdown outputs in `outputs/`
+when durable records are needed.
+
+For optional Colab runs, put authorized project PDFs and CSVs in `input/`. The
+Colab notebook writes strict JSON, Markdown reports, and audit trail files to
+`outputs/`.
 
 Notebook URL template:
 
@@ -65,15 +73,16 @@ routes, trigger endpoints, and backend email automation. It would require a
 running backend and operational credentials, which conflicts with the current
 zero-GCP model.
 
-The current `/app/` page is a static operator launcher. Users place files in
-Workspace Drive manually and run the Colab notebook manually.
+The current `/app/` page is a static upload-and-analysis dashboard. It does not
+upload files to Drive or call Gemini from the browser. Users store source files
+and downloaded outputs in Workspace Drive manually.
 
 ## Budget Checklist
 
 For each run, record:
 
-- Runtime is Google Colab free.
-- Files are read from Google Workspace Drive, not GCS.
+- Runtime is static browser analysis or Google Colab free.
+- Files are read from local browser selection or Google Workspace Drive, not GCS.
 - No GCP credentials or service account are required.
 - Gemini usage is limited to evidence-backed extraction, verification, and
   report generation.

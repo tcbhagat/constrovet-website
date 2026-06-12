@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Constrovet Live Dashboard | Google Drive and Colab</title>
-  <meta name="description" content="Run Constrovet construction cost, delay, ESG, and leakage analysis from Google Workspace Drive and Google Colab without Google Cloud Platform services.">
+  <title>Constrovet Live Dashboard | PDF and CSV Cost Analysis</title>
+  <meta name="description" content="Upload construction project PDFs and CSVs for a browser-only Constrovet cost, delay, ESG, and leakage analysis without Google Cloud Platform services.">
   <link rel="canonical" href="https://www.constrovet.com/app/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Constrovet">
-  <meta property="og:title" content="Constrovet Live Dashboard | Google Drive and Colab">
-  <meta property="og:description" content="A GCP-free Constrovet launcher for Drive-backed Colab analysis and cited executive reports.">
+  <meta property="og:title" content="Constrovet Live Dashboard | PDF and CSV Cost Analysis">
+  <meta property="og:description" content="A GCP-free Constrovet dashboard for browser-side PDF and CSV analysis with cited executive reports.">
   <meta property="og:url" content="https://www.constrovet.com/app/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,16 +32,16 @@
       <div class="home-hero__content home-hero__layout">
         <div class="home-hero__copy">
           <span class="home-hero__badge">GCP-free live workflow</span>
-          <h1>Constrovet Drive and Colab Dashboard</h1>
+          <h1>Constrovet File Analysis Dashboard</h1>
           <p>
-            Store authorized project PDFs and CSVs in Google Workspace Drive, run the Colab notebook, and receive cited cost, schedule, ESG, and leakage reports in the project output folder.
+            Upload authorized construction PDFs and CSVs, run a free browser-side review, and download cited cost, schedule, ESG, and leakage findings.
           </p>
           <div class="home-hero__cta">
-            <a href="https://colab.research.google.com/github/tcbhagat/ConstroVet4mobile/blob/main/colab/constrovet_colab_demo.ipynb?project_id=sample-project" class="cv-btn cv-btn--outline" target="_blank" rel="noopener noreferrer">Open Constrovet Colab</a>
+            <a href="#dashboard-upload" class="cv-btn cv-btn--outline">Upload PDF/CSV</a>
             <a href="../pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
           </div>
           <p class="home-hero__footnote">
-            Uses Google Workspace Drive, Google Colab free runtime, and approved Gemini access. No Cloud Run, Cloud SQL, GCS, Firestore, or GCP project is required for this workflow.
+            Files stay in this browser session. No Cloud Run, Cloud SQL, GCS, Firestore, service account, or GCP project is required for this first-pass workflow.
           </p>
         </div>
         <aside class="cv-intel-panel" aria-label="Constrovet Drive and Colab run checklist">
@@ -52,23 +52,23 @@
           <div class="cv-intel-panel__body">
             <div class="cv-intel-row">
               <div>
-                <span class="cv-intel-row__tag cv-intel-row__tag--blue">Drive</span>
-                <h2>Prepare input files</h2>
-                <p>Use <code>My Drive/Constrovet/projects/&lt;project_id&gt;/input/</code> for PDFs and CSVs.</p>
+                <span class="cv-intel-row__tag cv-intel-row__tag--blue">Upload</span>
+                <h2>Select project files</h2>
+                <p>Use authorized PDFs and CSVs. Keep original filenames stable for citation traceability.</p>
               </div>
             </div>
             <div class="cv-intel-row">
               <div>
-                <span class="cv-intel-row__tag cv-intel-row__tag--green">Colab</span>
-                <h2>Run notebook</h2>
-                <p>Mount Drive, set <code>PROJECT_ID</code>, run smoke tests, then run the analysis cells.</p>
+                <span class="cv-intel-row__tag cv-intel-row__tag--green">Analyze</span>
+                <h2>Run in browser</h2>
+                <p>The dashboard extracts evidence windows and classifies baseline, leakage, overrun, schedule, and ESG signals.</p>
               </div>
             </div>
             <div class="cv-intel-row">
               <div>
                 <span class="cv-intel-row__tag cv-intel-row__tag--orange">Outputs</span>
-                <h2>Review reports</h2>
-                <p>Find JSON, Markdown, and audit outputs in <code>My Drive/Constrovet/projects/&lt;project_id&gt;/outputs/</code>.</p>
+                <h2>Download reports</h2>
+                <p>Save strict JSON and Markdown outputs. Use Drive separately for durable storage.</p>
               </div>
             </div>
           </div>
@@ -76,12 +76,51 @@
       </div>
     </section>
 
+    <section id="dashboard-upload" class="cv-section cv-section--bg-white">
+      <div class="cv-section__header">
+        <span class="cv-section__eyebrow">Live browser dashboard</span>
+        <h2 class="cv-section__title">Upload Construction Project PDFs And CSVs</h2>
+        <p class="cv-section__sub">
+          Run a no-cost deterministic analysis in your browser. For sensitive records, save the downloaded outputs into the Workspace Drive project folder after review.
+        </p>
+      </div>
+      <div class="cv-upload-dashboard" data-cv-local-analyzer>
+        <div class="cv-upload-dashboard__panel">
+          <label class="cv-upload-drop" for="cv-analysis-files">
+            <span class="cv-upload-drop__label">Drop or choose PDF/CSV files</span>
+            <span class="cv-upload-drop__hint">Up to 10 files, 15 MB each. Files are not uploaded to a server.</span>
+            <input id="cv-analysis-files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple>
+          </label>
+          <div class="cv-upload-dashboard__actions">
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyze Files</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
+          </div>
+          <p class="cv-upload-dashboard__status" data-cv-analysis-status>No files selected.</p>
+          <ul class="cv-upload-dashboard__files" data-cv-analysis-files></ul>
+        </div>
+        <div class="cv-upload-dashboard__results" aria-live="polite">
+          <div class="cv-dashboard-card__header">
+            <span>Output</span>
+            <strong>Executive findings</strong>
+          </div>
+          <div class="cv-upload-dashboard__summary" data-cv-analysis-summary>
+            Select files and run analysis to generate cited findings.
+          </div>
+          <pre class="cv-upload-dashboard__json" data-cv-analysis-json>{}</pre>
+          <div class="cv-upload-dashboard__actions">
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-download-json disabled>Download JSON</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-download-md disabled>Download Markdown</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="cv-section cv-section--bg-white">
       <div class="cv-section__header">
         <span class="cv-section__eyebrow">Storage structure</span>
-        <h2 class="cv-section__title">Use Workspace Drive Instead of GCP Buckets</h2>
+        <h2 class="cv-section__title">Use Workspace Drive For Durable Storage</h2>
         <p class="cv-section__sub">
-          Admin-owned Drive folders replace GCS buckets for the active lightweight workflow.
+          The live dashboard analyzes local files in the browser. Store source files and downloaded outputs in Drive when you need durable project records.
         </p>
       </div>
       <div class="cv-dashboard-grid">
@@ -91,7 +130,7 @@
             <strong>Project evidence</strong>
           </div>
           <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/input/</code></p>
-          <p>Place authorized PDFs and CSVs here before running Colab. Keep original filenames stable for citation traceability.</p>
+          <p>Place authorized PDFs and CSVs here for durable storage. Keep original filenames stable for citation traceability.</p>
         </article>
         <article class="cv-dashboard-card">
           <div class="cv-dashboard-card__header">
@@ -99,14 +138,14 @@
             <strong>Executive reports</strong>
           </div>
           <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/outputs/</code></p>
-          <p>Colab writes strict JSON findings, Markdown reports, and an audit trail here.</p>
+          <p>Save downloaded JSON, Markdown, and audit outputs here after browser analysis.</p>
         </article>
         <article class="cv-dashboard-card cv-dashboard-card--dark">
           <div class="cv-dashboard-card__header">
             <span>Budget</span>
             <strong>No new paid infrastructure</strong>
           </div>
-          <p>Allowed: GitHub Pages, Workspace Drive, Colab free runtime, and approved Gemini access.</p>
+          <p>Allowed: GitHub Pages, browser-side analysis, Workspace Drive, Colab free runtime, and approved Gemini access.</p>
           <p>Blocked without approval: Cloud Run, Cloud SQL, GCS, Firestore, paid VMs, paid Colab Pro, paid vector databases, and non-Gemini model APIs.</p>
         </article>
       </div>
@@ -115,7 +154,7 @@
     <section class="cv-section cv-section--bg-slate">
       <div class="cv-section__header cv-section__header--center">
         <span class="cv-section__eyebrow">Evidence rules</span>
-        <h2 class="cv-section__title">What The Notebook Must Prove</h2>
+        <h2 class="cv-section__title">What The Analysis Must Prove</h2>
         <p class="cv-section__sub">
           The output remains decision-support only and must stay tied to retrieved document evidence.
         </p>
@@ -145,12 +184,14 @@
         <span class="cv-section__eyebrow">Current operating model</span>
         <h2 class="cv-section__title">GCP Cleanup Is Complete</h2>
         <p class="cv-section__sub">
-          Constrovet now runs from GitHub Pages, Google Workspace Drive, and Colab. The static launcher is not an upload portal, and backend service-account automation remains off unless a future rollback is explicitly approved.
+          Constrovet now runs from GitHub Pages, browser-side file analysis, Google Workspace Drive, and optional Colab. Backend service-account automation remains off unless a future rollback is explicitly approved.
         </p>
       </div>
     </section>
   </main>
   <div id="cv-footer-placeholder"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/dashboard-analyzer.js"></script>
 </body>
 </html>
