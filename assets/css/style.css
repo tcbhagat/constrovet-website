@@ -774,6 +774,131 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   overflow-wrap: anywhere;
 }
 
+.cv-upload-dashboard__json[hidden],
+.cv-upload-dashboard__rationale[hidden] {
+  display: none;
+}
+
+.cv-action-plan {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.cv-action-plan h3 {
+  font-family: var(--font-display);
+  color: var(--slate-900);
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.cv-action-plan > p {
+  margin: 0;
+  color: var(--slate-700);
+}
+
+.cv-action-period {
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--white);
+}
+
+.cv-action-period h4,
+.cv-rationale-panel h3,
+.cv-rationale-panel h4 {
+  font-family: var(--font-display);
+  color: var(--slate-900);
+  margin: 0;
+}
+
+.cv-action-period ol {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.cv-action-period li {
+  color: var(--slate-700);
+  padding-left: 4px;
+}
+
+.cv-action-period li strong,
+.cv-action-period li span,
+.cv-action-period li em {
+  display: block;
+}
+
+.cv-action-period li strong {
+  color: var(--slate-900);
+  font-weight: 800;
+}
+
+.cv-action-period li em {
+  margin-top: 4px;
+  color: var(--brand-700);
+  font-size: .82rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.cv-rationale-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  background: var(--slate-50);
+  padding: 16px;
+}
+
+.cv-rationale-panel ul {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: var(--slate-700);
+}
+
+.cv-rationale-item {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  background: var(--white);
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.cv-rationale-item p {
+  margin: 0;
+  color: var(--slate-700);
+}
+
+.cv-rationale-item dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.cv-rationale-item dl div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.cv-rationale-item dt {
+  color: var(--slate-900);
+  font-weight: 800;
+}
+
+.cv-rationale-item dd {
+  margin: 0;
+  color: var(--slate-700);
+  overflow-wrap: anywhere;
+}
+
 .cv-insight-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

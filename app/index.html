@@ -106,86 +106,14 @@
           <div class="cv-upload-dashboard__summary" data-cv-analysis-summary>
             Select files and run analysis to generate cited findings.
           </div>
-          <pre class="cv-upload-dashboard__json" data-cv-analysis-json>{}</pre>
+          <div class="cv-upload-dashboard__rationale" data-cv-analysis-rationale hidden></div>
+          <pre class="cv-upload-dashboard__json" data-cv-analysis-json hidden>{}</pre>
           <div class="cv-upload-dashboard__actions">
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-toggle-rationale disabled>Citations and Rationale</button>
             <button type="button" class="cv-btn cv-btn--primary" data-cv-download-json disabled>Download JSON</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-download-md disabled>Download Markdown</button>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="cv-section cv-section--bg-white">
-      <div class="cv-section__header">
-        <span class="cv-section__eyebrow">Storage structure</span>
-        <h2 class="cv-section__title">Use Workspace Drive For Durable Storage</h2>
-        <p class="cv-section__sub">
-          The live dashboard analyzes local files in the browser. Store source files and downloaded outputs in Drive when you need durable project records.
-        </p>
-      </div>
-      <div class="cv-dashboard-grid">
-        <article class="cv-dashboard-card">
-          <div class="cv-dashboard-card__header">
-            <span>Input</span>
-            <strong>Project evidence</strong>
-          </div>
-          <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/input/</code></p>
-          <p>Place authorized PDFs and CSVs here for durable storage. Keep original filenames stable for citation traceability.</p>
-        </article>
-        <article class="cv-dashboard-card">
-          <div class="cv-dashboard-card__header">
-            <span>Output</span>
-            <strong>Executive reports</strong>
-          </div>
-          <p><code>My Drive/Constrovet/projects/&lt;project_id&gt;/outputs/</code></p>
-          <p>Save downloaded JSON, Markdown, and audit outputs here after browser analysis.</p>
-        </article>
-        <article class="cv-dashboard-card cv-dashboard-card--dark">
-          <div class="cv-dashboard-card__header">
-            <span>Budget</span>
-            <strong>No new paid infrastructure</strong>
-          </div>
-          <p>Allowed: GitHub Pages, browser-side analysis, Workspace Drive, Colab free runtime, and approved Gemini access.</p>
-          <p>Blocked without approval: Cloud Run, Cloud SQL, GCS, Firestore, paid VMs, paid Colab Pro, paid vector databases, and non-Gemini model APIs.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="cv-section cv-section--bg-slate">
-      <div class="cv-section__header cv-section__header--center">
-        <span class="cv-section__eyebrow">Evidence rules</span>
-        <h2 class="cv-section__title">What The Analysis Must Prove</h2>
-        <p class="cv-section__sub">
-          The output remains decision-support only and must stay tied to retrieved document evidence.
-        </p>
-      </div>
-      <div class="cv-faq">
-        <article>
-          <h3>Every finding needs a citation</h3>
-          <p>Each finding must include file, page or sheet, and quoted span. Missing evidence goes into the honesty check.</p>
-        </article>
-        <article>
-          <h3>Overruns are calculated only when supported</h3>
-          <p>If Budget and Actual are both available, overrun is calculated as Actual - Budget. Positive overruns are separate leakage findings.</p>
-        </article>
-        <article>
-          <h3>Baseline is not leakage</h3>
-          <p>Contract value, BOQ value, planned spend, cumulative work done, and advance recovery remain baseline budget signals.</p>
-        </article>
-        <article>
-          <h3>ESG stays separate</h3>
-          <p>Carbon, energy, water, fuel, diesel, electricity, waste, and emissions are ESG metrics unless separate financial evidence is cited.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="cv-section cv-section--bg-white">
-      <div class="cv-section__header cv-section__header--center">
-        <span class="cv-section__eyebrow">Current operating model</span>
-        <h2 class="cv-section__title">GCP Cleanup Is Complete</h2>
-        <p class="cv-section__sub">
-          Constrovet now runs from GitHub Pages, browser-side file analysis, Google Workspace Drive, and optional Colab. Backend service-account automation remains off unless a future rollback is explicitly approved.
-        </p>
       </div>
     </section>
   </main>
