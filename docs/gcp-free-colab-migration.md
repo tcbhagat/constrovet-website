@@ -50,7 +50,7 @@ https://colab.research.google.com/github/tcbhagat/ConstroVet4mobile/blob/main/co
 Verifier-only notebook URL:
 
 ```text
-https://colab.research.google.com/github/tcbhagat/ConstroVet4mobile/blob/main/colab/constrovet_gemini_verifier.ipynb
+https://colab.research.google.com/github/tcbhagat/constrovet-website/blob/main/colab/constrovet_gemini_verifier.ipynb
 ```
 
 ## Rollback References

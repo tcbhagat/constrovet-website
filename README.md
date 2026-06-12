@@ -28,6 +28,8 @@ constrovet/
 │       └── main.js         ← Nav loader + hamburger logic
 ├── app/
 │   └── index.html          ← GCP-free Drive + Colab dashboard launcher
+├── colab/
+│   └── constrovet_gemini_verifier.ipynb ← optional public Gemini verifier
 ├── Dockerfile              ← Legacy Cloud Run rollback reference
 ├── nginx.conf              ← Legacy web server config
 └── .gitignore
@@ -60,7 +62,8 @@ The active GCP-free app workflow is:
 - Storage: Google Workspace Drive owned by `admin@constrovet.com`
 - Optional deeper execution: Google Colab free runtime with approved Gemini
   access. The preferred high-ROI path is browser triage first, then optional
-  `constrovet_gemini_verifier.ipynb` on the downloaded `executive_synthesis.json`.
+  public `constrovet_gemini_verifier.ipynb` on the downloaded
+  `executive_synthesis.json`.
 - GCP status: all visible projects have been moved to `DELETE_REQUESTED`
 
 Legacy Cloud Run/GCP notes in this repository are retained only as rollback
