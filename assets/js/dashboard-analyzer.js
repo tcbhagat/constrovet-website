@@ -18,7 +18,8 @@
 
   const MAX_FILES = 10;
   const MAX_BYTES = 15 * 1024 * 1024;
-  const WORKSPACE_MAX_BYTES = 10 * 1024 * 1024;
+  const WORKSPACE_MAX_FILES = 3;
+  const WORKSPACE_MAX_BYTES = 5 * 1024 * 1024;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const CASH_HIGH = 5000000;
   const CASH_MEDIUM = 500000;
@@ -31,19 +32,29 @@
   let latestOutput = null;
   let latestDocuments = [];
   let latestEmail = "";
+  const pendingJobIds = {
+    DEEP_ANALYSIS: "",
+    EMAIL_BROWSER_REPORT: ""
+  };
 
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
   setResultActions(false);
+  setWorkspaceNote(workspaceEndpointConfigured() ? "" : "Workspace report delivery is being activated. Analyse is available now.");
 
   input.addEventListener("change", () => {
     latestOutput = null;
     latestDocuments = [];
+    resetPendingJobIds();
     resetResults();
     renderSelectedFiles();
     setResultActions(false);
+  });
+
+  emailInput.addEventListener("input", () => {
+    resetPendingJobIds();
   });
 
   runButton.addEventListener("click", async () => {
@@ -102,6 +113,7 @@
     latestOutput = null;
     latestDocuments = [];
     latestEmail = normalizeEmail(emailInput.value);
+    resetPendingJobIds();
 
     try {
       const documents = [];
@@ -114,7 +126,11 @@
       rationaleButton.textContent = "Citations and Rationale";
       setStatus(`Analysis complete: ${latestOutput.findings.length} cited findings from ${documents.length} file(s).`);
       setResultActions(true);
-      setWorkspaceNote("");
+      if (workspaceEndpointConfigured()) {
+        setWorkspaceNote("");
+      } else {
+        setWorkspaceNote("Workspace report delivery is being activated. Analyse is available now.");
+      }
       return latestOutput;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
@@ -129,6 +145,7 @@
     latestOutput = null;
     latestDocuments = [];
     latestEmail = "";
+    resetPendingJobIds();
     filesEl.innerHTML = "";
     resetResults();
     setStatus("No files selected.");
@@ -879,58 +896,44 @@
     }
     if (!latestOutput) throw new Error("Run Analyse first.");
     const payload = await buildWorkspaceJobPayload(mode);
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      });
-      const text = await response.text();
-      const body = text ? JSON.parse(text) : {};
-      if (!response.ok || body.ok === false) throw new Error(body.error || `Workspace processor returned HTTP ${response.status}.`);
-      return body;
-    } catch (error) {
-      if (error instanceof SyntaxError) throw new Error("Workspace processor returned an invalid response.");
-      return submitWorkspaceJobNoCors(endpoint, payload, error);
-    }
-  }
-
-  async function submitWorkspaceJobNoCors(endpoint, payload, originalError) {
-    try {
-      await fetch(endpoint, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      });
-      return {
-        ok: true,
-        job_id: payload.job_id,
-        message: "Request submitted to the Workspace processor. The browser could not read the cross-origin response, so check email and Drive outputs for completion."
-      };
-    } catch (_fallbackError) {
-      throw originalError instanceof Error ? originalError : new Error("Workspace processor submission failed.");
-    }
+    await fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return {
+      ok: true,
+      job_id: payload.job_id,
+      message: "Request submitted to the Workspace processor. The report will be emailed after processing."
+    };
   }
 
   async function buildWorkspaceJobPayload(mode) {
     const files = Array.from(input.files || []);
     const includeFiles = mode === "DEEP_ANALYSIS";
     if (includeFiles) {
+      if (files.length > WORKSPACE_MAX_FILES) {
+        throw new Error(`Deep Analysis accepts ${WORKSPACE_MAX_FILES} files or fewer during the controlled pilot.`);
+      }
       for (const file of files) {
         if (file.size > WORKSPACE_MAX_BYTES) {
-          throw new Error(`${file.name} is larger than the 10 MB Deep Analysis upload limit.`);
+          throw new Error(`${file.name} is larger than the 5 MB Deep Analysis upload limit.`);
         }
       }
     }
+    const jobId = pendingJobIds[mode] || makeJobId();
+    pendingJobIds[mode] = jobId;
     return {
       mode,
       email: latestEmail || normalizeEmail(emailInput.value),
       files: includeFiles ? await Promise.all(files.map(fileToPayload)) : [],
       browser_report: buildEvidencePayload(latestOutput),
+      deployment_key: String(APP_CONFIG.deploymentKey || ""),
+      honeypot: honeypotInput ? honeypotInput.value.trim() : "",
       submitted_at: new Date().toISOString(),
       site_version: String(APP_CONFIG.siteVersion || "workspace-apps-script-v1"),
-      job_id: makeJobId(),
+      job_id: jobId,
       client_audit: {
         file_count: files.length,
         deterministic_documents_processed: latestDocuments.length,
@@ -978,7 +981,12 @@
 
   function setResultActions(enabled) {
     rationaleButton.disabled = !enabled;
-    emailButton.disabled = !enabled;
+    const workspaceReady = workspaceEndpointConfigured();
+    deepButton.disabled = !workspaceReady;
+    emailButton.disabled = !enabled || !workspaceReady;
+    if (!workspaceReady) {
+      setWorkspaceNote("Workspace report delivery is being activated. Analyse is available now.");
+    }
   }
 
   function setWorkspaceNote(message) {
@@ -989,9 +997,18 @@
 
   function setBusy(isBusy) {
     runButton.disabled = isBusy;
-    deepButton.disabled = isBusy;
+    deepButton.disabled = isBusy || !workspaceEndpointConfigured();
     clearButton.disabled = isBusy;
-    emailButton.disabled = isBusy || !latestOutput;
+    emailButton.disabled = isBusy || !latestOutput || !workspaceEndpointConfigured();
+  }
+
+  function workspaceEndpointConfigured() {
+    return Boolean(String(APP_CONFIG.appsScriptEndpoint || "").trim());
+  }
+
+  function resetPendingJobIds() {
+    pendingJobIds.DEEP_ANALYSIS = "";
+    pendingJobIds.EMAIL_BROWSER_REPORT = "";
   }
 
   function formatBytes(bytes) {
