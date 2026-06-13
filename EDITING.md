@@ -25,11 +25,9 @@ directly.
 5. Open a pull request, check the diff, then merge to `main` when ready.
 6. GitHub Pages should serve the merged `main` branch.
 
-Current app links should point to `/app/`, the GitHub Pages dashboard for
-browser Analyse plus Workspace Apps Script Deep Analysis and report email. Do
-not restore `app.constrovet.com`, raw Cloud Run links, service-account Drive
-upload, or hosted backend email automation unless a backend revival is
-explicitly approved.
+Current authenticated app links should point to `https://app.constrovet.com`.
+The static `/app/` page is a legacy no-login browser demo only and must be
+labelled that way. Do not use raw Cloud Run links in public pages.
 
 ## Local Ubuntu Workflow
 
