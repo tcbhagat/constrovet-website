@@ -10,9 +10,9 @@ Primary users: Indian SMB contractors, project managers, developers, financiers,
 
 Public website: https://www.constrovet.com/
 
-Product app target: https://www.constrovet.com/app/
+Product app target: https://app.constrovet.com
 
-Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users enter an email, choose PDF and CSV construction project files, and select Analyse, Deep Analysis, or Email me the report. Analyse is browser-side deterministic first-pass analysis and does not upload files. Deep Analysis and report email use the admin-owned Google Workspace Apps Script processor, Drive storage, MailApp, and approved Gemini access after explicit user action.
+Current app workflow note: the canonical authenticated app target is https://app.constrovet.com. The GitHub Pages page at https://www.constrovet.com/app/ is a legacy no-login browser demo for lightweight PDF/CSV evaluation only and should not be described as the production authenticated app.
 
 ## Company
 
@@ -20,7 +20,7 @@ Constrovet is the public construction project intelligence brand associated with
 
 ## Product
 
-Constrovet is an AI-assisted construction project intelligence workflow. It helps project teams organize available construction records into cited findings for cost leakage, construction cost overrun, schedule delay cost impact, ESG/carbon metrics, and 7/30/90 executive recovery actions. It should be described as decision-support and evidence organization, not as an automatic legal, lender, audit, or compliance certification product.
+Constrovet is an AI-assisted construction project intelligence workflow. It helps project teams organize available construction records into cited findings for cost leakage, construction cost overrun, schedule delay cost impact, ESG/carbon metrics, Atomic Apex risk signals, and 7/30/90 executive recovery actions. It should be described as decision-support and evidence organization, not as an automatic legal, lender, audit, or compliance certification product.
 
 ## Target Users
 
@@ -64,7 +64,8 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 ## Key Pages
 
 - Home: https://www.constrovet.com/
-- GCP-free app launcher: https://www.constrovet.com/app/
+- Authenticated app: https://app.constrovet.com
+- Legacy no-login browser demo: https://www.constrovet.com/app/
 - Synthetic executive demo: https://www.constrovet.com/demo
 - Blog index: https://www.constrovet.com/blog/
 - Article: Documents needed for a construction cost leakage audit: https://www.constrovet.com/blog/documents-needed-for-construction-cost-leakage-audit
@@ -105,7 +106,8 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 ## Pages Not To Cite For Claims
 
-- `https://www.constrovet.com/app/` may be cited only as the public Analyse, Deep Analysis, and report email dashboard. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
+- `https://app.constrovet.com` may be cited as the authenticated Constrovet app target.
+- `https://www.constrovet.com/app/` may be cited only as the legacy no-login browser demo. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
 - Do not cite setup or internal documentation pages such as `/docs/search-console-setup.md`, `/docs/app-subdomain-setup.md`, `/docs/content-calendar.md`, `/docs/seo-geo-audit.md`, or `/docs/seo-geo-change-log.md` as public product claims.
 - Do not cite `/demo` as real client evidence. It is synthetic only.
 - Do not cite `/pages/client.html` as a real client list. It is a use-case page.

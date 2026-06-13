@@ -10,7 +10,7 @@
 (function () {
   "use strict";
 
-  const APP_URL = "/app/";
+  const APP_URL = "https://app.constrovet.com";
 
   /* ── 1. INJECT NAV & FOOTER ─────────────────────────────────── */
   async function loadPartial(selector, url) {
@@ -78,8 +78,8 @@
   function configureAppLinks() {
     document.querySelectorAll("[data-cv-app-link]").forEach(a => {
       a.href = APP_URL;
-      a.removeAttribute("target");
-      a.removeAttribute("rel");
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener");
       a.setAttribute("aria-label", "Open Constrovet live dashboard");
     });
   }
