@@ -19,7 +19,7 @@
   const MAX_FILES = 10;
   const MAX_BYTES = 15 * 1024 * 1024;
   const WORKSPACE_MAX_FILES = 3;
-  const WORKSPACE_MAX_BYTES = 5 * 1024 * 1024;
+  const WORKSPACE_MAX_BYTES = 10 * 1024 * 1024;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const CASH_HIGH = 5000000;
   const CASH_MEDIUM = 500000;
@@ -918,7 +918,7 @@
       }
       for (const file of files) {
         if (file.size > WORKSPACE_MAX_BYTES) {
-          throw new Error(`${file.name} is larger than the 5 MB Deep Analysis upload limit.`);
+          throw new Error(`${file.name} is larger than the 10 MB Deep Analysis upload limit.`);
         }
       }
     }

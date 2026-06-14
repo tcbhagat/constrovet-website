@@ -1,6 +1,6 @@
 const CONSTROVET_ROOT_FOLDER = "Constrovet";
 const CONSTROVET_PROJECTS_FOLDER = "projects";
-const MAX_FILES = 10;
+const MAX_FILES = 3;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const DAILY_EMAIL_LIMIT = 5;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -57,7 +57,7 @@ function validatePayload(payload) {
   if (!payload.browser_report || !Array.isArray(payload.browser_report.findings)) throw new Error("Browser report with findings[] is required.");
   if (payload.mode === "DEEP_ANALYSIS") {
     if (!Array.isArray(payload.files) || payload.files.length === 0) throw new Error("Deep Analysis requires uploaded files.");
-    if (payload.files.length > MAX_FILES) throw new Error(`Upload ${MAX_FILES} files or fewer.`);
+    if (payload.files.length > MAX_FILES) throw new Error(`Upload ${MAX_FILES} files or fewer during the controlled pilot.`);
     payload.files.forEach(validateFilePayload);
   }
 }

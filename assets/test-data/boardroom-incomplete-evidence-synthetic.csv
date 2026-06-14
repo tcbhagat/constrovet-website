@@ -1,0 +1,4 @@
+package,budget,actual,invoice,delay_days,cause,owner,document_reference,status
+Structural steel,8400000,,RA-12,,Missing actual spend and delay backup,Commercial lead,,Blocked by missing evidence
+Waterproofing,,1850000,,4,Variation mentioned without approved baseline,Package owner,VAR-WP-02,Needs baseline proof
+Site utilities,3200000,4100000,,,"",Site admin,LOG-UTIL-07,Needs cause and invoice proof

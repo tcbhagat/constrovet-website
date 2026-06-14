@@ -24,7 +24,8 @@ with `MailApp`.
 - No GCP project, Cloud Run, Cloud SQL, GCS, Firestore, or service account.
 - Uses Workspace Drive, Apps Script, MailApp, UrlFetchApp, and approved Gemini.
 - Treat as controlled pilot volume because Apps Script and MailApp quotas apply.
-- Deep Analysis accepts up to 10 PDF/CSV files, 10 MB each.
+- Deep Analysis accepts up to 3 PDF/CSV files, 10 MB each during the
+  controlled pilot.
 - Per-email daily request limit defaults to 5.
 
 ## Data Layout

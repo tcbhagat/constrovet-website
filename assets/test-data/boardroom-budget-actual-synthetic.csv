@@ -1,0 +1,5 @@
+package,budget,actual,invoice,delay_days,cause,owner,document_reference,status
+Civil works,25000000,28750000,RA-17,14,Rework and excess concrete,Site manager,BOQ-CIV-04,Needs recovery review
+MEP works,18000000,19650000,RA-15,7,Delayed purchase order,Procurement lead,PO-MEP-11,Escalate vendor timeline
+Finishes,12000000,11900000,RA-09,0,Within baseline,Project controls,BOQ-FIN-02,Monitor
+External works,7500000,9100000,RA-08,10,Idle equipment and remobilization,Construction manager,EOT-EXT-03,Validate supporting proof

@@ -1,0 +1,6 @@
+section,note,amount_inr,days,document_reference
+Executive note,Synthetic pilot only. No client data is shown.,0,0,NOTE-00
+Cost signal,Actual spend exceeds approved budget on civil works and MEP packages.,5400000,21,NOTE-01
+Schedule signal,Weekly progress is behind baseline because procurement and rework items remain open.,0,11,NOTE-02
+ESG signal,Diesel consumption log is available but water and waste records are missing for the same period.,0,0,NOTE-03
+Decision request,Assign owners for recovery evidence validation within 7 days.,0,7,NOTE-04

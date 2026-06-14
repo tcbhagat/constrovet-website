@@ -1,0 +1,5 @@
+week,planned_percent,actual_percent,delay_days,critical_activity,owner,status,document_reference
+2026-W20,58,52,6,MEP first fix,MEP lead,Behind baseline,WPR-2026-W20
+2026-W21,62,54,8,Facade brackets,Construction manager,Material approval pending,WPR-2026-W21
+2026-W22,67,57,10,Finishes mockup,Quality lead,Rework open,WPR-2026-W22
+2026-W23,72,61,11,External drainage,Site manager,Recovery plan requested,WPR-2026-W23

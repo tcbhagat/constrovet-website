@@ -30,7 +30,8 @@
   const isNested =
     window.location.pathname.includes("/pages/") ||
     window.location.pathname.includes("/blog/") ||
-    window.location.pathname.includes("/app/");
+    window.location.pathname.includes("/app/") ||
+    window.location.pathname.includes("/boardroom/");
   const base = isNested ? "../assets/" : "assets/";
 
   Promise.all([
@@ -61,13 +62,16 @@
 
   /* ── 3. ACTIVE LINK HIGHLIGHT ───────────────────────────────── */
   function highlightActiveLink() {
-    const currentPath = window.location.pathname;
-    const current = currentPath === "/" ? "index.html" : (currentPath.split("/").pop() || "index.html");
+    const currentPath = normalizePath(window.location.pathname);
     document.querySelectorAll(".cv-nav__links a, .cv-nav__drawer a").forEach(a => {
-      const hrefPath = new URL(a.getAttribute("href") || "/", window.location.origin).pathname;
-      const href = hrefPath === "/" ? "index.html" : hrefPath.split("/").pop();
-      if (href === current) a.classList.add("active");
+      const hrefPath = normalizePath(new URL(a.getAttribute("href") || "/", window.location.origin).pathname);
+      if (hrefPath === currentPath) a.classList.add("active");
     });
+  }
+
+  function normalizePath(pathname) {
+    const path = pathname || "/";
+    return path === "/" ? "/" : path.replace(/\/+$/, "");
   }
 
   function setFooterYear() {
