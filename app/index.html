@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Constrovet Live Dashboard | PDF and CSV Cost Analysis</title>
-  <meta name="description" content="Upload construction project PDFs and CSVs for Constrovet browser analysis, optional Workspace Apps Script Gemini deep analysis, and email reports without Google Cloud Platform services.">
+  <meta name="description" content="Upload construction project PDFs and CSVs for Constrovet browser analysis now. Workspace Apps Script Deep Analysis and email reports activate after the free processor endpoint is configured.">
   <link rel="canonical" href="https://www.constrovet.com/app/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Constrovet">
   <meta property="og:title" content="Constrovet Live Dashboard | PDF and CSV Cost Analysis">
-  <meta property="og:description" content="A GCP-free Constrovet dashboard for browser-side PDF and CSV analysis, optional Workspace Gemini review, and emailed executive reports.">
+  <meta property="og:description" content="A GCP-free Constrovet dashboard for browser-side PDF and CSV analysis now, with Workspace Gemini review and email reports pending processor activation.">
   <meta property="og:url" content="https://www.constrovet.com/app/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
 <body>
   <div id="cv-nav-placeholder"></div>
   <main>
-    <section class="home-hero home-hero--dashboard">
+    <section class="home-hero home-hero--dashboard home-hero--compact">
       <img
         class="home-hero__bg"
         src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1800&q=72"
@@ -34,14 +34,14 @@
           <span class="home-hero__badge">GCP-free live workflow</span>
           <h1>Constrovet File Analysis Dashboard</h1>
           <p>
-            Enter your email, upload authorized construction PDFs and CSVs, then choose instant analysis, deep Gemini review, or an emailed executive report.
+            Enter your email and upload authorized construction PDFs and CSVs to run browser Analyse now. Deep Analysis and emailed reports activate after the free Workspace processor is configured.
           </p>
           <div class="home-hero__cta">
             <a href="#dashboard-upload" class="cv-btn cv-btn--outline">Upload PDF/CSV</a>
             <a href="../pages/contact.html" class="cv-btn cv-btn--try">Request Pilot Access</a>
           </div>
           <p class="home-hero__footnote">
-            Analyse runs in this browser. Deep Analysis and email use Google Workspace Apps Script, Drive, Mail, and approved Gemini access without Cloud Run, Cloud SQL, GCS, Firestore, service accounts, or active GCP projects.
+            Analyse runs in this browser and does not upload files. The disabled Deep Analysis and email buttons are reserved for Google Workspace Apps Script, Drive, Mail, and approved Gemini access without Cloud Run, Cloud SQL, GCS, Firestore, service accounts, or active GCP projects.
           </p>
         </div>
         <aside class="cv-intel-panel" aria-label="Constrovet Analyse and Deep Analysis checklist">
@@ -61,14 +61,14 @@
               <div>
                 <span class="cv-intel-row__tag cv-intel-row__tag--green">Analyse</span>
                 <h2>Choose review depth</h2>
-                <p>Analyse stays local and instant. Deep Analysis sends evidence to the Workspace processor for Gemini-backed executive review.</p>
+                <p>Analyse stays local and instant. Deep Analysis sends evidence to the Workspace processor only after the endpoint is activated.</p>
               </div>
             </div>
             <div class="cv-intel-row">
               <div>
                 <span class="cv-intel-row__tag cv-intel-row__tag--orange">Outputs</span>
                 <h2>Receive the report</h2>
-                <p>Review results on screen or send the executive report to the email address provided for the run.</p>
+                <p>Review results on screen now. Emailed reports activate when the Workspace processor is configured.</p>
               </div>
             </div>
           </div>
@@ -81,7 +81,7 @@
         <span class="cv-section__eyebrow">Live browser dashboard</span>
         <h2 class="cv-section__title">Upload Construction Project PDFs And CSVs</h2>
         <p class="cv-section__sub">
-          Run a no-cost deterministic analysis in your browser. Deep Analysis and report email use the Workspace Apps Script processor after explicit user action.
+          Run a no-cost deterministic analysis in your browser. Deep Analysis and report email remain disabled until the Workspace Apps Script processor is configured, then run only after explicit user action.
         </p>
       </div>
       <div class="cv-upload-dashboard" data-cv-local-analyzer>
@@ -96,12 +96,12 @@
           </label>
           <label class="cv-upload-drop" for="cv-analysis-files">
             <span class="cv-upload-drop__label">Drop or choose PDF/CSV files</span>
-            <span class="cv-upload-drop__hint">Up to 10 files, 15 MB each. Analyse keeps files in browser; Deep Analysis stores them in Workspace Drive.</span>
+            <span class="cv-upload-drop__hint">Up to 10 files, 15 MB each. Analyse keeps files in browser; Deep Analysis stores approved pilot files in Workspace Drive after activation.</span>
             <input id="cv-analysis-files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple>
           </label>
           <div class="cv-upload-dashboard__actions">
             <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyse</button>
-            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-deep-analysis>Deep Analysis</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-deep-analysis disabled>Deep Analysis</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-email-report disabled>Email me the report</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
             <a class="cv-btn cv-btn--outline cv-btn--muted" href="../assets/templates/constrovet-executive-upload-template.csv" download>CSV Template</a>

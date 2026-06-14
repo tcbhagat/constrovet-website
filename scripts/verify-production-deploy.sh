@@ -17,7 +17,7 @@ status_for() {
   curl -sS -L -o /dev/null -w "%{http_code}" "$1"
 }
 
-for path in "/" "/demo" "/app/" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
+for path in "/" "/demo" "/app/" "/boardroom/" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
   status="$(status_for "${LIVE_URL}${path}")"
   [[ "$status" == "200" ]] || fail "${LIVE_URL}${path} returned HTTP ${status}"
 done
@@ -25,10 +25,10 @@ done
 company_html="$(curl -sS -L "${LIVE_URL}/pages/company.html")"
 grep -Fq "$EXPECTED_LABEL" <<<"$company_html" || fail "${LIVE_URL}/pages/company.html does not contain '$EXPECTED_LABEL'"
 
-if curl -sS -L "${LIVE_URL}" "${LIVE_URL}/demo" "${LIVE_URL}/app/" | grep -E "app\\.constrovet\\.com|prod-constrovet|run\\.app" >/dev/null; then
+if curl -sS -L "${LIVE_URL}" "${LIVE_URL}/demo" "${LIVE_URL}/app/" "${LIVE_URL}/boardroom/" | grep -E "app\\.constrovet\\.com|prod-constrovet|run\\.app" >/dev/null; then
   fail "Public entry pages still include legacy app.constrovet.com or raw Cloud Run links"
 fi
 
 echo "OK: GitHub Pages production routes verified"
 echo "site: ${LIVE_URL}"
-echo "routes: / /demo /app/ /llms.txt /sitemap.xml /robots.txt"
+echo "routes: / /demo /app/ /boardroom/ /llms.txt /sitemap.xml /robots.txt"

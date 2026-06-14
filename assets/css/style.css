@@ -412,6 +412,9 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 .home-hero--dashboard {
   padding: 88px var(--px) 96px;
 }
+.home-hero--compact {
+  padding: 72px var(--px);
+}
 .home-hero--dashboard::after {
   content: "";
   position: absolute;

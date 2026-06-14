@@ -42,7 +42,7 @@
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
   setResultActions(false);
-  setWorkspaceNote(workspaceEndpointConfigured() ? "" : "Workspace report delivery is being activated. Analyse is available now.");
+  setWorkspaceNote(workspaceEndpointConfigured() ? "" : "Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
 
   input.addEventListener("change", () => {
     latestOutput = null;
@@ -129,7 +129,7 @@
       if (workspaceEndpointConfigured()) {
         setWorkspaceNote("");
       } else {
-        setWorkspaceNote("Workspace report delivery is being activated. Analyse is available now.");
+        setWorkspaceNote("Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
       }
       return latestOutput;
     } catch (error) {
@@ -985,7 +985,7 @@
     deepButton.disabled = !workspaceReady;
     emailButton.disabled = !enabled || !workspaceReady;
     if (!workspaceReady) {
-      setWorkspaceNote("Workspace report delivery is being activated. Analyse is available now.");
+      setWorkspaceNote("Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
     }
   }
 

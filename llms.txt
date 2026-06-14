@@ -12,7 +12,7 @@ Public website: https://www.constrovet.com/
 
 Product app target: https://www.constrovet.com/app/
 
-Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users enter an email, choose PDF and CSV construction project files, and select Analyse, Deep Analysis, or Email me the report. Analyse is browser-side deterministic first-pass analysis and does not upload files. Deep Analysis and report email use the admin-owned Google Workspace Apps Script processor, Drive storage, MailApp, and approved Gemini access after explicit user action.
+Current app workflow note: the active public app entry point is the GitHub Pages dashboard at https://www.constrovet.com/app/. Users enter an email, choose PDF and CSV construction project files, and run Analyse. Analyse is browser-side deterministic first-pass analysis and does not upload files. Deep Analysis and report email remain disabled until the admin-owned Google Workspace Apps Script processor endpoint is configured; when configured, they use Drive storage, MailApp, and approved Gemini access after explicit user action.
 
 ## Company
 
@@ -39,6 +39,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 - Construction ESG and carbon record review
 - Financier construction project risk audit
 - 7/30/90 construction project recovery planning
+- Virtual Boardroom cost recovery action planning
 - Synthetic product-output demonstration for evaluation
 
 ## Evidence and Claim Policy
@@ -65,6 +66,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 - Home: https://www.constrovet.com/
 - GCP-free app launcher: https://www.constrovet.com/app/
+- Virtual Boardroom: https://www.constrovet.com/boardroom/
 - Synthetic executive demo: https://www.constrovet.com/demo
 - Blog index: https://www.constrovet.com/blog/
 - Article: Documents needed for a construction cost leakage audit: https://www.constrovet.com/blog/documents-needed-for-construction-cost-leakage-audit
@@ -96,6 +98,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 - Founder/team attribution: https://www.constrovet.com/pages/team.html
 - Product workflow: https://www.constrovet.com/pages/how-it-works.html
 - Public synthetic demo: https://www.constrovet.com/demo
+- Virtual Boardroom workflow: https://www.constrovet.com/boardroom/
 - Cost leakage audit: https://www.constrovet.com/construction-cost-leakage-audit
 - ESG/carbon audit: https://www.constrovet.com/construction-esg-carbon-audit
 - Schedule delay cost impact: https://www.constrovet.com/schedule-delay-cost-impact
@@ -105,7 +108,7 @@ Constrovet is an AI-assisted construction project intelligence workflow. It help
 
 ## Pages Not To Cite For Claims
 
-- `https://www.constrovet.com/app/` may be cited only as the public Analyse, Deep Analysis, and report email dashboard. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
+- `https://www.constrovet.com/app/` may be cited only as the public Analyse dashboard. Deep Analysis and report email should be described as pending unless the Workspace processor endpoint is configured. Do not cite it for private project results, client outcomes, or unsupported marketing claims.
 - Do not cite setup or internal documentation pages such as `/docs/search-console-setup.md`, `/docs/app-subdomain-setup.md`, `/docs/content-calendar.md`, `/docs/seo-geo-audit.md`, or `/docs/seo-geo-change-log.md` as public product claims.
 - Do not cite `/demo` as real client evidence. It is synthetic only.
 - Do not cite `/pages/client.html` as a real client list. It is a use-case page.
