@@ -5,6 +5,11 @@ It receives explicit user requests for Deep Analysis or report email, stores fil
 and outputs in Drive, calls Gemini only for Deep Analysis, and sends the report
 with `MailApp`.
 
+It also includes a separate zero-cost Virtual Boardroom Google Form intake
+automation. The form trigger copies accepted upload files from the Forms response
+folder into a controlled project folder, runs deterministic evidence extraction
+where possible, writes report artifacts, sends email, and appends an audit row.
+
 ## Deploy
 
 1. Open `script.google.com` as `admin@constrovet.com`.
@@ -13,11 +18,64 @@ with `MailApp`.
 4. In **Project Settings > Script properties**, add:
    - `GEMINI_API_KEY`: your approved Gemini API key.
    - `GEMINI_MODEL`: optional, default `gemini-2.5-pro`.
+   - `BOARDROOM_FORM_ID`: Google Form ID for the Virtual Boardroom intake form.
+   - `BOARDROOM_RESPONSE_FOLDER_ID`: optional Drive folder ID for the form file
+     responses.
+   - `BOARDROOM_NOTIFY_EMAIL`: optional fallback recipient, default
+     `admin@constrovet.com`.
+   - `ENABLE_BOARDROOM_DEEP_ANALYSIS`: optional, default `false`.
+   - `BOARDROOM_RESULT_BASE_URL`: optional Apps Script `/exec` web app URL.
+     If omitted, the script uses the deployed web app URL when available.
 5. Deploy as **Web app**:
    - Execute as: `Me`.
    - Who has access: `Anyone`.
 6. Copy the `/exec` web app URL into
    `assets/js/constrovet-app-config.js` as `appsScriptEndpoint`.
+
+## Form Intake Automation
+
+After pasting `Code.gs` and setting `BOARDROOM_FORM_ID`, run
+`installBoardroomFormTrigger()` once from the Apps Script editor and approve the
+requested Workspace permissions. This creates an installable `onFormSubmit`
+trigger for the Google Form.
+
+The trigger:
+
+- Creates `My Drive/Constrovet/projects/form-<timestamp>-<shortid>/input/` and
+  `/outputs/`.
+- Copies accepted PDF/CSV uploads into the project input folder.
+- When `BOARDROOM_RESPONSE_FOLDER_ID` is set, rejects files outside that direct
+  response folder.
+- Quarantines private-looking filenames such as medical, certificate, personal,
+  bank, plot, land, passport, Aadhaar, or PAN documents.
+- Reads CSV files directly.
+- Attempts PDF OCR only when the Apps Script project has the Advanced Drive
+  service enabled. Without it, PDFs are copied and listed as
+  `TEXT_EXTRACTION_UNAVAILABLE` missing evidence.
+- Writes `browser-report.json`, `final-report.json`, and
+  `executive-report.md`, then emails the report and a private result link.
+
+## Private Result Display
+
+The web app `doGet` endpoint keeps the existing health response when opened
+without parameters. Tokenized report links use:
+
+```text
+https://script.google.com/macros/s/<deployment-id>/exec?job_id=form-<timestamp>-<shortid>&key=<access_key>
+```
+
+The form automation creates a per-job `result_access_key`, stores it in the
+final report metadata and audit row, and sends the private link by email. The
+viewer reads the saved Drive report and renders executive summary, grouped
+findings, citations, 7/30/90 actions, honesty check, and generated report links.
+
+Add `&format=json` to the same private URL to return sanitized JSON for testing.
+Invalid keys and missing jobs return a clear 403/404 response body. Apps Script
+HTML web apps do not reliably expose custom HTTP status codes, so tests should
+verify the displayed status text or JSON `status` value.
+
+Do not publish a public report index. Do not share raw Drive upload folders as
+the user-facing result location.
 
 ## Budget Guardrails
 
@@ -26,6 +84,7 @@ with `MailApp`.
 - Treat as controlled pilot volume because Apps Script and MailApp quotas apply.
 - Deep Analysis accepts up to 3 PDF/CSV files, 10 MB each during the
   controlled pilot.
+- Form intake deterministic reports accept up to 10 PDF/CSV files, 10 MB each.
 - Per-email daily request limit defaults to 5.
 
 ## Data Layout
