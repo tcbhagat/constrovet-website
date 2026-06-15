@@ -83,10 +83,10 @@ function handleBoardroomFormSubmit(e) {
   const startedAt = new Date();
   const jobId = makeBoardroomJobId(startedAt);
   const props = PropertiesService.getScriptProperties();
-  const notifyEmail = props.getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL;
   const responseFolderId = props.getProperty("BOARDROOM_RESPONSE_FOLDER_ID") || "";
   const deepAnalysisEnabled = String(props.getProperty("ENABLE_BOARDROOM_DEEP_ANALYSIS") || "false").toLowerCase() === "true";
-  const submitterEmail = getBoardroomSubmitterEmail(e) || notifyEmail;
+  const submitterEmailInfo = getBoardroomSubmitterEmailInfo(e);
+  const submitterEmail = submitterEmailInfo.email;
   const folders = prepareJobFolders(jobId);
   const formFiles = getBoardroomFilesFromEvent(e);
   const accepted = [];
@@ -124,7 +124,8 @@ function handleBoardroomFormSubmit(e) {
     submitted_at: startedAt.toISOString(),
     received_file_count: formFiles.length,
     accepted_file_count: accepted.length,
-    rejected_files: rejected
+    rejected_files: rejected,
+    submitter_email_source: submitterEmailInfo.source
   };
 
   const accessKey = makeResultAccessKey();
@@ -140,34 +141,16 @@ function handleBoardroomFormSubmit(e) {
   const finalFile = folders.outputs.createFile(`${jobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
   report.generated_files.final_report_url = finalFile.getUrl();
   finalFile.setContent(JSON.stringify(report, null, 2));
-  let emailDelivery = emptyEmailDelivery(submitterEmail, jobId);
-  try {
-    emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
-    report.email_delivery = emailDelivery;
-    finalFile.setContent(JSON.stringify(report, null, 2));
-  } catch (error) {
-    emailDelivery = failedEmailDelivery(submitterEmail, jobId, error);
-    report.email_delivery = emailDelivery;
-    finalFile.setContent(JSON.stringify(report, null, 2));
-    appendBoardroomAuditRow({
-      timestamp: startedAt,
-      job_id: jobId,
-      mode: payload.mode,
-      email: submitterEmail,
-      received_file_count: formFiles.length,
-      accepted_file_count: accepted.length,
-      rejected_files: rejected,
-      finding_count: browserReport.findings.length,
-      gemini_status: verifierResult.verification_status || verifierResult.status || "UNKNOWN",
-      drive_folder: folders.job.getUrl(),
-      result_url: report.result_url,
-      result_access_key: accessKey,
-      report_quality_status: report.report_quality_status,
-      result_url_health: report.result_url_health,
-      email_delivery: emailDelivery
-    });
-    throw error;
+  let emailDelivery = missingUserEmailDelivery(jobId);
+  if (isValidEmail(submitterEmail)) {
+    try {
+      emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
+    } catch (error) {
+      emailDelivery = failedEmailDelivery(submitterEmail, jobId, error);
+    }
   }
+  report.email_delivery = emailDelivery;
+  finalFile.setContent(JSON.stringify(report, null, 2));
   appendBoardroomAuditRow({
     timestamp: startedAt,
     job_id: jobId,
@@ -181,6 +164,7 @@ function handleBoardroomFormSubmit(e) {
     drive_folder: folders.job.getUrl(),
     result_url: report.result_url,
     result_access_key: accessKey,
+    submitter_email_source: submitterEmailInfo.source,
     report_quality_status: report.report_quality_status,
     result_url_health: report.result_url_health,
     email_delivery: emailDelivery
@@ -448,16 +432,21 @@ function makeBoardroomJobId(date) {
 }
 
 function getBoardroomSubmitterEmail(e) {
+  return getBoardroomSubmitterEmailInfo(e).email;
+}
+
+function getBoardroomSubmitterEmailInfo(e) {
   if (e && e.response && typeof e.response.getRespondentEmail === "function") {
     const email = e.response.getRespondentEmail();
-    if (isValidEmail(email)) return email;
+    if (isValidEmail(email)) return { email: String(email).trim(), source: "FORM_RESPONDENT_EMAIL" };
   }
   const candidates = [];
   getBoardroomItemResponses(e).forEach((item) => {
     const title = String(item.title || "").toLowerCase();
     if (/email|e-mail|mail/.test(title)) candidates.push(String(item.response || ""));
   });
-  return candidates.map((item) => item.trim()).find(isValidEmail) || "";
+  const email = candidates.map((item) => item.trim()).find(isValidEmail) || "";
+  return email ? { email, source: "FORM_EMAIL_FIELD" } : { email: "", source: "MISSING" };
 }
 
 function getBoardroomFilesFromEvent(e) {
@@ -1416,7 +1405,8 @@ function buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, sa
 }
 
 function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
-  const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
+  if (!isValidEmail(email)) throw new Error("Valid user email is required before sending the executive report.");
+  const recipient = String(email).trim();
   const cc = boardroomAdminCc(recipient);
   const subject = boardroomIsIntakeException(report.browser_report || {})
     ? `Constrovet Evidence Intake Exception - ${jobId}`
@@ -1441,7 +1431,7 @@ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
 }
 
 function emptyEmailDelivery(email, jobId) {
-  const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
+  const recipient = isValidEmail(email) ? String(email).trim() : "";
   return {
     email_to: recipient,
     email_cc: boardroomAdminCc(recipient),
@@ -1449,6 +1439,17 @@ function emptyEmailDelivery(email, jobId) {
     email_sent_at: "",
     email_status: "EMAIL_NOT_ATTEMPTED",
     email_error: ""
+  };
+}
+
+function missingUserEmailDelivery(jobId) {
+  return {
+    email_to: "",
+    email_cc: "",
+    email_subject: `Constrovet Boardroom Report - ${jobId}`,
+    email_sent_at: "",
+    email_status: "EMAIL_NOT_SENT_MISSING_USER_EMAIL",
+    email_error: "No valid form respondent email or Email field was captured."
   };
 }
 
@@ -1491,6 +1492,7 @@ function resendBoardroomReport(jobId, recipientEmail) {
     drive_folder: job.getUrl(),
     result_url: report.result_url || "",
     result_access_key: report.result_access_key || "",
+    submitter_email_source: "MANUAL_RESEND",
     report_quality_status: report.report_quality_status || ((report.browser_report || {}).report_quality_status || ""),
     result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
     email_delivery: delivery
@@ -1826,6 +1828,7 @@ function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
     "",
     report.result_url || "",
     report.result_access_key || "",
+    "",
     delivery.email_to || "",
     delivery.email_cc || "",
     delivery.email_subject || "",
@@ -1854,6 +1857,7 @@ function appendBoardroomAuditRow(entry) {
     `received=${entry.received_file_count}; rejected=${rejectedSummary || "none"}`,
     entry.result_url || "",
     entry.result_access_key || "",
+    entry.submitter_email_source || "",
     delivery.email_to || "",
     delivery.email_cc || "",
     delivery.email_subject || "",
@@ -1892,6 +1896,7 @@ function ensureAuditHeader(sheet) {
     "intake_summary",
     "result_url",
     "result_access_key",
+    "submitter_email_source",
     "email_to",
     "email_cc",
     "email_subject",
