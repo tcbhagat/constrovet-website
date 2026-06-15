@@ -7,6 +7,7 @@ const BOARDROOM_DEEP_ANALYSIS_MAX_FILES = 3;
 const DAILY_EMAIL_LIMIT = 5;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_BOARDROOM_NOTIFY_EMAIL = "admin@constrovet.com";
+const BOARDROOM_ADMIN_CC_PROPERTY = "BOARDROOM_CC_ADMIN";
 
 function doGet(e) {
   try {
@@ -1199,26 +1200,133 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
 }
 
 function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
-  const resultLinkHtml = resultUrl
-    ? `<p><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#047857;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:bold">View private analysed result</a></p>`
-    : "<p>The Apps Script web app URL is not available yet. Use the attached Markdown report and redeploy the web app to enable private result links.</p>";
-  const resultLinkText = resultUrl ? `\nPrivate result link: ${resultUrl}\n` : "\nPrivate result link unavailable until the Apps Script web app is deployed.\n";
-  const html = `<div style="font-family:Arial,sans-serif;color:#172026">
-    <h1 style="font-size:20px">Constrovet Executive Report</h1>
-    <p>Job <strong>${escapeHtml(jobId)}</strong> has completed.</p>
-    <p>Mode: <strong>${escapeHtml(report.mode)}</strong></p>
-    <p>Gemini status: <strong>${escapeHtml(report.gemini_verifier_result.verification_status || "UNKNOWN")}</strong></p>
-    ${resultLinkHtml}
-    <p>The attached Markdown report includes executive actions, citations, rationale, honesty check, and audit details.</p>
-    <p style="color:#66737d">Decision-support only. Review cited evidence before commercial, legal, or recovery action.</p>
-  </div>`;
-  MailApp.sendEmail({
-    to: email,
-    subject: `Constrovet Executive Report - ${jobId}`,
-    body: `Constrovet report ${jobId} is attached.${resultLinkText}\nDecision-support only. Review cited evidence before action.`,
-    htmlBody: html,
+  const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
+  const cc = boardroomAdminCc(recipient);
+  const mail = {
+    to: recipient,
+    subject: `Constrovet Executive Action Plan - ${jobId}`,
+    body: buildExecutiveEmailText(jobId, report, resultUrl),
+    htmlBody: buildExecutiveEmailHtml(jobId, report, resultUrl),
     attachments: [markdownBlob.setName(`${jobId}-executive-report.md`)]
+  };
+  if (cc) mail.cc = cc;
+  MailApp.sendEmail(mail);
+}
+
+function boardroomAdminCc(recipient) {
+  const props = PropertiesService.getScriptProperties();
+  const enabled = String(props.getProperty(BOARDROOM_ADMIN_CC_PROPERTY) || "false").toLowerCase() === "true";
+  const admin = props.getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL;
+  if (!enabled || !isValidEmail(admin) || String(admin).toLowerCase() === String(recipient || "").toLowerCase()) return "";
+  return admin;
+}
+
+function buildExecutiveEmailHtml(jobId, report, resultUrl) {
+  const browserReport = report.browser_report || {};
+  const findings = browserReport.findings || [];
+  const leakageTotal = findings
+    .filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN")
+    .reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
+  const headline = browserReport.executive_brief && browserReport.executive_brief.headline
+    ? browserReport.executive_brief.headline
+    : "No executive headline was produced.";
+  const incomplete = boardroomAnalysisIncomplete(browserReport);
+  const resultLinkHtml = resultUrl
+    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#047857;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private analysed result</a></p>`
+    : "<p style=\"color:#92400e\"><strong>Private result link unavailable.</strong> Redeploy the Apps Script web app to enable private result links.</p>";
+  return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
+    <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#047857">Constrovet Executive Action Plan</p>
+    <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">Project evidence review completed</h1>
+    <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
+    ${incomplete ? `<div style="border:1px solid #f59e0b;background:#fffbeb;border-radius:6px;padding:12px;margin:14px 0"><strong>Analysis incomplete:</strong> PDF text extraction was unavailable or no cited evidence was extracted. Enable Drive API OCR or submit CSV evidence with budget, actual, delay, or ESG fields.</div>` : ""}
+    <h2 style="font-size:18px;margin:18px 0 8px">Executive Summary</h2>
+    <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
+    <p style="margin:0 0 12px"><strong>Total cited leakage/overrun exposure:</strong> INR ${formatInr(leakageTotal)}<br><strong>Cited findings:</strong> ${findings.length}<br><strong>Gemini status:</strong> ${escapeHtml((report.gemini_verifier_result || {}).verification_status || "NOT_RUN")}</p>
+    ${renderExecutiveActionsEmailHtml(browserReport)}
+    ${renderExecutiveActionPlanEmailHtml(browserReport)}
+    ${renderMissingEvidenceEmailHtml(browserReport)}
+    ${resultLinkHtml}
+    <p style="margin:14px 0;color:#66737d">The attached Markdown report includes the complete evidence trail, citations, rationale, honesty check, and audit details.</p>
+    <p style="margin:14px 0;color:#66737d;font-size:13px">Decision-support only. Review cited evidence before commercial, legal, or recovery action.</p>
+  </div>`;
+}
+
+function buildExecutiveEmailText(jobId, report, resultUrl) {
+  const browserReport = report.browser_report || {};
+  const findings = browserReport.findings || [];
+  const leakageTotal = findings
+    .filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN")
+    .reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
+  const lines = [
+    "Constrovet Executive Action Plan",
+    "",
+    `Job: ${jobId}`,
+    `Mode: ${report.mode}`,
+    `Generated: ${report.generated_at || ""}`,
+    "",
+    "Executive Summary",
+    browserReport.executive_brief && browserReport.executive_brief.headline ? browserReport.executive_brief.headline : "No executive headline was produced.",
+    `Total cited leakage/overrun exposure: INR ${formatInr(leakageTotal)}`,
+    `Cited findings: ${findings.length}`,
+    `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`
+  ];
+  if (boardroomAnalysisIncomplete(browserReport)) {
+    lines.push("", "Analysis incomplete: PDF text extraction was unavailable or no cited evidence was extracted. Enable Drive API OCR or submit CSV evidence.");
+  }
+  lines.push("", "Top 3 Decisions / Actions");
+  const actions = (browserReport.top_5_actions || []).slice(0, 3);
+  if (actions.length) actions.forEach((action) => lines.push(`- ${action.title || "Action"}: ${action.action || action.recommendation || ""}`));
+  else lines.push("- No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.");
+  lines.push("", "7/30/90 Action Plan");
+  ["7_days", "30_days", "90_days"].forEach((period) => {
+    lines.push(period.replace("_", " "));
+    ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => lines.push(`- ${action.title}: ${action.recommendation}`));
   });
+  const missing = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  if (missing.length) {
+    lines.push("", "Missing Evidence / Documents Not Processed");
+    missing.forEach((item) => lines.push(`- ${item}`));
+  }
+  if (resultUrl) lines.push("", `Private result link: ${resultUrl}`);
+  lines.push("", "Decision-support only. Review cited evidence before commercial, legal, or recovery action.");
+  return lines.join("\n");
+}
+
+function renderExecutiveActionsEmailHtml(browserReport) {
+  const actions = (browserReport.top_5_actions || []).slice(0, 3);
+  const items = actions.length
+    ? actions.map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.action || action.recommendation || "")}</li>`).join("")
+    : "<li>No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.</li>";
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Top 3 Decisions / Actions</h2><ol style="margin-top:0;padding-left:22px">${items}</ol>`;
+}
+
+function renderExecutiveActionPlanEmailHtml(browserReport) {
+  const plan = browserReport.executive_action_plan || {};
+  const blocks = ["7_days", "30_days", "90_days"].map((period) => {
+    const items = (plan[period] || []).map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.recommendation || "")}</li>`).join("");
+    return `<h3 style="font-size:15px;margin:12px 0 4px">${escapeHtml(period.replace("_", " "))}</h3><ul style="margin-top:0;padding-left:20px">${items || "<li>No action produced for this horizon.</li>"}</ul>`;
+  }).join("");
+  return `<h2 style="font-size:18px;margin:18px 0 8px">7 / 30 / 90 Action Plan</h2>${blocks}`;
+}
+
+function renderMissingEvidenceEmailHtml(browserReport) {
+  const items = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  if (!items.length) return "";
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Missing Evidence / Documents Not Processed</h2><ul style="margin-top:0;padding-left:20px">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function boardroomMissingEvidenceItems(browserReport) {
+  const honesty = browserReport.honesty_check || {};
+  return [
+    ...(honesty.missing_evidence || []),
+    ...(honesty.documents_not_processed || [])
+  ].filter(Boolean);
+}
+
+function boardroomAnalysisIncomplete(browserReport) {
+  const findings = browserReport.findings || [];
+  const missing = boardroomMissingEvidenceItems(browserReport).join(" ");
+  return !findings.length || /TEXT_EXTRACTION_UNAVAILABLE|Advanced Drive service/i.test(missing);
 }
 
 function appendAuditRow(payload, report, savedFiles, folderUrl) {

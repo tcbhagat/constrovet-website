@@ -26,15 +26,21 @@ checks.
    `executive-report.md` exist in `outputs/`.
 9. Confirm the audit spreadsheet has a row for the `form-*` job and report
    email delivery succeeds.
-10. Open the emailed private result link and confirm the analysed result page
+10. Confirm the email subject is `Constrovet Executive Action Plan - form-*`
+    and the email body includes executive summary, Top 3 decisions/actions,
+    7/30/90 action plan, missing evidence, Markdown attachment, and private
+    result link.
+11. Open the emailed private result link and confirm the analysed result page
     renders executive summary, grouped findings, citations, 7/30/90 actions,
     honesty check, and generated report links.
-11. Add `&format=json` to the private result link and confirm sanitized JSON is
+12. Add `&format=json` to the private result link and confirm sanitized JSON is
     returned without exposing raw uploaded document contents.
-12. Replace the access key with an invalid value and confirm the response shows
+13. Replace the access key with an invalid value and confirm the response shows
     a 403 error body or JSON `status: 403`.
-13. Replace `job_id` with a missing form job and confirm the response shows a
+14. Replace `job_id` with a missing form job and confirm the response shows a
     404 error body or JSON `status: 404`.
+15. If PDF files are submitted, confirm Advanced Drive service is enabled or
+    the email clearly states that PDF text extraction was unavailable.
 
 Record page load time, form open time, upload submit time, Drive availability,
 and report/email delivery time when that delivery path is enabled.
@@ -59,6 +65,8 @@ and report/email delivery time when that delivery path is enabled.
   controlled pilot.
 - Form-trigger deterministic reports process up to 10 PDF/CSV files, 10 MB each;
   optional Deep Analysis remains limited to 3 files.
+- Boardroom report email reaches the submitter address and includes the
+  executive action plan directly in the email body.
 - Private result links work only with the emailed access key, and no public
   report index or raw Drive upload folder is exposed as the result surface.
 - No public CTA points to Cloud Run, `run.app`, `app.constrovet.com`, GCS, or a

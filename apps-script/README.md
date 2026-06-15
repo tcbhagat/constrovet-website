@@ -23,6 +23,8 @@ where possible, writes report artifacts, sends email, and appends an audit row.
      responses.
    - `BOARDROOM_NOTIFY_EMAIL`: optional fallback recipient, default
      `admin@constrovet.com`.
+   - `BOARDROOM_CC_ADMIN`: optional, default `false`. Set to `true` to CC
+     `BOARDROOM_NOTIFY_EMAIL` when a user receives a Boardroom report.
    - `ENABLE_BOARDROOM_DEEP_ANALYSIS`: optional, default `false`.
    - `BOARDROOM_RESULT_BASE_URL`: optional Apps Script `/exec` web app URL.
      If omitted, the script uses the deployed web app URL when available.
@@ -31,6 +33,19 @@ where possible, writes report artifacts, sends email, and appends an audit row.
    - Who has access: `Anyone`.
 6. Copy the `/exec` web app URL into
    `assets/js/constrovet-app-config.js` as `appsScriptEndpoint`.
+
+## PDF OCR Setup
+
+PDF text extraction needs the Apps Script Advanced Google Service **Drive API**.
+Use one of these zero-cost setup paths:
+
+- Apps Script editor: open **Services**, add **Drive API**, then save.
+- If using the manifest editor, paste `apps-script/appsscript.json` into
+  `appsscript.json`. It declares Advanced Drive service v2 as `Drive`.
+
+Without this service, PDF reports still generate and email, but they will state
+`TEXT_EXTRACTION_UNAVAILABLE_ADVANCED_DRIVE_SERVICE_DISABLED` and ask the user
+to submit CSV evidence or enable Drive API OCR.
 
 ## Form Intake Automation
 
@@ -59,7 +74,8 @@ The trigger:
   service enabled. Without it, PDFs are copied and listed as
   `TEXT_EXTRACTION_UNAVAILABLE` missing evidence.
 - Writes `browser-report.json`, `final-report.json`, and
-  `executive-report.md`, then emails the report and a private result link.
+  `executive-report.md`, then emails a professional executive action plan,
+  Markdown report attachment, and private result link to the submitter email.
 
 ## Private Result Display
 
