@@ -47,6 +47,11 @@ function doPost(e) {
     };
     const finalFile = folders.outputs.createFile(`${payload.job_id}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
     report.generated_files.final_report_url = finalFile.getUrl();
+    report.source_job_id = payload.job_id;
+    report.source_job_folder_url = folders.job.getUrl();
+    report.source_outputs_folder_url = folders.outputs.getUrl();
+    report.source_final_report_url = finalFile.getUrl();
+    report.email_source_mode = "API_POST_CURRENT_JOB";
     finalFile.setContent(JSON.stringify(report, null, 2));
 
     let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
@@ -140,6 +145,11 @@ function handleBoardroomFormSubmit(e) {
   };
   const finalFile = folders.outputs.createFile(`${jobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
   report.generated_files.final_report_url = finalFile.getUrl();
+  report.source_job_id = jobId;
+  report.source_job_folder_url = folders.job.getUrl();
+  report.source_outputs_folder_url = folders.outputs.getUrl();
+  report.source_final_report_url = finalFile.getUrl();
+  report.email_source_mode = "CURRENT_UPLOAD_SESSION";
   finalFile.setContent(JSON.stringify(report, null, 2));
   let emailDelivery = missingUserEmailDelivery(jobId);
   if (isValidEmail(submitterEmail)) {
@@ -164,6 +174,10 @@ function handleBoardroomFormSubmit(e) {
     drive_folder: folders.job.getUrl(),
     result_url: report.result_url,
     result_access_key: accessKey,
+    email_source_mode: report.email_source_mode,
+    source_job_id: report.source_job_id,
+    source_job_folder_url: report.source_job_folder_url,
+    source_final_report_url: report.source_final_report_url,
     submitter_email_source: submitterEmailInfo.source,
     report_quality_status: report.report_quality_status,
     result_url_health: report.result_url_health,
@@ -1478,6 +1492,11 @@ function resendBoardroomReport(jobId, recipientEmail) {
   const delivery = sendReportEmail(recipient, jobId, report, markdownBlob, report.result_url || buildResultUrl(jobId, report.result_access_key || ""));
   report.email_delivery = delivery;
   report.email_delivery.resend = true;
+  report.source_job_id = jobId;
+  report.source_job_folder_url = job.getUrl();
+  report.source_outputs_folder_url = outputs.getUrl();
+  report.source_final_report_url = report.generated_files && report.generated_files.final_report_url ? report.generated_files.final_report_url : "";
+  report.email_source_mode = "MANUAL_EXACT_JOB_RESEND";
   updateFinalReportFile(outputs, jobId, report);
   appendBoardroomAuditRow({
     timestamp: new Date(),
@@ -1492,6 +1511,10 @@ function resendBoardroomReport(jobId, recipientEmail) {
     drive_folder: job.getUrl(),
     result_url: report.result_url || "",
     result_access_key: report.result_access_key || "",
+    email_source_mode: report.email_source_mode,
+    source_job_id: report.source_job_id,
+    source_job_folder_url: report.source_job_folder_url,
+    source_final_report_url: report.source_final_report_url,
     submitter_email_source: "MANUAL_RESEND",
     report_quality_status: report.report_quality_status || ((report.browser_report || {}).report_quality_status || ""),
     result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
@@ -1828,6 +1851,10 @@ function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
     "",
     report.result_url || "",
     report.result_access_key || "",
+    report.email_source_mode || "",
+    report.source_job_id || payload.job_id || "",
+    report.source_job_folder_url || folderUrl || "",
+    report.source_final_report_url || (report.generated_files && report.generated_files.final_report_url ? report.generated_files.final_report_url : ""),
     "",
     delivery.email_to || "",
     delivery.email_cc || "",
@@ -1857,6 +1884,10 @@ function appendBoardroomAuditRow(entry) {
     `received=${entry.received_file_count}; rejected=${rejectedSummary || "none"}`,
     entry.result_url || "",
     entry.result_access_key || "",
+    entry.email_source_mode || "",
+    entry.source_job_id || entry.job_id || "",
+    entry.source_job_folder_url || entry.drive_folder || "",
+    entry.source_final_report_url || "",
     entry.submitter_email_source || "",
     delivery.email_to || "",
     delivery.email_cc || "",
@@ -1896,6 +1927,10 @@ function ensureAuditHeader(sheet) {
     "intake_summary",
     "result_url",
     "result_access_key",
+    "email_source_mode",
+    "source_job_id",
+    "source_job_folder_url",
+    "source_final_report_url",
     "submitter_email_source",
     "email_to",
     "email_cc",

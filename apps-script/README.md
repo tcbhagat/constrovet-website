@@ -81,10 +81,13 @@ The trigger:
 - Writes `browser-report.json`, `final-report.json`, and
   `executive-report.md`, then emails a professional executive action plan,
   Markdown report attachment, and private result link to the submitter email.
+  Automatic form-triggered emails always use the report from the current upload
+  session folder. They do not look up or email the latest unrelated folder.
 - Records email delivery metadata in both `final-report.json` and the audit
-  sheet, including submitter email source, recipient, optional CC, subject,
-  `EMAIL_SENT`, `EMAIL_FAILED`, or `EMAIL_NOT_SENT_MISSING_USER_EMAIL`, and the
-  exact MailApp error when sending fails.
+  sheet, including `email_source_mode`, source job/folder/report URLs,
+  submitter email source, recipient, optional CC, subject, `EMAIL_SENT`,
+  `EMAIL_FAILED`, or `EMAIL_NOT_SENT_MISSING_USER_EMAIL`, and the exact MailApp
+  error when sending fails.
 - Separates successful cited reports from evidence intake failures:
   - `EXECUTIVE_ACTION_PLAN`: cited findings exist and the email includes board
     decisions, KPI tiles, evidence quality, recoverability, citations, and
@@ -99,8 +102,12 @@ If a report folder and output files exist but the recipient cannot find the
 email, check the audit spreadsheet first. New rows include:
 
 ```text
-submitter_email_source | email_to | email_cc | email_subject | email_status | email_error
+email_source_mode | source_job_id | source_job_folder_url | source_final_report_url | submitter_email_source | email_to | email_cc | email_subject | email_status | email_error
 ```
+
+For normal Google Form submissions, `email_source_mode` must be
+`CURRENT_UPLOAD_SESSION`. Manual resends for a specific job use
+`MANUAL_EXACT_JOB_RESEND`.
 
 `submitter_email_source` is `FORM_RESPONDENT_EMAIL`, `FORM_EMAIL_FIELD`,
 `MANUAL_RESEND`, or `MISSING`. If it is `MISSING`, enable **Collect email
