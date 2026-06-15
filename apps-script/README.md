@@ -83,6 +83,11 @@ The trigger:
   Markdown report attachment, and private result link to the submitter email.
   Automatic form-triggered emails always use the report from the current upload
   session folder. They do not look up or email the latest unrelated folder.
+- Writes `<job_id>-optional-gemini-review-pack.md` into the same `outputs/`
+  folder. This is a no-budget, manual Gemini Pro web review pack containing the
+  optimized prompt and evidence-only payload. It is not sent to Gemini
+  automatically and does not replace the deterministic report emailed to the
+  user.
 - Records email delivery metadata in both `final-report.json` and the audit
   sheet, including `email_source_mode`, source job/folder/report URLs,
   submitter email source, recipient, optional CC, subject, `EMAIL_SENT`,
@@ -119,6 +124,27 @@ The audit row also includes:
 ```text
 report_quality_status | result_url_health
 ```
+
+## Optional Gemini Pro Web Review
+
+The automatic pipeline does not need Gemini API or extra budget. For manual
+admin QA, open the current upload session's `outputs/` folder and use:
+
+```text
+<job_id>-optional-gemini-review-pack.md
+```
+
+Upload or paste that Markdown file into Gemini Pro web. It contains:
+
+- The strict Constrovet verifier prompt.
+- Job and source folder metadata.
+- Cited findings, quoted spans, calculations, action plan, document outcomes,
+  and honesty check.
+- A guardrail stating that raw documents are not included.
+
+Use Gemini's output only as an admin review aid unless it is manually copied
+back into the Apps Script report flow. If the review pack has no cited findings,
+Gemini should return `EVIDENCE_INTAKE_EXCEPTION`, not a recovery action plan.
 
 `result_url_health` should be `SCRIPT_URL_PRESENT`. If it is
 `MISSING_RESULT_BASE_URL` or `INVALID_RESULT_BASE_URL`, set

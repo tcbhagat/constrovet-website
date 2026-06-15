@@ -52,6 +52,8 @@ function doPost(e) {
     report.source_outputs_folder_url = folders.outputs.getUrl();
     report.source_final_report_url = finalFile.getUrl();
     report.email_source_mode = "API_POST_CURRENT_JOB";
+    const geminiReviewPackFile = folders.outputs.createFile(`${payload.job_id}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
+    report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
     finalFile.setContent(JSON.stringify(report, null, 2));
 
     let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
@@ -150,6 +152,8 @@ function handleBoardroomFormSubmit(e) {
   report.source_outputs_folder_url = folders.outputs.getUrl();
   report.source_final_report_url = finalFile.getUrl();
   report.email_source_mode = "CURRENT_UPLOAD_SESSION";
+  const geminiReviewPackFile = folders.outputs.createFile(`${jobId}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
+  report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
   finalFile.setContent(JSON.stringify(report, null, 2));
   let emailDelivery = missingUserEmailDelivery(jobId);
   if (isValidEmail(submitterEmail)) {
@@ -284,7 +288,8 @@ function sanitizeReportForViewer(report) {
     generated_files: {
       executive_report_url: report.generated_files && report.generated_files.executive_report_url ? report.generated_files.executive_report_url : "",
       final_report_url: report.generated_files && report.generated_files.final_report_url ? report.generated_files.final_report_url : "",
-      browser_report_url: report.generated_files && report.generated_files.browser_report_url ? report.generated_files.browser_report_url : ""
+      browser_report_url: report.generated_files && report.generated_files.browser_report_url ? report.generated_files.browser_report_url : "",
+      gemini_review_pack_url: report.generated_files && report.generated_files.gemini_review_pack_url ? report.generated_files.gemini_review_pack_url : ""
     }
   };
 }
@@ -388,7 +393,8 @@ function renderReportLinksHtml(report) {
   const links = [
     files.executive_report_url ? `<a href="${escapeHtml(files.executive_report_url)}" target="_blank" rel="noopener">Executive Markdown</a>` : "",
     files.final_report_url ? `<a href="${escapeHtml(files.final_report_url)}" target="_blank" rel="noopener">Final JSON</a>` : "",
-    files.browser_report_url ? `<a href="${escapeHtml(files.browser_report_url)}" target="_blank" rel="noopener">Browser JSON</a>` : ""
+    files.browser_report_url ? `<a href="${escapeHtml(files.browser_report_url)}" target="_blank" rel="noopener">Browser JSON</a>` : "",
+    files.gemini_review_pack_url ? `<a href="${escapeHtml(files.gemini_review_pack_url)}" target="_blank" rel="noopener">Optional Gemini Review Pack</a>` : ""
   ].filter(Boolean).join("");
   return `<section class="section card links"><h2>Generated Files</h2>${links || "<p class=\"muted\">No Drive report links available.</p>"}</section>`;
 }
@@ -1245,6 +1251,96 @@ function buildGeminiPrompt(payload) {
     "Return strict JSON with keys: verification_status, executive_brief, board_summary, top_decisions_required, contractor_questions, recovery_actions, unsupported_claims_removed, honesty_check, model_audit_trail.",
     JSON.stringify(payload)
   ].join("\n\n");
+}
+
+function buildGeminiReviewPackMarkdown(report, browserReport) {
+  const payload = buildGeminiReviewPackPayload(report, browserReport);
+  return [
+    "# Constrovet Optional Gemini Review Pack",
+    "",
+    `Job: ${report.job_id || payload.job_id}`,
+    `Report mode: ${payload.report_quality_status}`,
+    `Email source mode: ${payload.email_source_mode}`,
+    `Source job folder: ${payload.source_job_folder_url || "not available"}`,
+    "",
+    "Use this pack manually in Gemini Pro web for admin quality review or executive polishing. Do not upload raw source documents unless explicitly approved.",
+    "",
+    "## Optimized Gemini Prompt",
+    "",
+    "```text",
+    buildGeminiReviewPromptText(),
+    "```",
+    "",
+    "## Evidence Payload JSON",
+    "",
+    "```json",
+    JSON.stringify(payload, null, 2),
+    "```"
+  ].join("\n");
+}
+
+function buildGeminiReviewPackPayload(report, browserReport) {
+  const safePayload = evidenceOnlyPayload(browserReport || {});
+  return {
+    job_id: report.job_id || "",
+    generated_at: report.generated_at || new Date().toISOString(),
+    report_quality_status: report.report_quality_status || (browserReport || {}).report_quality_status || "",
+    email_source_mode: report.email_source_mode || "",
+    source_job_id: report.source_job_id || report.job_id || "",
+    source_job_folder_url: report.source_job_folder_url || "",
+    source_outputs_folder_url: report.source_outputs_folder_url || "",
+    source_final_report_url: report.source_final_report_url || "",
+    result_url: report.result_url || "",
+    result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
+    documents_processed_count: report.documents_processed_count || (browserReport || {}).documents_processed_count || 0,
+    documents_with_no_signal: report.documents_with_no_signal || (browserReport || {}).documents_with_no_signal || 0,
+    document_outcomes: (browserReport || {}).document_outcomes || [],
+    form_intake: report.form_intake || {},
+    saved_file_metadata: (report.saved_files || []).map((file) => ({
+      name: file.name || "",
+      size_bytes: Number(file.size_bytes || 0)
+    })),
+    evidence_only_payload: safePayload,
+    input_guardrail: {
+      raw_documents_included: false,
+      intended_use: "Manual Gemini Pro web review of cited findings, calculations, action plan, document outcomes, and honesty check only."
+    }
+  };
+}
+
+function buildGeminiReviewPromptText() {
+  return [
+    "You are Constrovet's executive verifier for construction cost control.",
+    "",
+    "Use only the provided cited findings, quoted spans, calculations, action plan, document outcomes, and honesty check.",
+    "",
+    "Rules:",
+    "1. Do not invent amounts, dates, causes, contract entitlement, liability, recovery probability, or legal conclusions.",
+    "2. Every executive claim must trace to a citation: file, page/sheet, quoted span.",
+    "3. Recalculate Actual - Budget wherever both values exist.",
+    "4. If Actual > Budget, classify the difference as LEAKAGE_AND_OVERRUN.",
+    "5. Baseline budget, BOQ, contract value, planned spend, and cumulative work done are context, not leakage.",
+    "6. If no cited findings exist, return EVIDENCE_INTAKE_EXCEPTION, not an executive recovery plan.",
+    "7. Separate missing evidence from proven findings.",
+    "8. Remove unsupported claims.",
+    "",
+    "Return strict JSON:",
+    "{",
+    "  \"verification_status\": \"VERIFIED | NEEDS_REVIEW | EVIDENCE_INTAKE_EXCEPTION\",",
+    "  \"report_mode\": \"EXECUTIVE_ACTION_PLAN | EVIDENCE_INTAKE_EXCEPTION\",",
+    "  \"executive_headline\": \"\",",
+    "  \"board_decision_required\": [],",
+    "  \"top_3_actions\": [],",
+    "  \"corrected_calculations\": [],",
+    "  \"unsupported_claims_removed\": [],",
+    "  \"contractor_questions\": [],",
+    "  \"missing_evidence\": [],",
+    "  \"professional_email_summary\": \"\",",
+    "  \"honesty_check\": {}",
+    "}",
+    "",
+    "Evidence payload: use the Evidence Payload JSON in this file."
+  ].join("\n");
 }
 
 function extractJson(text) {
