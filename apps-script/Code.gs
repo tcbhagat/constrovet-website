@@ -48,8 +48,19 @@ function doPost(e) {
     report.generated_files.final_report_url = finalFile.getUrl();
     finalFile.setContent(JSON.stringify(report, null, 2));
 
-    sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url);
-    appendAuditRow(payload, report, savedFiles, folders.job.getUrl());
+    let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
+    try {
+      emailDelivery = sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url);
+      report.email_delivery = emailDelivery;
+      finalFile.setContent(JSON.stringify(report, null, 2));
+    } catch (error) {
+      emailDelivery = failedEmailDelivery(payload.email, payload.job_id, error);
+      report.email_delivery = emailDelivery;
+      finalFile.setContent(JSON.stringify(report, null, 2));
+      appendAuditRow(payload, report, savedFiles, folders.job.getUrl(), emailDelivery);
+      throw error;
+    }
+    appendAuditRow(payload, report, savedFiles, folders.job.getUrl(), emailDelivery);
 
     return jsonResponse({
       ok: true,
@@ -127,7 +138,32 @@ function handleBoardroomFormSubmit(e) {
   const finalFile = folders.outputs.createFile(`${jobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
   report.generated_files.final_report_url = finalFile.getUrl();
   finalFile.setContent(JSON.stringify(report, null, 2));
-  sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
+  let emailDelivery = emptyEmailDelivery(submitterEmail, jobId);
+  try {
+    emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
+    report.email_delivery = emailDelivery;
+    finalFile.setContent(JSON.stringify(report, null, 2));
+  } catch (error) {
+    emailDelivery = failedEmailDelivery(submitterEmail, jobId, error);
+    report.email_delivery = emailDelivery;
+    finalFile.setContent(JSON.stringify(report, null, 2));
+    appendBoardroomAuditRow({
+      timestamp: startedAt,
+      job_id: jobId,
+      mode: payload.mode,
+      email: submitterEmail,
+      received_file_count: formFiles.length,
+      accepted_file_count: accepted.length,
+      rejected_files: rejected,
+      finding_count: browserReport.findings.length,
+      gemini_status: verifierResult.verification_status || verifierResult.status || "UNKNOWN",
+      drive_folder: folders.job.getUrl(),
+      result_url: report.result_url,
+      result_access_key: accessKey,
+      email_delivery: emailDelivery
+    });
+    throw error;
+  }
   appendBoardroomAuditRow({
     timestamp: startedAt,
     job_id: jobId,
@@ -140,7 +176,8 @@ function handleBoardroomFormSubmit(e) {
     gemini_status: verifierResult.verification_status || verifierResult.status || "UNKNOWN",
     drive_folder: folders.job.getUrl(),
     result_url: report.result_url,
-    result_access_key: accessKey
+    result_access_key: accessKey,
+    email_delivery: emailDelivery
   });
 
   return {
@@ -1202,15 +1239,102 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
 function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
   const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
   const cc = boardroomAdminCc(recipient);
+  const subject = `Constrovet Executive Action Plan - ${jobId}`;
   const mail = {
     to: recipient,
-    subject: `Constrovet Executive Action Plan - ${jobId}`,
+    subject,
     body: buildExecutiveEmailText(jobId, report, resultUrl),
     htmlBody: buildExecutiveEmailHtml(jobId, report, resultUrl),
     attachments: [markdownBlob.setName(`${jobId}-executive-report.md`)]
   };
   if (cc) mail.cc = cc;
   MailApp.sendEmail(mail);
+  return {
+    email_to: recipient,
+    email_cc: cc,
+    email_subject: subject,
+    email_sent_at: new Date().toISOString(),
+    email_status: "EMAIL_SENT",
+    email_error: ""
+  };
+}
+
+function emptyEmailDelivery(email, jobId) {
+  const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
+  return {
+    email_to: recipient,
+    email_cc: boardroomAdminCc(recipient),
+    email_subject: `Constrovet Executive Action Plan - ${jobId}`,
+    email_sent_at: "",
+    email_status: "EMAIL_NOT_ATTEMPTED",
+    email_error: ""
+  };
+}
+
+function failedEmailDelivery(email, jobId, error) {
+  const delivery = emptyEmailDelivery(email, jobId);
+  delivery.email_status = "EMAIL_FAILED";
+  delivery.email_error = error && error.message ? error.message : String(error);
+  return delivery;
+}
+
+function resendBoardroomReport(jobId, recipientEmail) {
+  const job = findProjectFolder(String(jobId || "").trim());
+  if (!job) throw new Error("Boardroom job folder was not found.");
+  const outputs = findChildFolder(job, "outputs");
+  if (!outputs) throw new Error("Boardroom outputs folder was not found.");
+  const report = loadReportForJob(jobId);
+  if (!report) throw new Error("Final report JSON was not found or could not be parsed.");
+  const recipient = isValidEmail(recipientEmail) ? recipientEmail : (report.email || "");
+  if (!isValidEmail(recipient)) throw new Error("A valid resend recipient email is required.");
+  const markdownBlob = loadMarkdownBlobForJob(outputs, jobId, report);
+  const delivery = sendReportEmail(recipient, jobId, report, markdownBlob, report.result_url || buildResultUrl(jobId, report.result_access_key || ""));
+  report.email_delivery = delivery;
+  report.email_delivery.resend = true;
+  updateFinalReportFile(outputs, jobId, report);
+  appendBoardroomAuditRow({
+    timestamp: new Date(),
+    job_id: jobId,
+    mode: "MANUAL_RESEND",
+    email: recipient,
+    received_file_count: report.form_intake ? report.form_intake.received_file_count : "",
+    accepted_file_count: report.form_intake ? report.form_intake.accepted_file_count : "",
+    rejected_files: report.form_intake ? report.form_intake.rejected_files : [],
+    finding_count: ((report.browser_report || {}).findings || []).length,
+    gemini_status: ((report.gemini_verifier_result || {}).verification_status || (report.gemini_verifier_result || {}).status || "UNKNOWN"),
+    drive_folder: job.getUrl(),
+    result_url: report.result_url || "",
+    result_access_key: report.result_access_key || "",
+    email_delivery: delivery
+  });
+  return {
+    ok: true,
+    job_id: jobId,
+    email_to: delivery.email_to,
+    email_cc: delivery.email_cc,
+    email_subject: delivery.email_subject,
+    email_status: delivery.email_status
+  };
+}
+
+function resendConfiguredBoardroomReport() {
+  const props = PropertiesService.getScriptProperties();
+  const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim();
+  if (!jobId) throw new Error("BOARDROOM_RESEND_JOB_ID script property is required.");
+  const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || "").trim();
+  return resendBoardroomReport(jobId, recipient);
+}
+
+function loadMarkdownBlobForJob(outputs, jobId, report) {
+  const files = outputs.getFilesByName(`${jobId}-executive-report.md`);
+  if (files.hasNext()) return files.next().getBlob();
+  return Utilities.newBlob(report.markdown || buildMarkdownReport(report, report.browser_report || {}, report.gemini_verifier_result || {}, report.saved_files || []), MimeType.PLAIN_TEXT, `${jobId}-executive-report.md`);
+}
+
+function updateFinalReportFile(outputs, jobId, report) {
+  const files = outputs.getFilesByName(`${jobId}-final-report.json`);
+  if (!files.hasNext()) throw new Error("Final report JSON file was not found.");
+  files.next().setContent(JSON.stringify(report, null, 2));
 }
 
 function boardroomAdminCc(recipient) {
@@ -1329,8 +1453,9 @@ function boardroomAnalysisIncomplete(browserReport) {
   return !findings.length || /TEXT_EXTRACTION_UNAVAILABLE|Advanced Drive service/i.test(missing);
 }
 
-function appendAuditRow(payload, report, savedFiles, folderUrl) {
+function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
   const sheet = getAuditSheet();
+  const delivery = emailDelivery || report.email_delivery || {};
   sheet.appendRow([
     new Date(),
     payload.job_id,
@@ -1339,7 +1464,15 @@ function appendAuditRow(payload, report, savedFiles, folderUrl) {
     savedFiles.length,
     (report.browser_report.findings || []).length,
     report.gemini_verifier_result.verification_status || "UNKNOWN",
-    folderUrl
+    folderUrl,
+    "",
+    report.result_url || "",
+    report.result_access_key || "",
+    delivery.email_to || "",
+    delivery.email_cc || "",
+    delivery.email_subject || "",
+    delivery.email_status || "",
+    delivery.email_error || ""
   ]);
 }
 
@@ -1348,6 +1481,7 @@ function appendBoardroomAuditRow(entry) {
   const rejectedSummary = (entry.rejected_files || [])
     .map((file) => `${file.name || file.id}:${file.reason}`)
     .join("; ");
+  const delivery = entry.email_delivery || {};
   sheet.appendRow([
     entry.timestamp || new Date(),
     entry.job_id,
@@ -1359,7 +1493,12 @@ function appendBoardroomAuditRow(entry) {
     entry.drive_folder,
     `received=${entry.received_file_count}; rejected=${rejectedSummary || "none"}`,
     entry.result_url || "",
-    entry.result_access_key || ""
+    entry.result_access_key || "",
+    delivery.email_to || "",
+    delivery.email_cc || "",
+    delivery.email_subject || "",
+    delivery.email_status || "",
+    delivery.email_error || ""
   ]);
 }
 
@@ -1372,9 +1511,36 @@ function getAuditSheet() {
   } else {
     spreadsheet = SpreadsheetApp.create("Constrovet Apps Script Audit Log");
     props.setProperty("AUDIT_SPREADSHEET_ID", spreadsheet.getId());
-    spreadsheet.getActiveSheet().appendRow(["timestamp", "job_id", "mode", "email", "file_count", "finding_count", "gemini_status", "drive_folder"]);
   }
-  return spreadsheet.getActiveSheet();
+  const sheet = spreadsheet.getActiveSheet();
+  ensureAuditHeader(sheet);
+  return sheet;
+}
+
+function ensureAuditHeader(sheet) {
+  const header = [
+    "timestamp",
+    "job_id",
+    "mode",
+    "email",
+    "file_count",
+    "finding_count",
+    "gemini_status",
+    "drive_folder",
+    "intake_summary",
+    "result_url",
+    "result_access_key",
+    "email_to",
+    "email_cc",
+    "email_subject",
+    "email_status",
+    "email_error"
+  ];
+  const width = header.length;
+  const range = sheet.getRange(1, 1, 1, width);
+  const existing = range.getValues()[0];
+  const needsHeader = existing.every((value) => !value) || header.some((value, index) => existing[index] !== value);
+  if (needsHeader) range.setValues([header]);
 }
 
 function jsonResponse(data) {

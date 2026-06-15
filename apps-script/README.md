@@ -76,6 +76,53 @@ The trigger:
 - Writes `browser-report.json`, `final-report.json`, and
   `executive-report.md`, then emails a professional executive action plan,
   Markdown report attachment, and private result link to the submitter email.
+- Records email delivery metadata in both `final-report.json` and the audit
+  sheet, including recipient, optional CC, subject, `EMAIL_SENT` or
+  `EMAIL_FAILED`, and the exact MailApp error when sending fails.
+
+## Email Delivery Debugging
+
+If a report folder and output files exist but the recipient cannot find the
+email, check the audit spreadsheet first. New rows include:
+
+```text
+email_to | email_cc | email_subject | email_status | email_error
+```
+
+Use Gmail search with the exact job ID, for example:
+
+```text
+in:anywhere "form-20260615-053115-0ce84462"
+```
+
+If the audit row says `EMAIL_SENT`, Apps Script accepted the `MailApp` send and
+the next checks are Spam, All Mail, Promotions, and any Workspace/domain mail
+filtering. If the audit row says `EMAIL_FAILED`, the `email_error` column is the
+source of truth for the failure.
+
+To resend an existing Boardroom report without another form submission, call:
+
+```javascript
+resendBoardroomReport("form-20260615-053115-0ce84462", "bhagat.taran@gmail.com")
+```
+
+Because the Apps Script editor Run dropdown cannot pass arguments, the
+UI-friendly path is to set these temporary Script Properties:
+
+```text
+BOARDROOM_RESEND_JOB_ID=form-20260615-053115-0ce84462
+BOARDROOM_RESEND_EMAIL=bhagat.taran@gmail.com
+```
+
+Then select and run:
+
+```text
+resendConfiguredBoardroomReport
+```
+
+The resend helper loads the existing `final-report.json`, reuses the saved
+Markdown report when present, sends the same private result link, updates
+`email_delivery` in the final report, and appends a `MANUAL_RESEND` audit row.
 
 ## Private Result Display
 
