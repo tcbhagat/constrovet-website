@@ -39,6 +39,12 @@ After pasting `Code.gs` and setting `BOARDROOM_FORM_ID`, run
 requested Workspace permissions. This creates an installable `onFormSubmit`
 trigger for the Google Form.
 
+Do not create this trigger manually from the **Add Trigger** dialog. In a
+standalone Apps Script project, the manual dialog may only show time/calendar
+sources. The installer function deletes accidental `installBoardroomFormTrigger`
+timer triggers and any old `onFormSubmit` trigger, then creates the correct
+`onFormSubmit` / `From form` / `On form submit` trigger programmatically.
+
 The trigger:
 
 - Creates `My Drive/Constrovet/projects/form-<timestamp>-<shortid>/input/` and

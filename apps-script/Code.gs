@@ -157,12 +157,13 @@ function installBoardroomFormTrigger() {
   const formId = props.getProperty("BOARDROOM_FORM_ID");
   if (!formId) throw new Error("BOARDROOM_FORM_ID script property is required.");
   const form = FormApp.openById(formId);
-  const existing = ScriptApp.getProjectTriggers().filter((trigger) =>
-    trigger.getHandlerFunction && trigger.getHandlerFunction() === "onFormSubmit"
-  );
+  const existing = ScriptApp.getProjectTriggers().filter((trigger) => {
+    const handler = trigger.getHandlerFunction && trigger.getHandlerFunction();
+    return handler === "onFormSubmit" || handler === "installBoardroomFormTrigger";
+  });
   existing.forEach((trigger) => ScriptApp.deleteTrigger(trigger));
   ScriptApp.newTrigger("onFormSubmit").forForm(form).onFormSubmit().create();
-  return { ok: true, form_id: formId, trigger: "onFormSubmit" };
+  return { ok: true, form_id: formId, trigger: "onFormSubmit", deleted_existing_triggers: existing.length };
 }
 
 function serveBoardroomResult(params) {
