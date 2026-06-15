@@ -79,6 +79,13 @@ The trigger:
 - Records email delivery metadata in both `final-report.json` and the audit
   sheet, including recipient, optional CC, subject, `EMAIL_SENT` or
   `EMAIL_FAILED`, and the exact MailApp error when sending fails.
+- Separates successful cited reports from evidence intake failures:
+  - `EXECUTIVE_ACTION_PLAN`: cited findings exist and the email includes board
+    decisions, KPI tiles, evidence quality, recoverability, citations, and
+    7/30/90 actions.
+  - `EVIDENCE_INTAKE_EXCEPTION`: no cited findings exist and the email avoids
+    recovery claims, shows received/accepted/rejected file counts, per-document
+    extraction outcomes, required upload fields, and intake remediation steps.
 
 ## Email Delivery Debugging
 
@@ -88,6 +95,17 @@ email, check the audit spreadsheet first. New rows include:
 ```text
 email_to | email_cc | email_subject | email_status | email_error
 ```
+
+The audit row also includes:
+
+```text
+report_quality_status | result_url_health
+```
+
+`result_url_health` should be `SCRIPT_URL_PRESENT`. If it is
+`MISSING_RESULT_BASE_URL` or `INVALID_RESULT_BASE_URL`, set
+`BOARDROOM_RESULT_BASE_URL` to the Apps Script `/exec` web app URL, not a Google
+Drive file or folder URL.
 
 Use Gmail search with the exact job ID, for example:
 

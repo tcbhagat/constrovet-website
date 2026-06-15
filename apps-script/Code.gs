@@ -38,6 +38,7 @@ function doPost(e) {
     const accessKey = makeResultAccessKey();
     report.result_access_key = accessKey;
     report.result_url = buildResultUrl(payload.job_id, accessKey);
+    report.result_url_health = resultUrlHealth(report.result_url);
     const browserFile = folders.outputs.createFile(`${payload.job_id}-browser-report.json`, JSON.stringify(browserReport, null, 2), MimeType.PLAIN_TEXT);
     const markdownFile = folders.outputs.createFile(`${payload.job_id}-executive-report.md`, report.markdown, MimeType.PLAIN_TEXT);
     report.generated_files = {
@@ -129,6 +130,7 @@ function handleBoardroomFormSubmit(e) {
   const accessKey = makeResultAccessKey();
   report.result_access_key = accessKey;
   report.result_url = buildResultUrl(jobId, accessKey);
+  report.result_url_health = resultUrlHealth(report.result_url);
   const browserFile = folders.outputs.createFile(`${jobId}-browser-report.json`, JSON.stringify(browserReport, null, 2), MimeType.PLAIN_TEXT);
   const markdownFile = folders.outputs.createFile(`${jobId}-executive-report.md`, report.markdown, MimeType.PLAIN_TEXT);
   report.generated_files = {
@@ -160,6 +162,8 @@ function handleBoardroomFormSubmit(e) {
       drive_folder: folders.job.getUrl(),
       result_url: report.result_url,
       result_access_key: accessKey,
+      report_quality_status: report.report_quality_status,
+      result_url_health: report.result_url_health,
       email_delivery: emailDelivery
     });
     throw error;
@@ -177,6 +181,8 @@ function handleBoardroomFormSubmit(e) {
     drive_folder: folders.job.getUrl(),
     result_url: report.result_url,
     result_access_key: accessKey,
+    report_quality_status: report.report_quality_status,
+    result_url_health: report.result_url_health,
     email_delivery: emailDelivery
   });
 
@@ -262,6 +268,11 @@ function sanitizeReportForViewer(report) {
     mode: report.mode,
     generated_at: report.generated_at,
     result_url: report.result_url || "",
+    result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
+    report_quality_status: report.report_quality_status || browserReport.report_quality_status || "",
+    documents_processed_count: report.documents_processed_count || browserReport.documents_processed_count || 0,
+    documents_with_no_signal: report.documents_with_no_signal || browserReport.documents_with_no_signal || 0,
+    document_outcomes: browserReport.document_outcomes || [],
     executive_brief: browserReport.executive_brief || {},
     findings: browserReport.findings || [],
     top_5_actions: browserReport.top_5_actions || [],
@@ -307,6 +318,7 @@ function renderBoardroomResultHtml(report) {
       <div class="tile"><span>Leakage / overrun</span><strong>INR ${formatInr(leakageTotal)}</strong></div>
     </div>
     ${renderActionPlanHtml(report)}
+    ${renderDocumentOutcomesResultHtml(report)}
     ${renderFindingGroupHtml("Leakage And Overrun", grouped.LEAKAGE_AND_OVERRUN || [], "leakage")}
     ${renderFindingGroupHtml("Baseline Budget", grouped.BASELINE_BUDGET || [], "baseline")}
     ${renderFindingGroupHtml("ESG Metrics", grouped.ESG_METRIC || [], "esg")}
@@ -315,6 +327,18 @@ function renderBoardroomResultHtml(report) {
   </main>
 </body>
 </html>`;
+}
+
+function renderDocumentOutcomesResultHtml(report) {
+  if (report.report_quality_status !== "EVIDENCE_INTAKE_EXCEPTION" && !(report.document_outcomes || []).length) return "";
+  const outcomes = report.document_outcomes || [];
+  const items = outcomes.length
+    ? outcomes.map((item) => `<li><strong>${escapeHtml(item.file || "unknown")}:</strong> ${escapeHtml(item.status || "UNKNOWN")}${item.reason ? ` - ${escapeHtml(item.reason)}` : ""}</li>`).join("")
+    : "<li class=\"muted\">No source document outcomes were recorded.</li>";
+  return `<section class="section card"><h2>Evidence Intake Status</h2>
+    <p class="muted">Quality: ${escapeHtml(report.report_quality_status || "UNKNOWN")} | Processed: ${escapeHtml(report.documents_processed_count || 0)} | No-signal: ${escapeHtml(report.documents_with_no_signal || 0)}</p>
+    <ul class="actions">${items}</ul>
+  </section>`;
 }
 
 function groupFindingsByCategory(findings) {
@@ -377,9 +401,19 @@ function makeResultAccessKey() {
 
 function buildResultUrl(jobId, accessKey) {
   const props = PropertiesService.getScriptProperties();
-  const base = props.getProperty("BOARDROOM_RESULT_BASE_URL") || ScriptApp.getService().getUrl() || "";
+  const configuredBase = props.getProperty("BOARDROOM_RESULT_BASE_URL") || "";
+  const serviceBase = ScriptApp.getService().getUrl() || "";
+  const base = validAppsScriptResultBase(configuredBase) ? cleanResultBaseUrl(configuredBase) : (validAppsScriptResultBase(serviceBase) ? cleanResultBaseUrl(serviceBase) : "");
   if (!base) return "";
   return `${base}?job_id=${encodeURIComponent(jobId)}&key=${encodeURIComponent(accessKey)}`;
+}
+
+function validAppsScriptResultBase(url) {
+  return /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/i.test(String(url || ""));
+}
+
+function cleanResultBaseUrl(url) {
+  return String(url || "").split("?")[0];
 }
 
 function parseRequest(e) {
@@ -623,22 +657,46 @@ function parseBoardroomCsv(text) {
 function buildBoardroomOutput(documents, rejectedFiles) {
   const findings = [];
   const documentsNotProcessed = [];
+  const documentOutcomes = [];
   (documents || []).forEach((document) => {
     let found = 0;
+    let textLength = 0;
     (document.pages || []).forEach((page) => {
       if (!page.text) return;
+      textLength += String(page.text || "").length;
       const pageFindings = extractBoardroomFindings(document.file, page.label, page.text, page);
       found += pageFindings.length;
       findings.push(...pageFindings);
     });
     if (!found) {
-      documentsNotProcessed.push(`${document.file}: ${document.extraction_error || "no cost, schedule, or ESG signal found by deterministic Workspace scan."}`);
+      documentsNotProcessed.push(boardroomDocumentNoSignalReason(document, textLength));
     }
+    documentOutcomes.push({
+      file: document.file,
+      type: document.type || "unknown",
+      pages_processed: (document.pages || []).length,
+      text_length: textLength,
+      finding_count: found,
+      status: found ? "SIGNAL_FOUND" : "NO_SIGNAL",
+      reason: found ? "" : boardroomDocumentNoSignalReason(document, textLength)
+    });
   });
   (rejectedFiles || []).forEach((file) => {
-    documentsNotProcessed.push(`${file.name || file.id}: rejected from automation (${file.reason}).`);
+    const reason = `${file.name || file.id}: rejected from automation (${file.reason}).`;
+    documentsNotProcessed.push(reason);
+    documentOutcomes.push({
+      file: file.name || file.id,
+      type: "rejected",
+      pages_processed: 0,
+      text_length: 0,
+      finding_count: 0,
+      status: "REJECTED",
+      reason
+    });
   });
   const citedFindings = scoreBoardroomFindings(dedupeBoardroomFindings(findings).slice(0, 80));
+  const reportQualityStatus = citedFindings.length ? "EXECUTIVE_ACTION_PLAN" : "EVIDENCE_INTAKE_EXCEPTION";
+  const documentsWithNoSignal = documentOutcomes.filter((item) => item.status !== "SIGNAL_FOUND").length;
   const modelAuditTrail = {
     analysis_mode: "workspace_form_deterministic_rules",
     execution_layer: "Google Workspace Apps Script form trigger",
@@ -652,6 +710,10 @@ function buildBoardroomOutput(documents, rejectedFiles) {
     ]
   };
   return {
+    report_quality_status: reportQualityStatus,
+    documents_processed_count: (documents || []).length,
+    documents_with_no_signal: documentsWithNoSignal,
+    document_outcomes: documentOutcomes,
     findings: citedFindings,
     executive_brief: buildBoardroomExecutiveBrief(citedFindings, documentsNotProcessed),
     top_5_actions: buildBoardroomTopExecutiveActions(citedFindings),
@@ -678,6 +740,19 @@ function buildBoardroomOutput(documents, rejectedFiles) {
       ]
     }
   };
+}
+
+function boardroomDocumentNoSignalReason(document, textLength) {
+  const file = document.file || "unknown";
+  if (document.extraction_error) {
+    if (/ADVANCED_DRIVE_SERVICE_DISABLED/i.test(document.extraction_error)) return `${file}: PDF OCR unavailable because the Advanced Drive service is not enabled.`;
+    if (/TEXT_EXTRACTION_UNAVAILABLE/i.test(document.extraction_error)) return `${file}: PDF OCR produced no extractable text (${document.extraction_error}).`;
+    return `${file}: ${document.extraction_error}`;
+  }
+  if (document.type === "pdf" && !textLength) return `${file}: PDF OCR produced no extractable text.`;
+  if (document.type === "pdf") return `${file}: OCR text extracted but no construction cost, schedule, leakage, commercial-control, or ESG keywords were found.`;
+  if (document.type === "csv") return `${file}: CSV parsed but no budget, actual, leakage, delay, invoice, payment, wastage, rework, fuel, energy, water, or emissions fields were found.`;
+  return `${file}: no cost, schedule, leakage, commercial-control, or ESG signal found by deterministic Workspace scan.`;
 }
 
 function extractBoardroomFindings(file, pageOrSheet, text, page) {
@@ -922,8 +997,8 @@ function buildBoardroomExecutiveBrief(findings, documentsNotProcessed) {
   return {
     headline: leakage.length
       ? `Cited leakage/overrun exposure totals INR ${formatInr(totalLeakage)} across ${leakage.length} finding(s).`
-      : "No cited leakage/overrun exposure was proven by this Workspace form run.",
-    decision_focus: ranked[0] ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}` : "Improve source evidence before executive action.",
+      : "No cited cost, schedule, ESG, or leakage evidence was extracted.",
+    decision_focus: ranked[0] ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}` : "Resubmit structured source evidence before executive action.",
     critical_or_high_count: critical + high,
     total_cited_leakage_inr: totalLeakage,
     documents_with_no_signal: documentsNotProcessed.length,
@@ -997,6 +1072,7 @@ function buildBoardroomMissingEvidence(findings, documentsNotProcessed) {
 }
 
 function buildBoardroomExecutiveActionPlan(findings) {
+  if (!findings.length) return buildBoardroomIntakeRemediationPlan();
   const ranked = boardroomRankFindings(findings);
   const leakage = ranked.filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN");
   const schedule = ranked.filter((item) => item.days > 0);
@@ -1018,6 +1094,26 @@ function buildBoardroomExecutiveActionPlan(findings) {
       boardroomAction("Institutionalize recurrence controls", leakage.length ? "Convert the cited leakage patterns into monthly variance checks, exception approvals, and closeout evidence requirements." : "First improve evidence capture, then define recurrence controls from the next cited leakage review.", leakage.slice(0, 5).map((item) => findings.indexOf(item) + 1), leakage.length ? "MEDIUM" : "LOW"),
       boardroomAction("Track closure metrics", ranked.length ? "Track cited risk value, unresolved overrun count, delay days, ESG metrics, and missing-evidence items until closure." : "Track missing-evidence items until the dashboard can extract cited findings.", ranked.slice(0, 5).map((item) => findings.indexOf(item) + 1), ranked.length ? "MEDIUM" : "LOW"),
       boardroomAction("Prepare executive review pack", ranked.length ? "Use the report and citations as the evidence index for management review; keep citations attached to every action." : "Prepare a revised document set with budget, actual, invoice, schedule, and ESG records before the next review.", ranked.slice(0, 5).map((item) => findings.indexOf(item) + 1), ranked.length ? "MEDIUM" : "LOW")
+    ]
+  };
+}
+
+function buildBoardroomIntakeRemediationPlan() {
+  return {
+    "7_days": [
+      boardroomAction("Resubmit structured cost evidence", "Upload CSV evidence with columns such as Budget, Actual, Cost Incurred, Paid Amount, Invoice, Delay Days, Wastage, Rework, Diesel, Fuel, Energy, Water, or Emissions.", [], "LOW"),
+      boardroomAction("Confirm PDF OCR readiness", "If submitting PDFs, enable Apps Script Advanced Drive service OCR and use searchable PDFs or clear scans.", [], "LOW"),
+      boardroomAction("Attach source traceability", "Include file names, BOQ line references, invoice IDs, payment references, or schedule row labels so every future finding can be cited.", [], "LOW")
+    ],
+    "30_days": [
+      boardroomAction("Standardize intake template", "Use a recurring budget-vs-actual and leakage register template for every Boardroom upload.", [], "LOW"),
+      boardroomAction("Separate baseline from leakage", "Keep BOQ, contract value, planned spend, and cumulative work done separate from actual overspend, penalties, wastage, rework, and idle-resource costs.", [], "LOW"),
+      boardroomAction("Add ESG metric fields", "Capture diesel, fuel, energy, water, waste diversion, carbon, and emissions fields separately from financial recovery evidence.", [], "LOW")
+    ],
+    "90_days": [
+      boardroomAction("Institutionalize evidence capture", "Make budget, actual, invoice, schedule, and ESG records part of monthly project controls before Boardroom review.", [], "LOW"),
+      boardroomAction("Track intake quality", "Track rejected files, OCR failures, missing columns, and no-signal documents until the process consistently produces cited findings.", [], "LOW"),
+      boardroomAction("Prepare next executive review pack", "Resubmit with structured source evidence before using the report for recovery, commercial, legal, or control decisions.", [], "LOW")
     ]
   };
 }
@@ -1175,6 +1271,7 @@ function fallbackVerifier(browserReport) {
 }
 
 function buildReport(payload, browserReport, verifierResult, savedFiles) {
+  normalizeReportQuality(browserReport);
   const markdown = buildMarkdownReport(payload, browserReport, verifierResult, savedFiles);
   return {
     job_id: payload.job_id,
@@ -1183,12 +1280,38 @@ function buildReport(payload, browserReport, verifierResult, savedFiles) {
     browser_report: browserReport,
     gemini_verifier_result: verifierResult,
     saved_files: savedFiles,
+    report_quality_status: browserReport.report_quality_status,
+    documents_processed_count: browserReport.documents_processed_count || 0,
+    documents_with_no_signal: browserReport.documents_with_no_signal || 0,
     generated_at: new Date().toISOString(),
     markdown
   };
 }
 
+function normalizeReportQuality(browserReport) {
+  if (!browserReport || typeof browserReport !== "object") return;
+  const findings = (browserReport && browserReport.findings) || [];
+  if (!browserReport.report_quality_status) {
+    browserReport.report_quality_status = findings.length ? "EXECUTIVE_ACTION_PLAN" : "EVIDENCE_INTAKE_EXCEPTION";
+  }
+  if (browserReport.documents_processed_count === undefined) {
+    browserReport.documents_processed_count = (browserReport.document_outcomes || []).filter((item) => item.status !== "REJECTED").length;
+  }
+  if (browserReport.documents_with_no_signal === undefined) {
+    browserReport.documents_with_no_signal = (browserReport.document_outcomes || []).filter((item) => item.status !== "SIGNAL_FOUND").length;
+  }
+}
+
+function resultUrlHealth(url) {
+  const value = String(url || "");
+  if (!value) return "MISSING_RESULT_BASE_URL";
+  if (/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec/i.test(value)) return "SCRIPT_URL_PRESENT";
+  return "INVALID_RESULT_BASE_URL";
+}
+
 function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles) {
+  normalizeReportQuality(browserReport);
+  if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, savedFiles);
   const findings = browserReport.findings || [];
   const leakage = findings.filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN");
   const totalLeakage = leakage.reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
@@ -1204,7 +1327,13 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     "",
     browserReport.executive_brief && browserReport.executive_brief.headline ? browserReport.executive_brief.headline : "No executive headline was produced by browser analysis.",
     `Total cited leakage/overrun exposure: INR ${formatInr(totalLeakage)}`,
+    `Critical/high findings: ${(browserReport.executive_brief || {}).critical_or_high_count || 0}`,
+    `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
     `Gemini verification status: ${verifierResult.verification_status || "UNKNOWN"}`,
+    "",
+    "## Board Decision Required",
+    "",
+    boardroomBoardDecisionRequired(browserReport),
     "",
     "## Top Actions",
     ""
@@ -1229,6 +1358,11 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     lines.push(`- Citation: ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`);
     lines.push("");
   });
+  lines.push("## Evidence Quality", "");
+  boardroomEvidenceQualitySummary(findings).forEach((item) => lines.push(`- ${item}`));
+  lines.push("", "## Recoverability", "");
+  boardroomRecoverabilitySummary(findings).forEach((item) => lines.push(`- ${item}`));
+  lines.push("");
   if (savedFiles.length) {
     lines.push("## Stored Source Files", "");
     savedFiles.forEach((file) => lines.push(`- ${file.name}: ${file.drive_url}`));
@@ -1236,10 +1370,57 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
   return lines.join("\n");
 }
 
+function buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, savedFiles) {
+  const outcomes = browserReport.document_outcomes || [];
+  const rejected = ((browserReport.honesty_check || {}).documents_not_processed || []).filter((item) => /rejected from automation/i.test(item));
+  const lines = [
+    "# Constrovet Evidence Intake Exception",
+    "",
+    `Job: ${payload.job_id}`,
+    `Mode: ${payload.mode}`,
+    `Recipient: ${payload.email}`,
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "## Intake Status",
+    "",
+    "No cited cost, schedule, ESG, or leakage evidence was extracted.",
+    `Documents processed: ${browserReport.documents_processed_count || 0}`,
+    `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
+    `Rejected documents: ${rejected.length}`,
+    `Gemini verification status: ${verifierResult.verification_status || "UNKNOWN"}`,
+    "",
+    "## What Was Processed",
+    ""
+  ];
+  if (outcomes.length) {
+    outcomes.forEach((item) => lines.push(`- ${item.file}: ${item.status}${item.reason ? ` - ${item.reason}` : ""}`));
+  } else {
+    lines.push("- No source document outcomes were recorded.");
+  }
+  lines.push("", "## Required Next Upload", "");
+  boardroomRequiredUploadFields().forEach((item) => lines.push(`- ${item}`));
+  lines.push("", "## Intake Remediation Plan", "");
+  ["7_days", "30_days", "90_days"].forEach((period) => {
+    lines.push(`### ${period.replace("_", " ")}`);
+    ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => lines.push(`- ${action.title}: ${action.recommendation}`));
+    lines.push("");
+  });
+  lines.push("## Missing Evidence / Documents Not Processed", "");
+  boardroomMissingEvidenceItems(browserReport).forEach((item) => lines.push(`- ${item}`));
+  if (savedFiles.length) {
+    lines.push("", "## Stored Source Files", "");
+    savedFiles.forEach((file) => lines.push(`- ${file.name}: ${file.drive_url}`));
+  }
+  lines.push("", "No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings.");
+  return lines.join("\n");
+}
+
 function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
   const recipient = isValidEmail(email) ? email : (PropertiesService.getScriptProperties().getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL);
   const cc = boardroomAdminCc(recipient);
-  const subject = `Constrovet Executive Action Plan - ${jobId}`;
+  const subject = boardroomIsIntakeException(report.browser_report || {})
+    ? `Constrovet Evidence Intake Exception - ${jobId}`
+    : `Constrovet Executive Action Plan - ${jobId}`;
   const mail = {
     to: recipient,
     subject,
@@ -1264,7 +1445,7 @@ function emptyEmailDelivery(email, jobId) {
   return {
     email_to: recipient,
     email_cc: boardroomAdminCc(recipient),
-    email_subject: `Constrovet Executive Action Plan - ${jobId}`,
+    email_subject: `Constrovet Boardroom Report - ${jobId}`,
     email_sent_at: "",
     email_status: "EMAIL_NOT_ATTEMPTED",
     email_error: ""
@@ -1287,6 +1468,11 @@ function resendBoardroomReport(jobId, recipientEmail) {
   if (!report) throw new Error("Final report JSON was not found or could not be parsed.");
   const recipient = isValidEmail(recipientEmail) ? recipientEmail : (report.email || "");
   if (!isValidEmail(recipient)) throw new Error("A valid resend recipient email is required.");
+  normalizeReportQuality(report.browser_report || {});
+  report.report_quality_status = (report.browser_report || {}).report_quality_status;
+  report.documents_processed_count = (report.browser_report || {}).documents_processed_count || 0;
+  report.documents_with_no_signal = (report.browser_report || {}).documents_with_no_signal || 0;
+  report.markdown = buildMarkdownReport(report, report.browser_report || {}, report.gemini_verifier_result || {}, report.saved_files || []);
   const markdownBlob = loadMarkdownBlobForJob(outputs, jobId, report);
   const delivery = sendReportEmail(recipient, jobId, report, markdownBlob, report.result_url || buildResultUrl(jobId, report.result_access_key || ""));
   report.email_delivery = delivery;
@@ -1305,6 +1491,8 @@ function resendBoardroomReport(jobId, recipientEmail) {
     drive_folder: job.getUrl(),
     result_url: report.result_url || "",
     result_access_key: report.result_access_key || "",
+    report_quality_status: report.report_quality_status || ((report.browser_report || {}).report_quality_status || ""),
+    result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
     email_delivery: delivery
   });
   return {
@@ -1327,7 +1515,11 @@ function resendConfiguredBoardroomReport() {
 
 function loadMarkdownBlobForJob(outputs, jobId, report) {
   const files = outputs.getFilesByName(`${jobId}-executive-report.md`);
-  if (files.hasNext()) return files.next().getBlob();
+  if (files.hasNext()) {
+    const file = files.next();
+    file.setContent(report.markdown || "");
+    return file.getBlob();
+  }
   return Utilities.newBlob(report.markdown || buildMarkdownReport(report, report.browser_report || {}, report.gemini_verifier_result || {}, report.saved_files || []), MimeType.PLAIN_TEXT, `${jobId}-executive-report.md`);
 }
 
@@ -1347,6 +1539,8 @@ function boardroomAdminCc(recipient) {
 
 function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   const browserReport = report.browser_report || {};
+  normalizeReportQuality(browserReport);
+  if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailHtml(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = findings
     .filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN")
@@ -1354,20 +1548,21 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   const headline = browserReport.executive_brief && browserReport.executive_brief.headline
     ? browserReport.executive_brief.headline
     : "No executive headline was produced.";
-  const incomplete = boardroomAnalysisIncomplete(browserReport);
   const resultLinkHtml = resultUrl
-    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#047857;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private analysed result</a></p>`
+    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#047857;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private Apps Script report</a></p>`
     : "<p style=\"color:#92400e\"><strong>Private result link unavailable.</strong> Redeploy the Apps Script web app to enable private result links.</p>";
   return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
     <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#047857">Constrovet Executive Action Plan</p>
     <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">Project evidence review completed</h1>
     <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
-    ${incomplete ? `<div style="border:1px solid #f59e0b;background:#fffbeb;border-radius:6px;padding:12px;margin:14px 0"><strong>Analysis incomplete:</strong> PDF text extraction was unavailable or no cited evidence was extracted. Enable Drive API OCR or submit CSV evidence with budget, actual, delay, or ESG fields.</div>` : ""}
     <h2 style="font-size:18px;margin:18px 0 8px">Executive Summary</h2>
     <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
-    <p style="margin:0 0 12px"><strong>Total cited leakage/overrun exposure:</strong> INR ${formatInr(leakageTotal)}<br><strong>Cited findings:</strong> ${findings.length}<br><strong>Gemini status:</strong> ${escapeHtml((report.gemini_verifier_result || {}).verification_status || "NOT_RUN")}</p>
+    ${renderExecutiveKpisEmailHtml(browserReport, leakageTotal)}
+    <h2 style="font-size:18px;margin:18px 0 8px">Board Decision Required</h2>
+    <p style="margin:0 0 12px">${escapeHtml(boardroomBoardDecisionRequired(browserReport))}</p>
     ${renderExecutiveActionsEmailHtml(browserReport)}
     ${renderExecutiveActionPlanEmailHtml(browserReport)}
+    ${renderEvidenceQualityEmailHtml(browserReport)}
     ${renderMissingEvidenceEmailHtml(browserReport)}
     ${resultLinkHtml}
     <p style="margin:14px 0;color:#66737d">The attached Markdown report includes the complete evidence trail, citations, rationale, honesty check, and audit details.</p>
@@ -1377,6 +1572,8 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
 
 function buildExecutiveEmailText(jobId, report, resultUrl) {
   const browserReport = report.browser_report || {};
+  normalizeReportQuality(browserReport);
+  if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailText(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = findings
     .filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN")
@@ -1392,11 +1589,13 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     browserReport.executive_brief && browserReport.executive_brief.headline ? browserReport.executive_brief.headline : "No executive headline was produced.",
     `Total cited leakage/overrun exposure: INR ${formatInr(leakageTotal)}`,
     `Cited findings: ${findings.length}`,
-    `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`
+    `Critical/high findings: ${(browserReport.executive_brief || {}).critical_or_high_count || 0}`,
+    `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
+    `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`,
+    "",
+    "Board Decision Required",
+    boardroomBoardDecisionRequired(browserReport)
   ];
-  if (boardroomAnalysisIncomplete(browserReport)) {
-    lines.push("", "Analysis incomplete: PDF text extraction was unavailable or no cited evidence was extracted. Enable Drive API OCR or submit CSV evidence.");
-  }
   lines.push("", "Top 3 Decisions / Actions");
   const actions = (browserReport.top_5_actions || []).slice(0, 3);
   if (actions.length) actions.forEach((action) => lines.push(`- ${action.title || "Action"}: ${action.action || action.recommendation || ""}`));
@@ -1411,7 +1610,11 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     lines.push("", "Missing Evidence / Documents Not Processed");
     missing.forEach((item) => lines.push(`- ${item}`));
   }
-  if (resultUrl) lines.push("", `Private result link: ${resultUrl}`);
+  lines.push("", "Evidence Quality");
+  boardroomEvidenceQualitySummary(findings).forEach((item) => lines.push(`- ${item}`));
+  lines.push("", "Recoverability");
+  boardroomRecoverabilitySummary(findings).forEach((item) => lines.push(`- ${item}`));
+  if (resultUrl) lines.push("", `Private Apps Script report link: ${resultUrl}`);
   lines.push("", "Decision-support only. Review cited evidence before commercial, legal, or recovery action.");
   return lines.join("\n");
 }
@@ -1422,6 +1625,110 @@ function renderExecutiveActionsEmailHtml(browserReport) {
     ? actions.map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.action || action.recommendation || "")}</li>`).join("")
     : "<li>No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.</li>";
   return `<h2 style="font-size:18px;margin:18px 0 8px">Top 3 Decisions / Actions</h2><ol style="margin-top:0;padding-left:22px">${items}</ol>`;
+}
+
+function buildIntakeExceptionEmailHtml(jobId, report, resultUrl) {
+  const browserReport = report.browser_report || {};
+  const resultLinkHtml = resultUrl
+    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#b45309;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private Apps Script report</a></p>`
+    : "<p style=\"color:#92400e\"><strong>Private result link unavailable.</strong> Set BOARDROOM_RESULT_BASE_URL to the Apps Script /exec URL.</p>";
+  return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
+    <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#b45309">Constrovet Evidence Intake Exception</p>
+    <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">No cited cost, schedule, ESG, or leakage evidence was extracted</h1>
+    <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
+    <div style="border:1px solid #f59e0b;background:#fffbeb;border-radius:6px;padding:12px;margin:14px 0"><strong>No executive recovery action has been produced.</strong> Constrovet did not find cited project evidence strong enough to support a leakage, schedule, ESG, or baseline finding.</div>
+    ${renderIntakeKpisEmailHtml(browserReport, report)}
+    ${renderDocumentOutcomesEmailHtml(browserReport)}
+    ${renderRequiredUploadFieldsEmailHtml()}
+    ${renderExecutiveActionPlanEmailHtml(browserReport)}
+    ${renderMissingEvidenceEmailHtml(browserReport)}
+    ${resultLinkHtml}
+    <p style="margin:14px 0;color:#66737d;font-size:13px">Decision-support only. No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings.</p>
+  </div>`;
+}
+
+function buildIntakeExceptionEmailText(jobId, report, resultUrl) {
+  const browserReport = report.browser_report || {};
+  const lines = [
+    "Constrovet Evidence Intake Exception",
+    "",
+    `Job: ${jobId}`,
+    `Mode: ${report.mode}`,
+    `Generated: ${report.generated_at || ""}`,
+    "",
+    "No cited cost, schedule, ESG, or leakage evidence was extracted.",
+    "No executive recovery action has been produced.",
+    "",
+    "Intake Status",
+    `Files received: ${((report.form_intake || {}).received_file_count !== undefined) ? (report.form_intake || {}).received_file_count : "unknown"}`,
+    `Files accepted: ${((report.form_intake || {}).accepted_file_count !== undefined) ? (report.form_intake || {}).accepted_file_count : "unknown"}`,
+    `Files rejected: ${((report.form_intake || {}).rejected_files || []).length}`,
+    `Documents processed: ${browserReport.documents_processed_count || 0}`,
+    `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
+    `Cited findings: 0`,
+    "",
+    "What Was Processed"
+  ];
+  const outcomes = browserReport.document_outcomes || [];
+  if (outcomes.length) outcomes.forEach((item) => lines.push(`- ${item.file}: ${item.status}${item.reason ? ` - ${item.reason}` : ""}`));
+  else lines.push("- No source document outcomes were recorded.");
+  lines.push("", "Required Next Upload");
+  boardroomRequiredUploadFields().forEach((item) => lines.push(`- ${item}`));
+  lines.push("", "Intake Remediation Plan");
+  ["7_days", "30_days", "90_days"].forEach((period) => {
+    lines.push(period.replace("_", " "));
+    ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => lines.push(`- ${action.title}: ${action.recommendation}`));
+  });
+  const missing = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  if (missing.length) {
+    lines.push("", "Missing Evidence / Documents Not Processed");
+    missing.forEach((item) => lines.push(`- ${item}`));
+  }
+  if (resultUrl) lines.push("", `Private Apps Script report link: ${resultUrl}`);
+  lines.push("", "No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings.");
+  return lines.join("\n");
+}
+
+function renderExecutiveKpisEmailHtml(browserReport, leakageTotal) {
+  const findings = browserReport.findings || [];
+  const brief = browserReport.executive_brief || {};
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:14px 0;width:100%;max-width:680px"><tr>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>INR ${formatInr(leakageTotal)}</strong><br><span style="color:#66737d">Cited leakage</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${findings.length}</strong><br><span style="color:#66737d">Cited findings</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${brief.critical_or_high_count || 0}</strong><br><span style="color:#66737d">Critical / high</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${browserReport.documents_with_no_signal || 0}</strong><br><span style="color:#66737d">No-signal docs</span></td>
+  </tr></table>`;
+}
+
+function renderIntakeKpisEmailHtml(browserReport, report) {
+  const intake = report.form_intake || {};
+  const received = intake.received_file_count !== undefined ? intake.received_file_count : "unknown";
+  const accepted = intake.accepted_file_count !== undefined ? intake.accepted_file_count : "unknown";
+  const rejected = (intake.rejected_files || []).length;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:14px 0;width:100%;max-width:680px"><tr>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${escapeHtml(received)}</strong><br><span style="color:#66737d">Files received</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${escapeHtml(accepted)}</strong><br><span style="color:#66737d">Files accepted</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${rejected}</strong><br><span style="color:#66737d">Files rejected</span></td>
+  </tr><tr>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${browserReport.documents_processed_count || 0}</strong><br><span style="color:#66737d">Documents processed</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${browserReport.documents_with_no_signal || 0}</strong><br><span style="color:#66737d">No-signal documents</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>0</strong><br><span style="color:#66737d">Cited findings</span></td>
+  </tr></table>`;
+}
+
+function renderDocumentOutcomesEmailHtml(browserReport) {
+  const outcomes = (browserReport.document_outcomes || []).slice(0, 10);
+  if (!outcomes.length) return "<h2 style=\"font-size:18px;margin:18px 0 8px\">What Was Processed</h2><p>No source document outcomes were recorded.</p>";
+  return `<h2 style="font-size:18px;margin:18px 0 8px">What Was Processed</h2><ul style="margin-top:0;padding-left:20px">${outcomes.map((item) => `<li><strong>${escapeHtml(item.file || "unknown")}:</strong> ${escapeHtml(item.status || "UNKNOWN")}${item.reason ? ` - ${escapeHtml(item.reason)}` : ""}</li>`).join("")}</ul>`;
+}
+
+function renderRequiredUploadFieldsEmailHtml() {
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Required Next Upload</h2><ul style="margin-top:0;padding-left:20px">${boardroomRequiredUploadFields().map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function renderEvidenceQualityEmailHtml(browserReport) {
+  const findings = browserReport.findings || [];
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Evidence Quality / Recoverability</h2><ul style="margin-top:0;padding-left:20px">${[...boardroomEvidenceQualitySummary(findings), ...boardroomRecoverabilitySummary(findings)].map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
 function renderExecutiveActionPlanEmailHtml(browserReport) {
@@ -1445,6 +1752,57 @@ function boardroomMissingEvidenceItems(browserReport) {
     ...(honesty.missing_evidence || []),
     ...(honesty.documents_not_processed || [])
   ].filter(Boolean);
+}
+
+function boardroomIsIntakeException(browserReport) {
+  normalizeReportQuality(browserReport);
+  return !browserReport || browserReport.report_quality_status === "EVIDENCE_INTAKE_EXCEPTION";
+}
+
+function boardroomBoardDecisionRequired(browserReport) {
+  const findings = browserReport.findings || [];
+  const top = (browserReport.top_5_actions || [])[0];
+  if (!findings.length) return "Do not take recovery or control action from this run. First resubmit structured evidence with cited budget, actual, delay, leakage, or ESG fields.";
+  if (top) return `${top.title || "Review highest-priority finding"}: ${top.action || top.recommendation || "Review cited finding and assign an accountable owner."}`;
+  return "Review cited findings and assign accountable owners before commercial, legal, or recovery action.";
+}
+
+function boardroomRequiredUploadFields() {
+  return [
+    "CSV columns for Budget / BOQ / Planned / Contract value and Actual / Cost incurred / Paid amount.",
+    "Delay Days or schedule slippage fields where time impact is claimed.",
+    "Invoice, RA bill, IPC, payment, debit note, deduction, or back-charge references.",
+    "Wastage, rework, idle labour, idle plant, excess consumption, delayed PO, or penalty fields for leakage review.",
+    "Diesel, fuel, energy, water, waste diversion, carbon, or emissions fields for ESG review.",
+    "File, sheet, row, BOQ line, invoice ID, or schedule activity labels for traceable citations."
+  ];
+}
+
+function boardroomEvidenceQualitySummary(findings) {
+  const counts = countBy(findings.map((item) => item.evidence_quality || "UNKNOWN"));
+  return [
+    `Structured Actual-Budget findings: ${counts.STRUCTURED_ACTUAL_BUDGET || 0}`,
+    `Cited amount findings: ${counts.CITED_AMOUNT || 0}`,
+    `Cited days findings: ${counts.CITED_DAYS || 0}`,
+    `Narrative-only findings: ${counts.CITED_NARRATIVE || 0}`
+  ];
+}
+
+function boardroomRecoverabilitySummary(findings) {
+  const counts = countBy(findings.map((item) => item.recoverability || "UNKNOWN"));
+  return [
+    `High recoverability findings: ${counts.HIGH || 0}`,
+    `Medium recoverability findings: ${counts.MEDIUM || 0}`,
+    `Low or unknown recoverability findings: ${(counts.LOW || 0) + (counts.UNKNOWN || 0)}`
+  ];
+}
+
+function countBy(values) {
+  return (values || []).reduce((counts, value) => {
+    const key = value || "UNKNOWN";
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
 }
 
 function boardroomAnalysisIncomplete(browserReport) {
@@ -1472,7 +1830,9 @@ function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
     delivery.email_cc || "",
     delivery.email_subject || "",
     delivery.email_status || "",
-    delivery.email_error || ""
+    delivery.email_error || "",
+    report.report_quality_status || (report.browser_report || {}).report_quality_status || "",
+    report.result_url_health || resultUrlHealth(report.result_url || "")
   ]);
 }
 
@@ -1498,7 +1858,9 @@ function appendBoardroomAuditRow(entry) {
     delivery.email_cc || "",
     delivery.email_subject || "",
     delivery.email_status || "",
-    delivery.email_error || ""
+    delivery.email_error || "",
+    entry.report_quality_status || "",
+    entry.result_url_health || resultUrlHealth(entry.result_url || "")
   ]);
 }
 
@@ -1534,7 +1896,9 @@ function ensureAuditHeader(sheet) {
     "email_cc",
     "email_subject",
     "email_status",
-    "email_error"
+    "email_error",
+    "report_quality_status",
+    "result_url_health"
   ];
   const width = header.length;
   const range = sheet.getRange(1, 1, 1, width);
