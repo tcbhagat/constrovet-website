@@ -174,9 +174,9 @@ Then run:
 sendBoardroomEmailSmokeTest
 ```
 
-This sends a minimal plain-text email without attachments or Drive links and
-appends an `EMAIL_SMOKE_TEST` audit row. If this arrives but the full report
-does not, filtering is likely related to attachments, HTML, or links.
+This sends a minimal plain-text email and appends an `EMAIL_SMOKE_TEST` audit
+row. If this arrives but the report email does not, filtering is likely related
+to HTML content or sender/domain rules.
 
 For a two-step delivery check, also set:
 
@@ -190,8 +190,10 @@ Then run:
 resendConfiguredBoardroomReportSmallThenFull
 ```
 
-This sends a small plain-text check first, then sends the full report using the
-same exact job folder.
+This sends a small plain-text check first, then sends the HTML/text report email
+using the same exact job folder. The report email does not attach the Markdown
+file or display the private Apps Script report link; those artifacts remain in
+the Drive output folder and audit metadata.
 
 To resend an existing Boardroom report without another form submission, call:
 

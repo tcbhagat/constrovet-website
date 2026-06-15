@@ -1525,8 +1525,7 @@ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
     to: recipient,
     subject,
     body: buildExecutiveEmailText(jobId, report, resultUrl),
-    htmlBody: buildExecutiveEmailHtml(jobId, report, resultUrl),
-    attachments: [markdownBlob.setName(`${jobId}-executive-report.md`)]
+    htmlBody: buildExecutiveEmailHtml(jobId, report, resultUrl)
   };
   if (cc) mail.cc = cc;
   MailApp.sendEmail(mail);
@@ -1590,7 +1589,7 @@ function sendBoardroomEmailSmokeTest() {
     "This report was requested from Constrovet Boardroom intake.",
     "",
     "This is a minimal plain-text MailApp smoke test.",
-    "If this message arrives but the full report does not, Gmail or Workspace filtering may be affecting attachments, links, or HTML content.",
+    "If this message arrives but a report email does not, Gmail or Workspace filtering may be affecting HTML content or sender rules.",
     "",
     `Recipient: ${recipient}`,
     `Sent at: ${new Date().toISOString()}`
@@ -1722,7 +1721,7 @@ function resendBoardroomReportSmallThenFull(jobId, recipientEmail) {
     "This report was requested from Constrovet Boardroom intake.",
     "",
     `Small delivery check for job: ${cleanedJobId}`,
-    "If this arrives but the full report does not, filtering may be affecting report links, HTML, or attachments.",
+    "If this arrives but the report email does not, filtering may be affecting HTML content or sender rules.",
     "",
     `Recipient: ${recipient}`,
     `Sent at: ${new Date().toISOString()}`
@@ -1817,9 +1816,6 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   const headline = browserReport.executive_brief && browserReport.executive_brief.headline
     ? browserReport.executive_brief.headline
     : "No executive headline was produced.";
-  const resultLinkHtml = resultUrl
-    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#047857;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private Apps Script report</a></p>`
-    : "<p style=\"color:#92400e\"><strong>Private result link unavailable.</strong> Redeploy the Apps Script web app to enable private result links.</p>";
   return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
     <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#047857">Constrovet Executive Action Plan</p>
     <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">Project evidence review completed</h1>
@@ -1834,8 +1830,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
     ${renderExecutiveActionPlanEmailHtml(browserReport)}
     ${renderEvidenceQualityEmailHtml(browserReport)}
     ${renderMissingEvidenceEmailHtml(browserReport)}
-    ${resultLinkHtml}
-    <p style="margin:14px 0;color:#66737d">The attached Markdown report includes the complete evidence trail, citations, rationale, honesty check, and audit details.</p>
+    <p style="margin:14px 0;color:#66737d">The full evidence files are stored in the Constrovet project output folder for audit review.</p>
     <p style="margin:14px 0;color:#66737d;font-size:13px">Decision-support only. Review cited evidence before commercial, legal, or recovery action.</p>
   </div>`;
 }
@@ -1885,7 +1880,7 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
   boardroomEvidenceQualitySummary(findings).forEach((item) => lines.push(`- ${item}`));
   lines.push("", "Recoverability");
   boardroomRecoverabilitySummary(findings).forEach((item) => lines.push(`- ${item}`));
-  if (resultUrl) lines.push("", `Private Apps Script report link: ${resultUrl}`);
+  lines.push("", "The full evidence files are stored in the Constrovet project output folder for audit review.");
   lines.push("", "Decision-support only. Review cited evidence before commercial, legal, or recovery action.");
   return lines.join("\n");
 }
@@ -1900,9 +1895,6 @@ function renderExecutiveActionsEmailHtml(browserReport) {
 
 function buildIntakeExceptionEmailHtml(jobId, report, resultUrl) {
   const browserReport = report.browser_report || {};
-  const resultLinkHtml = resultUrl
-    ? `<p style="margin:18px 0"><a href="${escapeHtml(resultUrl)}" style="display:inline-block;background:#b45309;color:#ffffff;text-decoration:none;padding:11px 16px;border-radius:6px;font-weight:bold">View private Apps Script report</a></p>`
-    : "<p style=\"color:#92400e\"><strong>Private result link unavailable.</strong> Set BOARDROOM_RESULT_BASE_URL to the Apps Script /exec URL.</p>";
   return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
     <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#b45309">Constrovet Evidence Intake Exception</p>
     <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">No cited cost, schedule, ESG, or leakage evidence was extracted</h1>
@@ -1913,7 +1905,7 @@ function buildIntakeExceptionEmailHtml(jobId, report, resultUrl) {
     ${renderRequiredUploadFieldsEmailHtml()}
     ${renderExecutiveActionPlanEmailHtml(browserReport)}
     ${renderMissingEvidenceEmailHtml(browserReport)}
-    ${resultLinkHtml}
+    <p style="margin:14px 0;color:#66737d">The full evidence files are stored in the Constrovet project output folder for audit review.</p>
     <p style="margin:14px 0;color:#66737d;font-size:13px">Decision-support only. No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings.</p>
   </div>`;
 }
@@ -1955,7 +1947,7 @@ function buildIntakeExceptionEmailText(jobId, report, resultUrl) {
     lines.push("", "Missing Evidence / Documents Not Processed");
     missing.forEach((item) => lines.push(`- ${item}`));
   }
-  if (resultUrl) lines.push("", `Private Apps Script report link: ${resultUrl}`);
+  lines.push("", "The full evidence files are stored in the Constrovet project output folder for audit review.");
   lines.push("", "No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings.");
   return lines.join("\n");
 }
