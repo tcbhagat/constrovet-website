@@ -162,6 +162,37 @@ the next checks are Spam, All Mail, Promotions, and any Workspace/domain mail
 filtering. If the audit row says `EMAIL_FAILED`, the `email_error` column is the
 source of truth for the failure.
 
+To isolate mailbox filtering, set:
+
+```text
+BOARDROOM_RESEND_EMAIL=bhagat.taran@gmail.com
+```
+
+Then run:
+
+```text
+sendBoardroomEmailSmokeTest
+```
+
+This sends a minimal plain-text email without attachments or Drive links and
+appends an `EMAIL_SMOKE_TEST` audit row. If this arrives but the full report
+does not, filtering is likely related to attachments, HTML, or links.
+
+For a two-step delivery check, also set:
+
+```text
+BOARDROOM_RESEND_JOB_ID=form-<timestamp>-<shortid>
+```
+
+Then run:
+
+```text
+resendConfiguredBoardroomReportSmallThenFull
+```
+
+This sends a small plain-text check first, then sends the full report using the
+same exact job folder.
+
 To resend an existing Boardroom report without another form submission, call:
 
 ```javascript

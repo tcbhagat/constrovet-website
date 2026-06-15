@@ -1519,8 +1519,8 @@ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
   const recipient = String(email).trim();
   const cc = boardroomAdminCc(recipient);
   const subject = boardroomIsIntakeException(report.browser_report || {})
-    ? `Constrovet Evidence Intake Exception - ${jobId}`
-    : `Constrovet Executive Action Plan - ${jobId}`;
+    ? `[Constrovet] Evidence Intake Exception - ${jobId}`
+    : `[Constrovet] Executive Action Plan - ${jobId}`;
   const mail = {
     to: recipient,
     subject,
@@ -1568,6 +1568,89 @@ function failedEmailDelivery(email, jobId, error) {
   delivery.email_status = "EMAIL_FAILED";
   delivery.email_error = error && error.message ? error.message : String(error);
   return delivery;
+}
+
+function sentEmailDelivery(recipient, subject, cc) {
+  return {
+    email_to: recipient,
+    email_cc: cc || "",
+    email_subject: subject,
+    email_sent_at: new Date().toISOString(),
+    email_status: "EMAIL_SENT",
+    email_error: ""
+  };
+}
+
+function sendBoardroomEmailSmokeTest() {
+  const props = PropertiesService.getScriptProperties();
+  const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || "").trim();
+  if (!isValidEmail(recipient)) throw new Error("BOARDROOM_RESEND_EMAIL must be a valid email for the smoke test.");
+  const subject = `[Constrovet] Email smoke test - ${Utilities.formatDate(new Date(), "GMT", "yyyyMMdd-HHmmss")}`;
+  const body = [
+    "This report was requested from Constrovet Boardroom intake.",
+    "",
+    "This is a minimal plain-text MailApp smoke test.",
+    "If this message arrives but the full report does not, Gmail or Workspace filtering may be affecting attachments, links, or HTML content.",
+    "",
+    `Recipient: ${recipient}`,
+    `Sent at: ${new Date().toISOString()}`
+  ].join("\n");
+  const cc = boardroomAdminCc(recipient);
+  const mail = { to: recipient, subject, body };
+  if (cc) mail.cc = cc;
+  try {
+    MailApp.sendEmail(mail);
+    const delivery = sentEmailDelivery(recipient, subject, cc);
+    appendBoardroomAuditRow({
+      timestamp: new Date(),
+      job_id: "EMAIL_SMOKE_TEST",
+      mode: "EMAIL_SMOKE_TEST",
+      email: recipient,
+      received_file_count: "",
+      accepted_file_count: "",
+      rejected_files: [],
+      finding_count: "",
+      gemini_status: "NOT_APPLICABLE",
+      drive_folder: "",
+      result_url: "",
+      result_access_key: "",
+      email_source_mode: "SMOKE_TEST_MINIMAL_TEXT",
+      source_job_id: "",
+      source_job_folder_url: "",
+      source_final_report_url: "",
+      submitter_email_source: "BOARDROOM_RESEND_EMAIL",
+      report_quality_status: "",
+      result_url_health: "",
+      email_delivery: delivery
+    });
+    return { ok: true, email_to: delivery.email_to, email_subject: delivery.email_subject, email_status: delivery.email_status };
+  } catch (error) {
+    const delivery = failedEmailDelivery(recipient, "EMAIL_SMOKE_TEST", error);
+    delivery.email_subject = subject;
+    appendBoardroomAuditRow({
+      timestamp: new Date(),
+      job_id: "EMAIL_SMOKE_TEST",
+      mode: "EMAIL_SMOKE_TEST",
+      email: recipient,
+      received_file_count: "",
+      accepted_file_count: "",
+      rejected_files: [],
+      finding_count: "",
+      gemini_status: "NOT_APPLICABLE",
+      drive_folder: "",
+      result_url: "",
+      result_access_key: "",
+      email_source_mode: "SMOKE_TEST_MINIMAL_TEXT",
+      source_job_id: "",
+      source_job_folder_url: "",
+      source_final_report_url: "",
+      submitter_email_source: "BOARDROOM_RESEND_EMAIL",
+      report_quality_status: "",
+      result_url_health: "",
+      email_delivery: delivery
+    });
+    throw error;
+  }
 }
 
 function resendBoardroomReport(jobId, recipientEmail) {
@@ -1626,12 +1709,77 @@ function resendBoardroomReport(jobId, recipientEmail) {
   };
 }
 
+function resendBoardroomReportSmallThenFull(jobId, recipientEmail) {
+  const cleanedJobId = String(jobId || "").trim();
+  const job = findProjectFolder(cleanedJobId);
+  if (!job) throw new Error("Boardroom job folder was not found.");
+  const report = loadReportForJob(cleanedJobId);
+  if (!report) throw new Error("Final report JSON was not found or could not be parsed.");
+  const recipient = isValidEmail(recipientEmail) ? String(recipientEmail).trim() : (report.email || "");
+  if (!isValidEmail(recipient)) throw new Error("A valid resend recipient email is required.");
+  const smallSubject = `[Constrovet] Report delivery check - ${cleanedJobId}`;
+  const smallBody = [
+    "This report was requested from Constrovet Boardroom intake.",
+    "",
+    `Small delivery check for job: ${cleanedJobId}`,
+    "If this arrives but the full report does not, filtering may be affecting report links, HTML, or attachments.",
+    "",
+    `Recipient: ${recipient}`,
+    `Sent at: ${new Date().toISOString()}`
+  ].join("\n");
+  const cc = boardroomAdminCc(recipient);
+  const mail = { to: recipient, subject: smallSubject, body: smallBody };
+  if (cc) mail.cc = cc;
+  MailApp.sendEmail(mail);
+  const smallDelivery = sentEmailDelivery(recipient, smallSubject, cc);
+  appendBoardroomAuditRow({
+    timestamp: new Date(),
+    job_id: cleanedJobId,
+    mode: "MANUAL_RESEND_SMALL_CHECK",
+    email: recipient,
+    received_file_count: report.form_intake ? report.form_intake.received_file_count : "",
+    accepted_file_count: report.form_intake ? report.form_intake.accepted_file_count : "",
+    rejected_files: report.form_intake ? report.form_intake.rejected_files : [],
+    finding_count: ((report.browser_report || {}).findings || []).length,
+    gemini_status: ((report.gemini_verifier_result || {}).verification_status || (report.gemini_verifier_result || {}).status || "UNKNOWN"),
+    drive_folder: job.getUrl(),
+    result_url: report.result_url || "",
+    result_access_key: report.result_access_key || "",
+    email_source_mode: "MANUAL_RESEND_SMALL_THEN_FULL",
+    source_job_id: cleanedJobId,
+    source_job_folder_url: job.getUrl(),
+    source_final_report_url: report.source_final_report_url || (report.generated_files && report.generated_files.final_report_url ? report.generated_files.final_report_url : ""),
+    submitter_email_source: "MANUAL_RESEND",
+    report_quality_status: report.report_quality_status || ((report.browser_report || {}).report_quality_status || ""),
+    result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
+    email_delivery: smallDelivery
+  });
+  const fullResult = resendBoardroomReport(cleanedJobId, recipient);
+  return {
+    ok: true,
+    job_id: cleanedJobId,
+    small_email_status: smallDelivery.email_status,
+    small_email_subject: smallDelivery.email_subject,
+    full_email_status: fullResult.email_status,
+    full_email_subject: fullResult.email_subject,
+    email_to: recipient
+  };
+}
+
 function resendConfiguredBoardroomReport() {
   const props = PropertiesService.getScriptProperties();
   const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim();
   if (!jobId) throw new Error("BOARDROOM_RESEND_JOB_ID script property is required.");
   const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || "").trim();
   return resendBoardroomReport(jobId, recipient);
+}
+
+function resendConfiguredBoardroomReportSmallThenFull() {
+  const props = PropertiesService.getScriptProperties();
+  const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim();
+  if (!jobId) throw new Error("BOARDROOM_RESEND_JOB_ID script property is required.");
+  const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || "").trim();
+  return resendBoardroomReportSmallThenFull(jobId, recipient);
 }
 
 function loadMarkdownBlobForJob(outputs, jobId, report) {
@@ -1675,6 +1823,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
     <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#047857">Constrovet Executive Action Plan</p>
     <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">Project evidence review completed</h1>
+    <p style="margin:0 0 12px;color:#3f4b53">This report was requested from Constrovet Boardroom intake.</p>
     <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
     <h2 style="font-size:18px;margin:18px 0 8px">Executive Summary</h2>
     <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
@@ -1701,6 +1850,7 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     .reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
   const lines = [
     "Constrovet Executive Action Plan",
+    "This report was requested from Constrovet Boardroom intake.",
     "",
     `Job: ${jobId}`,
     `Mode: ${report.mode}`,
