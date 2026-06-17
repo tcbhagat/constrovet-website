@@ -8,6 +8,18 @@ const DAILY_EMAIL_LIMIT = 5;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_BOARDROOM_NOTIFY_EMAIL = "admin@constrovet.com";
 const BOARDROOM_ADMIN_CC_PROPERTY = "BOARDROOM_CC_ADMIN";
+const REPORT_EXECUTIVE_ACTION_PLAN = "EXECUTIVE_ACTION_PLAN";
+const REPORT_EVIDENCE_INTAKE_EXCEPTION = "EVIDENCE_INTAKE_EXCEPTION";
+const REPORT_IRRELEVANT_DATA_FILE = "IRRELEVANT_DATA_FILE";
+const REPORT_UNSUPPORTED_FILE_TYPE = "UNSUPPORTED_FILE_TYPE";
+const REPORT_CONSTRUCTION_CONTEXT_ONLY = "CONSTRUCTION_CONTEXT_ONLY";
+const GEMINI_RELEVANCE_GATE_PROPERTY = "ENABLE_GEMINI_RELEVANCE_GATE";
+const GEMINI_RELEVANCE_MODEL_PROPERTY = "GEMINI_RELEVANCE_MODEL";
+const GEMINI_DAILY_CALL_LIMIT_PROPERTY = "GEMINI_DAILY_CALL_LIMIT";
+const GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER_PROPERTY = "GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER";
+const DEFAULT_GEMINI_DAILY_CALL_LIMIT = 10;
+const DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER = 2 * 1024 * 1024;
+const DEFAULT_GEMINI_RELEVANCE_MODEL = "gemini-2.5-flash";
 
 function doGet(e) {
   try {
@@ -184,6 +196,11 @@ function handleBoardroomFormSubmit(e) {
     source_final_report_url: report.source_final_report_url,
     submitter_email_source: submitterEmailInfo.source,
     report_quality_status: report.report_quality_status,
+    input_classification_status: report.input_classification_status,
+    input_relevance_reason: report.input_relevance_reason,
+    gemini_relevance_status: report.gemini_relevance_status,
+    gemini_calls_used_today: report.gemini_calls_used_today,
+    analysis_generated: report.analysis_generated,
     result_url_health: report.result_url_health,
     email_delivery: emailDelivery
   });
@@ -272,6 +289,11 @@ function sanitizeReportForViewer(report) {
     result_url: report.result_url || "",
     result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
     report_quality_status: report.report_quality_status || browserReport.report_quality_status || "",
+    input_classification_status: browserReport.input_classification_status || report.input_classification_status || report.report_quality_status || "",
+    input_relevance_reason: browserReport.input_relevance_reason || report.input_relevance_reason || "",
+    gemini_relevance_status: browserReport.gemini_relevance_status || report.gemini_relevance_status || "NOT_RUN",
+    gemini_calls_used_today: browserReport.gemini_calls_used_today || report.gemini_calls_used_today || 0,
+    analysis_generated: Boolean(browserReport.analysis_generated || report.analysis_generated),
     documents_processed_count: report.documents_processed_count || browserReport.documents_processed_count || 0,
     documents_with_no_signal: report.documents_with_no_signal || browserReport.documents_with_no_signal || 0,
     document_outcomes: browserReport.document_outcomes || [],
@@ -322,9 +344,9 @@ function renderBoardroomResultHtml(report) {
     </div>
     ${renderActionPlanHtml(report)}
     ${renderDocumentOutcomesResultHtml(report)}
-    ${renderFindingGroupHtml("Leakage And Overrun", grouped.LEAKAGE_AND_OVERRUN || [], "leakage")}
-    ${renderFindingGroupHtml("Baseline Budget", grouped.BASELINE_BUDGET || [], "baseline")}
-    ${renderFindingGroupHtml("ESG Metrics", grouped.ESG_METRIC || [], "esg")}
+    ${boardroomIsNoAnalysisNotice(report) ? "" : renderFindingGroupHtml("Leakage And Overrun", grouped.LEAKAGE_AND_OVERRUN || [], "leakage")}
+    ${boardroomIsNoAnalysisNotice(report) ? "" : renderFindingGroupHtml("Baseline Budget", grouped.BASELINE_BUDGET || [], "baseline")}
+    ${boardroomIsNoAnalysisNotice(report) ? "" : renderFindingGroupHtml("ESG Metrics", grouped.ESG_METRIC || [], "esg")}
     ${renderHonestyHtml(report)}
     ${renderReportLinksHtml(report)}
   </main>
@@ -333,7 +355,7 @@ function renderBoardroomResultHtml(report) {
 }
 
 function renderDocumentOutcomesResultHtml(report) {
-  if (report.report_quality_status !== "EVIDENCE_INTAKE_EXCEPTION" && !(report.document_outcomes || []).length) return "";
+  if (report.report_quality_status !== REPORT_EVIDENCE_INTAKE_EXCEPTION && !(report.document_outcomes || []).length) return "";
   const outcomes = report.document_outcomes || [];
   const items = outcomes.length
     ? outcomes.map((item) => `<li><strong>${escapeHtml(item.file || "unknown")}:</strong> ${escapeHtml(item.status || "UNKNOWN")}${item.reason ? ` - ${escapeHtml(item.reason)}` : ""}</li>`).join("")
@@ -354,6 +376,7 @@ function groupFindingsByCategory(findings) {
 }
 
 function renderActionPlanHtml(report) {
+  if (boardroomIsNoAnalysisNotice(report)) return "";
   const actions = report.executive_action_plan || {};
   const periods = ["7_days", "30_days", "90_days"];
   return `<section class="section card"><h2>7 / 30 / 90 Actions</h2><div class="grid">${periods.map((period) => {
@@ -519,13 +542,20 @@ function driveFileInfo(fileId, sourceQuestion) {
   };
 }
 
+function boardroomFileKind(fileInfo) {
+  const lower = String(fileInfo && fileInfo.name ? fileInfo.name : "").toLowerCase();
+  const mime = String(fileInfo && fileInfo.mime_type ? fileInfo.mime_type : "").toLowerCase();
+  if (lower.endsWith(".csv") || mime === "text/csv" || mime === String(MimeType.CSV).toLowerCase()) return "csv";
+  if (lower.endsWith(".pdf") || mime === String(MimeType.PDF).toLowerCase()) return "pdf";
+  if (/\.(jpe?g|png|webp)$/i.test(lower) || /^image\/(jpeg|png|webp)$/i.test(mime)) return "image";
+  return "unsupported";
+}
+
 function reviewBoardroomFile(fileInfo, acceptedCount, deepAnalysisEnabled, responseFolderId) {
   if (!fileInfo || !fileInfo.id) return { accept: false, reason: "MISSING_FILE_ID" };
   const name = String(fileInfo.name || "");
-  const lower = name.toLowerCase();
-  const allowedType = lower.endsWith(".pdf") || lower.endsWith(".csv") ||
-    fileInfo.mime_type === MimeType.PDF || fileInfo.mime_type === MimeType.CSV || fileInfo.mime_type === "text/csv";
-  if (!allowedType) return { accept: false, reason: "UNSUPPORTED_FILE_TYPE" };
+  const kind = boardroomFileKind(fileInfo);
+  if (kind === "unsupported") return { accept: false, reason: "UNSUPPORTED_FILE_TYPE" };
   if (Number(fileInfo.size_bytes || 0) > MAX_FILE_BYTES) return { accept: false, reason: "FILE_EXCEEDS_10_MB" };
   if (responseFolderId && !boardroomFileHasParent(fileInfo.id, responseFolderId)) return { accept: false, reason: "OUTSIDE_BOARDROOM_RESPONSE_FOLDER" };
   if (privateLookingFileName(name)) return { accept: false, reason: "PRIVATE_LOOKING_FILENAME", quarantine: true };
@@ -574,22 +604,52 @@ function copyBoardroomFileToInput(fileInfo, inputFolder) {
 }
 
 function extractBoardroomDocument(fileInfo) {
-  const lower = String(fileInfo.name || "").toLowerCase();
-  if (lower.endsWith(".csv") || fileInfo.mime_type === "text/csv" || fileInfo.mime_type === MimeType.CSV) {
+  const kind = boardroomFileKind(fileInfo);
+  if (kind === "csv") {
     const text = DriveApp.getFileById(fileInfo.id).getBlob().getDataAsString();
-    return { file: fileInfo.name, type: "csv", pages: parseBoardroomCsvPages(text) };
-  }
-  if (lower.endsWith(".pdf") || fileInfo.mime_type === MimeType.PDF) {
-    const extracted = extractPdfTextWithOptionalOcr(fileInfo);
-    if (extracted.text) return { file: fileInfo.name, type: "pdf", pages: [{ label: "Workspace OCR", text: extracted.text }] };
     return {
+      id: fileInfo.id,
+      file: fileInfo.name,
+      type: "csv",
+      mime_type: fileInfo.mime_type || "text/csv",
+      size_bytes: Number(fileInfo.size_bytes || 0),
+      pages: parseBoardroomCsvPages(text),
+      raw_text: String(text || "").slice(0, 10000)
+    };
+  }
+  if (kind === "pdf") {
+    const extracted = extractPdfTextWithOptionalOcr(fileInfo);
+    if (extracted.text) {
+      return {
+        id: fileInfo.id,
+        file: fileInfo.name,
+        type: "pdf",
+        mime_type: fileInfo.mime_type || MimeType.PDF,
+        size_bytes: Number(fileInfo.size_bytes || 0),
+        pages: [{ label: "Workspace OCR", text: extracted.text }]
+      };
+    }
+    return {
+      id: fileInfo.id,
       file: fileInfo.name,
       type: "pdf",
+      mime_type: fileInfo.mime_type || MimeType.PDF,
+      size_bytes: Number(fileInfo.size_bytes || 0),
       pages: [],
       extraction_error: extracted.reason || "TEXT_EXTRACTION_UNAVAILABLE"
     };
   }
-  return { file: fileInfo.name, type: "unknown", pages: [], extraction_error: "UNSUPPORTED_FILE_TYPE" };
+  if (kind === "image") {
+    return {
+      id: fileInfo.id,
+      file: fileInfo.name,
+      type: "image",
+      mime_type: fileInfo.mime_type || mimeTypeForName(fileInfo.name),
+      size_bytes: Number(fileInfo.size_bytes || 0),
+      pages: []
+    };
+  }
+  return { id: fileInfo.id, file: fileInfo.name, type: "unknown", pages: [], extraction_error: "UNSUPPORTED_FILE_TYPE" };
 }
 
 function extractPdfTextWithOptionalOcr(fileInfo) {
@@ -667,6 +727,7 @@ function buildBoardroomOutput(documents, rejectedFiles) {
   const findings = [];
   const documentsNotProcessed = [];
   const documentOutcomes = [];
+  const classificationSummary = newBoardroomClassificationSummary();
   (documents || []).forEach((document) => {
     let found = 0;
     let textLength = 0;
@@ -677,35 +738,47 @@ function buildBoardroomOutput(documents, rejectedFiles) {
       found += pageFindings.length;
       findings.push(...pageFindings);
     });
-    if (!found) {
-      documentsNotProcessed.push(boardroomDocumentNoSignalReason(document, textLength));
-    }
+    const classification = classifyBoardroomDocument(document, found, textLength);
+    if (!found) documentsNotProcessed.push(classification.reason);
+    recordBoardroomClassification(classificationSummary, classification);
     documentOutcomes.push({
       file: document.file,
       type: document.type || "unknown",
       pages_processed: (document.pages || []).length,
       text_length: textLength,
       finding_count: found,
-      status: found ? "SIGNAL_FOUND" : "NO_SIGNAL",
-      reason: found ? "" : boardroomDocumentNoSignalReason(document, textLength)
+      status: classification.status,
+      reason: classification.reason,
+      gemini_relevance_status: classification.gemini_relevance_status || "NOT_RUN"
     });
   });
   (rejectedFiles || []).forEach((file) => {
-    const reason = `${file.name || file.id}: rejected from automation (${file.reason}).`;
-    documentsNotProcessed.push(reason);
+    const classification = classifyRejectedBoardroomFile(file);
+    documentsNotProcessed.push(classification.reason);
+    recordBoardroomClassification(classificationSummary, classification);
     documentOutcomes.push({
       file: file.name || file.id,
       type: "rejected",
       pages_processed: 0,
       text_length: 0,
       finding_count: 0,
-      status: "REJECTED",
-      reason
+      status: classification.status,
+      reason: classification.reason,
+      gemini_relevance_status: classification.gemini_relevance_status || "NOT_RUN"
     });
   });
   const citedFindings = scoreBoardroomFindings(dedupeBoardroomFindings(findings).slice(0, 80));
-  const reportQualityStatus = citedFindings.length ? "EXECUTIVE_ACTION_PLAN" : "EVIDENCE_INTAKE_EXCEPTION";
-  const documentsWithNoSignal = documentOutcomes.filter((item) => item.status !== "SIGNAL_FOUND").length;
+  const reportQualityStatus = determineBoardroomReportStatus(citedFindings, documentOutcomes);
+  const documentsWithNoSignal = documentOutcomes.filter((item) => item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE").length;
+  const executiveActionPlan = reportQualityStatus === REPORT_EXECUTIVE_ACTION_PLAN || reportQualityStatus === REPORT_EVIDENCE_INTAKE_EXCEPTION
+    ? buildBoardroomExecutiveActionPlan(citedFindings)
+    : {};
+  const missingEvidence = reportQualityStatus === REPORT_EXECUTIVE_ACTION_PLAN || reportQualityStatus === REPORT_EVIDENCE_INTAKE_EXCEPTION
+    ? buildBoardroomMissingEvidence(citedFindings, documentsNotProcessed)
+    : documentsNotProcessed;
+  const executiveBrief = citedFindings.length
+    ? buildBoardroomExecutiveBrief(citedFindings, documentsNotProcessed)
+    : buildBoardroomNoFindingBrief(reportQualityStatus, documentsNotProcessed);
   const modelAuditTrail = {
     analysis_mode: "workspace_form_deterministic_rules",
     execution_layer: "Google Workspace Apps Script form trigger",
@@ -720,16 +793,21 @@ function buildBoardroomOutput(documents, rejectedFiles) {
   };
   return {
     report_quality_status: reportQualityStatus,
+    input_classification_status: reportQualityStatus,
+    input_relevance_reason: classificationSummary.firstReason || "",
+    gemini_relevance_status: boardroomGeminiRelevanceAggregateStatus(classificationSummary.geminiStatuses),
+    gemini_calls_used_today: geminiRelevanceCallsUsedToday(),
+    analysis_generated: reportQualityStatus === REPORT_EXECUTIVE_ACTION_PLAN,
     documents_processed_count: (documents || []).length,
     documents_with_no_signal: documentsWithNoSignal,
     document_outcomes: documentOutcomes,
     findings: citedFindings,
-    executive_brief: buildBoardroomExecutiveBrief(citedFindings, documentsNotProcessed),
+    executive_brief: executiveBrief,
     top_5_actions: buildBoardroomTopExecutiveActions(citedFindings),
     recoverable_cost_exposure: buildBoardroomRecoverableCostExposure(citedFindings),
     immediate_control_failures: buildBoardroomImmediateControlFailures(citedFindings),
-    missing_evidence_blocking_recovery: buildBoardroomMissingEvidence(citedFindings, documentsNotProcessed),
-    executive_action_plan: buildBoardroomExecutiveActionPlan(citedFindings),
+    missing_evidence_blocking_recovery: missingEvidence,
+    executive_action_plan: executiveActionPlan,
     rationale: buildBoardroomRationale(citedFindings, modelAuditTrail),
     model_audit_trail: modelAuditTrail,
     gemini_verifier_result: {
@@ -745,9 +823,167 @@ function buildBoardroomOutput(documents, rejectedFiles) {
       documents_not_processed: documentsNotProcessed,
       assumptions: [
         "Amounts are interpreted as INR when the source line uses INR, Rs, or rupee symbols.",
-        "Rejected files are not counted as evidence for recovery actions."
+        "Rejected, irrelevant, unsupported, and context-only files are not counted as evidence for recovery actions."
       ]
     }
+  };
+}
+
+function newBoardroomClassificationSummary() {
+  return { firstReason: "", geminiStatuses: [] };
+}
+
+function recordBoardroomClassification(summary, classification) {
+  if (!summary.firstReason && classification.reason) summary.firstReason = classification.reason;
+  if (classification.gemini_relevance_status) summary.geminiStatuses.push(classification.gemini_relevance_status);
+}
+
+function classifyBoardroomDocument(document, findingCount, textLength) {
+  const file = document.file || "unknown";
+  if (findingCount > 0) {
+    return {
+      status: "STRUCTURED_CONSTRUCTION_EVIDENCE",
+      reason: `${file}: cited construction project evidence was extracted.`,
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  if (document.type === "image") return classifyBoardroomImageDocument(document);
+  if (document.type === "csv") return classifyBoardroomCsvDocument(document);
+  if (document.type === "pdf") return classifyBoardroomPdfDocument(document, textLength);
+  return {
+    status: REPORT_UNSUPPORTED_FILE_TYPE,
+    reason: `${file}: unsupported file type; no Constrovet analysis was generated.`,
+    gemini_relevance_status: "NOT_RUN"
+  };
+}
+
+function classifyRejectedBoardroomFile(file) {
+  const status = String(file.reason || "") === "UNSUPPORTED_FILE_TYPE" ? REPORT_UNSUPPORTED_FILE_TYPE : REPORT_IRRELEVANT_DATA_FILE;
+  return {
+    status,
+    reason: `${file.name || file.id}: rejected from automation (${file.reason}).`,
+    gemini_relevance_status: "NOT_RUN"
+  };
+}
+
+function classifyBoardroomCsvDocument(document) {
+  const file = document.file || "unknown";
+  const text = boardroomDocumentText(document);
+  if (boardroomCsvHasConstructionHeaders(document) || boardroomQuantifiedEvidenceRe().test(text)) {
+    return {
+      status: REPORT_EVIDENCE_INTAKE_EXCEPTION,
+      reason: boardroomDocumentNoSignalReason(document, text.length),
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  if (boardroomConstructionContextRe().test(text)) {
+    return {
+      status: REPORT_CONSTRUCTION_CONTEXT_ONLY,
+      reason: `${file}: construction context was present, but no quantified budget, actual, schedule, leakage, or ESG evidence was extracted.`,
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  return {
+    status: REPORT_IRRELEVANT_DATA_FILE,
+    reason: `${file}: CSV does not contain construction project progress, cost, schedule, leakage, invoice, BOQ, or ESG evidence.`,
+    gemini_relevance_status: "NOT_RUN"
+  };
+}
+
+function classifyBoardroomPdfDocument(document, textLength) {
+  const file = document.file || "unknown";
+  const text = boardroomDocumentText(document);
+  if (document.extraction_error) {
+    if (boardroomHasConstructionFileNameHint(file)) {
+      return {
+        status: REPORT_EVIDENCE_INTAKE_EXCEPTION,
+        reason: boardroomDocumentNoSignalReason(document, textLength),
+        gemini_relevance_status: "NOT_RUN"
+      };
+    }
+    return {
+      status: REPORT_IRRELEVANT_DATA_FILE,
+      reason: `${file}: PDF text extraction failed and the filename does not indicate construction project evidence (${document.extraction_error}).`,
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  if (boardroomQuantifiedEvidenceRe().test(text)) {
+    return {
+      status: REPORT_EVIDENCE_INTAKE_EXCEPTION,
+      reason: boardroomDocumentNoSignalReason(document, textLength),
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  if (boardroomConstructionContextRe().test(text) || boardroomHasConstructionFileNameHint(file)) {
+    return {
+      status: REPORT_CONSTRUCTION_CONTEXT_ONLY,
+      reason: `${file}: construction context was detected, but no quantified project progress, cost, schedule, leakage, or ESG evidence was extracted.`,
+      gemini_relevance_status: "NOT_RUN"
+    };
+  }
+  return {
+    status: REPORT_IRRELEVANT_DATA_FILE,
+    reason: `${file}: extracted PDF text is not related to construction project progress, cost, schedule, leakage, or ESG evidence.`,
+    gemini_relevance_status: "NOT_RUN"
+  };
+}
+
+function classifyBoardroomImageDocument(document) {
+  const file = document.file || "unknown";
+  const gemini = tryGeminiImageRelevanceClassification(document);
+  if (gemini.gemini_relevance_status === "CLASSIFIED") {
+    if (gemini.classification_status === REPORT_IRRELEVANT_DATA_FILE) {
+      return {
+        status: REPORT_IRRELEVANT_DATA_FILE,
+        reason: `${file}: Gemini relevance gate classified this image as unrelated to construction project progress data. ${gemini.reason}`,
+        gemini_relevance_status: gemini.gemini_relevance_status
+      };
+    }
+    if (gemini.classification_status === "STRUCTURED_CONSTRUCTION_EVIDENCE" || gemini.classification_status === REPORT_CONSTRUCTION_CONTEXT_ONLY) {
+      return {
+        status: REPORT_CONSTRUCTION_CONTEXT_ONLY,
+        reason: `${file}: image appears construction-related, but no extractable cited budget, actual, schedule, leakage, or ESG data was available. ${gemini.reason}`,
+        gemini_relevance_status: gemini.gemini_relevance_status
+      };
+    }
+  }
+  if (boardroomHasConstructionFileNameHint(file)) {
+    return {
+      status: REPORT_CONSTRUCTION_CONTEXT_ONLY,
+      reason: `${file}: image filename suggests construction context, but image-only uploads cannot support quantified findings without extracted cited evidence.`,
+      gemini_relevance_status: gemini.gemini_relevance_status
+    };
+  }
+  return {
+    status: REPORT_IRRELEVANT_DATA_FILE,
+    reason: `${file}: image file was not analyzed because no construction project progress evidence was detected by filename or classifier.`,
+    gemini_relevance_status: gemini.gemini_relevance_status
+  };
+}
+
+function determineBoardroomReportStatus(findings, documentOutcomes) {
+  if ((findings || []).length) return REPORT_EXECUTIVE_ACTION_PLAN;
+  const statuses = (documentOutcomes || []).map((item) => item.status);
+  if (statuses.indexOf(REPORT_EVIDENCE_INTAKE_EXCEPTION) >= 0) return REPORT_EVIDENCE_INTAKE_EXCEPTION;
+  if (statuses.indexOf(REPORT_CONSTRUCTION_CONTEXT_ONLY) >= 0) return REPORT_CONSTRUCTION_CONTEXT_ONLY;
+  if (statuses.indexOf(REPORT_IRRELEVANT_DATA_FILE) >= 0) return REPORT_IRRELEVANT_DATA_FILE;
+  if (statuses.indexOf(REPORT_UNSUPPORTED_FILE_TYPE) >= 0) return REPORT_UNSUPPORTED_FILE_TYPE;
+  return REPORT_EVIDENCE_INTAKE_EXCEPTION;
+}
+
+function buildBoardroomNoFindingBrief(status, documentsNotProcessed) {
+  const headlineByStatus = {};
+  headlineByStatus[REPORT_IRRELEVANT_DATA_FILE] = "Uploaded file was not related to construction project progress evidence.";
+  headlineByStatus[REPORT_UNSUPPORTED_FILE_TYPE] = "Uploaded file type is not supported for Constrovet analysis.";
+  headlineByStatus[REPORT_CONSTRUCTION_CONTEXT_ONLY] = "Construction context was detected, but no quantified project progress evidence was extracted.";
+  headlineByStatus[REPORT_EVIDENCE_INTAKE_EXCEPTION] = "No cited cost, schedule, ESG, or leakage evidence was extracted.";
+  return {
+    headline: headlineByStatus[status] || headlineByStatus[REPORT_EVIDENCE_INTAKE_EXCEPTION],
+    decision_focus: "No executive recovery or cost-control action should be taken from this upload.",
+    critical_or_high_count: 0,
+    total_cited_leakage_inr: 0,
+    documents_with_no_signal: (documentsNotProcessed || []).length,
+    caveat: "No commercial, legal, recovery, or cost-saving claim has been made because there are no cited findings."
   };
 }
 
@@ -762,6 +998,42 @@ function boardroomDocumentNoSignalReason(document, textLength) {
   if (document.type === "pdf") return `${file}: OCR text extracted but no construction cost, schedule, leakage, commercial-control, or ESG keywords were found.`;
   if (document.type === "csv") return `${file}: CSV parsed but no budget, actual, leakage, delay, invoice, payment, wastage, rework, fuel, energy, water, or emissions fields were found.`;
   return `${file}: no cost, schedule, leakage, commercial-control, or ESG signal found by deterministic Workspace scan.`;
+}
+
+function boardroomDocumentText(document) {
+  return [
+    document.raw_text || "",
+    ...((document.pages || []).map((page) => page.text || ""))
+  ].join("\n");
+}
+
+function boardroomCsvHasConstructionHeaders(document) {
+  return (document.pages || []).some((page) => {
+    const headers = page.headers || [];
+    const signalHeaders = headers.filter((header) => boardroomCsvHeaderSignalRe().test(String(header || "").toLowerCase()));
+    const strongHeaders = headers.filter((header) => boardroomCsvStrongHeaderSignalRe().test(String(header || "").toLowerCase()));
+    return signalHeaders.length >= 2 || strongHeaders.length >= 1;
+  });
+}
+
+function boardroomCsvHeaderSignalRe() {
+  return /budget|boq|planned|estimate|contract|baseline|actual|spent|cost incurred|cost to date|paid|payment|invoice|ra bill|running account|ipc|delay|days|schedule|wastage|waste|rework|idle|excess|consumption|diesel|fuel|energy|water|carbon|emission|scope|debit note|deduction|back charge|quantity|qty/;
+}
+
+function boardroomCsvStrongHeaderSignalRe() {
+  return /budget|boq|contract value|cost incurred|cost to date|paid amount|payment amount|invoice|ra bill|running account|ipc|delay|schedule|wastage|rework|idle|diesel|fuel|energy|water|carbon|emission|debit note|deduction|back charge/;
+}
+
+function boardroomQuantifiedEvidenceRe() {
+  return /budget|boq|actual|cost incurred|paid|invoice|ra bill|running account|ipc|delay|days?|schedule|wastage|rework|idle|diesel|fuel|energy|water|carbon|emission|scope|debit note|deduction|back charge|₹|inr|rs\.?/i;
+}
+
+function boardroomConstructionContextRe() {
+  return /construction|project|site|civil|contractor|work order|boq|ra bill|running account|ipc|interim payment|contract value|progress|schedule|eot|extension of time|slab|foundation|excavation|concrete|steel|mep|labour|plant|material|subcontractor|variation|change order/i;
+}
+
+function boardroomHasConstructionFileNameHint(name) {
+  return /construction|project|site|civil|boq|ra[-_\s]?bill|running[-_\s]?account|ipc|invoice|budget|actual|delay|schedule|progress|contract|work[-_\s]?order|esg|diesel|fuel|energy|water|carbon|emission|wastage|rework|labour|plant|material|contractor/i.test(String(name || ""));
 }
 
 function extractBoardroomFindings(file, pageOrSheet, text, page) {
@@ -1190,7 +1462,12 @@ function saveUploadedFiles(files, inputFolder) {
 }
 
 function mimeTypeForName(name) {
-  return String(name).toLowerCase().endsWith(".pdf") ? "application/pdf" : "text/csv";
+  const lower = String(name || "").toLowerCase();
+  if (lower.endsWith(".pdf")) return "application/pdf";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "text/csv";
 }
 
 function runGeminiVerifier(browserReport) {
@@ -1234,6 +1511,11 @@ function evidenceOnlyPayload(browserReport) {
     rationale: browserReport.rationale || {},
     model_audit_trail: browserReport.model_audit_trail || {},
     honesty_check: browserReport.honesty_check || {},
+    input_classification_status: browserReport.input_classification_status || browserReport.report_quality_status || "",
+    input_relevance_reason: browserReport.input_relevance_reason || "",
+    gemini_relevance_status: browserReport.gemini_relevance_status || "NOT_RUN",
+    gemini_calls_used_today: browserReport.gemini_calls_used_today || 0,
+    analysis_generated: Boolean(browserReport.analysis_generated),
     input_guardrail: {
       raw_documents_sent: false,
       allowed_content: "findings, cited spans, calculations, action plan, honesty check, and audit metadata only"
@@ -1251,6 +1533,151 @@ function buildGeminiPrompt(payload) {
     "Return strict JSON with keys: verification_status, executive_brief, board_summary, top_decisions_required, contractor_questions, recovery_actions, unsupported_claims_removed, honesty_check, model_audit_trail.",
     JSON.stringify(payload)
   ].join("\n\n");
+}
+
+function tryGeminiImageRelevanceClassification(document) {
+  const notRun = (reason) => ({
+    gemini_relevance_status: "NOT_RUN",
+    classification_status: "",
+    reason,
+    gemini_calls_used_today: geminiRelevanceCallsUsedToday()
+  });
+  if (!geminiRelevanceGateEnabled()) return notRun("Gemini relevance gate is disabled.");
+  const props = PropertiesService.getScriptProperties();
+  const apiKey = props.getProperty("GEMINI_API_KEY");
+  if (!apiKey) return notRun("GEMINI_API_KEY is not configured.");
+  const size = Number(document.size_bytes || 0);
+  const maxBytes = geminiMaxClassifierBytes();
+  if (size <= 0 || size > maxBytes) return notRun(`Image skipped by classifier size gate (${size} bytes, max ${maxBytes}).`);
+  const callsUsed = geminiRelevanceCallsUsedToday();
+  const limit = geminiRelevanceDailyLimit();
+  if (callsUsed >= limit) {
+    return {
+      gemini_relevance_status: "QUOTA_SKIPPED",
+      classification_status: "",
+      reason: `Gemini daily relevance limit reached (${callsUsed}/${limit}).`,
+      gemini_calls_used_today: callsUsed
+    };
+  }
+  try {
+    incrementGeminiRelevanceCallsUsedToday();
+    const blob = DriveApp.getFileById(document.id).getBlob();
+    const mime = document.mime_type || blob.getContentType() || mimeTypeForName(document.file);
+    const data = Utilities.base64Encode(blob.getBytes());
+    const model = props.getProperty(GEMINI_RELEVANCE_MODEL_PROPERTY) || DEFAULT_GEMINI_RELEVANCE_MODEL;
+    const response = UrlFetchApp.fetch(`${GEMINI_BASE_URL}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: "post",
+      contentType: "application/json",
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        contents: [{
+          role: "user",
+          parts: [
+            { text: buildGeminiRelevancePromptText(document) },
+            { inlineData: { mimeType: mime, data } }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: "application/json"
+        }
+      })
+    });
+    const status = response.getResponseCode();
+    const body = response.getContentText();
+    if (status >= 400) {
+      return {
+        gemini_relevance_status: "FAILED",
+        classification_status: "",
+        reason: `Gemini relevance request failed with HTTP ${status}: ${body.slice(0, 240)}`,
+        gemini_calls_used_today: geminiRelevanceCallsUsedToday()
+      };
+    }
+    const parsed = JSON.parse(body);
+    const text = parsed.candidates && parsed.candidates[0] && parsed.candidates[0].content && parsed.candidates[0].content.parts
+      ? parsed.candidates[0].content.parts.map((part) => part.text || "").join("")
+      : "";
+    const result = JSON.parse(extractJson(text));
+    return {
+      gemini_relevance_status: "CLASSIFIED",
+      classification_status: normalizeGeminiClassificationStatus(result.classification_status),
+      reason: String(result.reason || "").slice(0, 500),
+      gemini_calls_used_today: geminiRelevanceCallsUsedToday()
+    };
+  } catch (error) {
+    return {
+      gemini_relevance_status: "FAILED",
+      classification_status: "",
+      reason: error && error.message ? error.message : String(error),
+      gemini_calls_used_today: geminiRelevanceCallsUsedToday()
+    };
+  }
+}
+
+function buildGeminiRelevancePromptText(document) {
+  return [
+    "You are Constrovet's strict relevance classifier for construction project progress evidence.",
+    "Classify the uploaded image only. Do not extract or invent costs, dates, causes, risks, recovery actions, or legal conclusions.",
+    "Construction project progress evidence means visible project controls, cost, schedule, invoice/payment, BOQ, RA bill, delay, wastage, rework, material, fuel, water, energy, carbon, or emissions information.",
+    "Ordinary personal images, portraits, documents unrelated to projects, generic photos, chat screenshots, logos, or files with no project-controls evidence are IRRELEVANT_DATA_FILE.",
+    "A construction site photo with no quantified controls data is CONSTRUCTION_CONTEXT_ONLY.",
+    "Return strict JSON only:",
+    "{",
+    "  \"classification_status\": \"STRUCTURED_CONSTRUCTION_EVIDENCE | CONSTRUCTION_CONTEXT_ONLY | IRRELEVANT_DATA_FILE\",",
+    "  \"reason\": \"one short evidence-based reason\"",
+    "}",
+    "",
+    `Filename: ${document.file || "unknown"}`
+  ].join("\n");
+}
+
+function normalizeGeminiClassificationStatus(status) {
+  const value = String(status || "").trim().toUpperCase();
+  if (value === "STRUCTURED_CONSTRUCTION_EVIDENCE") return "STRUCTURED_CONSTRUCTION_EVIDENCE";
+  if (value === REPORT_CONSTRUCTION_CONTEXT_ONLY) return REPORT_CONSTRUCTION_CONTEXT_ONLY;
+  if (value === REPORT_IRRELEVANT_DATA_FILE) return REPORT_IRRELEVANT_DATA_FILE;
+  return REPORT_IRRELEVANT_DATA_FILE;
+}
+
+function geminiRelevanceGateEnabled() {
+  return String(PropertiesService.getScriptProperties().getProperty(GEMINI_RELEVANCE_GATE_PROPERTY) || "false").toLowerCase() === "true";
+}
+
+function geminiRelevanceDailyLimit() {
+  const value = Number(PropertiesService.getScriptProperties().getProperty(GEMINI_DAILY_CALL_LIMIT_PROPERTY) || DEFAULT_GEMINI_DAILY_CALL_LIMIT);
+  return Math.max(0, Math.floor(value || DEFAULT_GEMINI_DAILY_CALL_LIMIT));
+}
+
+function geminiMaxClassifierBytes() {
+  const value = Number(PropertiesService.getScriptProperties().getProperty(GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER_PROPERTY) || DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER);
+  return Math.max(1, Math.floor(value || DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER));
+}
+
+function geminiRelevanceCallsUsedToday() {
+  const props = PropertiesService.getScriptProperties();
+  return Number(props.getProperty(geminiRelevanceDailyCountKey()) || "0");
+}
+
+function incrementGeminiRelevanceCallsUsedToday() {
+  const props = PropertiesService.getScriptProperties();
+  const key = geminiRelevanceDailyCountKey();
+  const next = Number(props.getProperty(key) || "0") + 1;
+  props.setProperty(key, String(next));
+  return next;
+}
+
+function geminiRelevanceDailyCountKey() {
+  const day = Utilities.formatDate(new Date(), "GMT", "yyyyMMdd");
+  return `gemini_relevance:${day}`;
+}
+
+function boardroomGeminiRelevanceAggregateStatus(statuses) {
+  const values = (statuses || []).filter(Boolean);
+  if (!values.length) return "NOT_RUN";
+  if (values.indexOf("FAILED") >= 0) return "FAILED";
+  if (values.indexOf("CLASSIFIED") >= 0) return "CLASSIFIED";
+  if (values.indexOf("QUOTA_SKIPPED") >= 0) return "QUOTA_SKIPPED";
+  return "NOT_RUN";
 }
 
 function buildGeminiReviewPackMarkdown(report, browserReport) {
@@ -1292,6 +1719,11 @@ function buildGeminiReviewPackPayload(report, browserReport) {
     source_final_report_url: report.source_final_report_url || "",
     result_url: report.result_url || "",
     result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
+    input_classification_status: (browserReport || {}).input_classification_status || report.report_quality_status || "",
+    input_relevance_reason: (browserReport || {}).input_relevance_reason || "",
+    gemini_relevance_status: (browserReport || {}).gemini_relevance_status || "NOT_RUN",
+    gemini_calls_used_today: (browserReport || {}).gemini_calls_used_today || 0,
+    analysis_generated: Boolean((browserReport || {}).analysis_generated),
     documents_processed_count: report.documents_processed_count || (browserReport || {}).documents_processed_count || 0,
     documents_with_no_signal: report.documents_with_no_signal || (browserReport || {}).documents_with_no_signal || 0,
     document_outcomes: (browserReport || {}).document_outcomes || [],
@@ -1320,14 +1752,15 @@ function buildGeminiReviewPromptText() {
     "3. Recalculate Actual - Budget wherever both values exist.",
     "4. If Actual > Budget, classify the difference as LEAKAGE_AND_OVERRUN.",
     "5. Baseline budget, BOQ, contract value, planned spend, and cumulative work done are context, not leakage.",
-    "6. If no cited findings exist, return EVIDENCE_INTAKE_EXCEPTION, not an executive recovery plan.",
-    "7. Separate missing evidence from proven findings.",
-    "8. Remove unsupported claims.",
+    "6. If no cited findings exist after plausible construction evidence was attempted, return EVIDENCE_INTAKE_EXCEPTION, not an executive recovery plan.",
+    "7. If the upload is irrelevant, unsupported, or construction context only, return that report mode and do not create a 7/30/90 action plan.",
+    "8. Separate missing evidence from proven findings.",
+    "9. Remove unsupported claims.",
     "",
     "Return strict JSON:",
     "{",
-    "  \"verification_status\": \"VERIFIED | NEEDS_REVIEW | EVIDENCE_INTAKE_EXCEPTION\",",
-    "  \"report_mode\": \"EXECUTIVE_ACTION_PLAN | EVIDENCE_INTAKE_EXCEPTION\",",
+    "  \"verification_status\": \"VERIFIED | NEEDS_REVIEW | EVIDENCE_INTAKE_EXCEPTION | IRRELEVANT_DATA_FILE | UNSUPPORTED_FILE_TYPE | CONSTRUCTION_CONTEXT_ONLY\",",
+    "  \"report_mode\": \"EXECUTIVE_ACTION_PLAN | EVIDENCE_INTAKE_EXCEPTION | IRRELEVANT_DATA_FILE | UNSUPPORTED_FILE_TYPE | CONSTRUCTION_CONTEXT_ONLY\",",
     "  \"executive_headline\": \"\",",
     "  \"board_decision_required\": [],",
     "  \"top_3_actions\": [],",
@@ -1380,6 +1813,11 @@ function buildReport(payload, browserReport, verifierResult, savedFiles) {
     gemini_verifier_result: verifierResult,
     saved_files: savedFiles,
     report_quality_status: browserReport.report_quality_status,
+    input_classification_status: browserReport.input_classification_status || browserReport.report_quality_status,
+    input_relevance_reason: browserReport.input_relevance_reason || "",
+    gemini_relevance_status: browserReport.gemini_relevance_status || "NOT_RUN",
+    gemini_calls_used_today: browserReport.gemini_calls_used_today || 0,
+    analysis_generated: Boolean(browserReport.analysis_generated),
     documents_processed_count: browserReport.documents_processed_count || 0,
     documents_with_no_signal: browserReport.documents_with_no_signal || 0,
     generated_at: new Date().toISOString(),
@@ -1391,13 +1829,17 @@ function normalizeReportQuality(browserReport) {
   if (!browserReport || typeof browserReport !== "object") return;
   const findings = (browserReport && browserReport.findings) || [];
   if (!browserReport.report_quality_status) {
-    browserReport.report_quality_status = findings.length ? "EXECUTIVE_ACTION_PLAN" : "EVIDENCE_INTAKE_EXCEPTION";
+    browserReport.report_quality_status = findings.length ? REPORT_EXECUTIVE_ACTION_PLAN : REPORT_EVIDENCE_INTAKE_EXCEPTION;
   }
+  if (!browserReport.input_classification_status) browserReport.input_classification_status = browserReport.report_quality_status;
+  if (!browserReport.gemini_relevance_status) browserReport.gemini_relevance_status = "NOT_RUN";
+  if (browserReport.gemini_calls_used_today === undefined) browserReport.gemini_calls_used_today = 0;
+  if (browserReport.analysis_generated === undefined) browserReport.analysis_generated = browserReport.report_quality_status === REPORT_EXECUTIVE_ACTION_PLAN;
   if (browserReport.documents_processed_count === undefined) {
-    browserReport.documents_processed_count = (browserReport.document_outcomes || []).filter((item) => item.status !== "REJECTED").length;
+    browserReport.documents_processed_count = (browserReport.document_outcomes || []).filter((item) => item.type !== "rejected").length;
   }
   if (browserReport.documents_with_no_signal === undefined) {
-    browserReport.documents_with_no_signal = (browserReport.document_outcomes || []).filter((item) => item.status !== "SIGNAL_FOUND").length;
+    browserReport.documents_with_no_signal = (browserReport.document_outcomes || []).filter((item) => item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE").length;
   }
 }
 
@@ -1410,6 +1852,7 @@ function resultUrlHealth(url) {
 
 function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles) {
   normalizeReportQuality(browserReport);
+  if (boardroomIsNoAnalysisNotice(browserReport)) return buildNoAnalysisMarkdown(payload, browserReport, savedFiles);
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, savedFiles);
   const findings = browserReport.findings || [];
   const leakage = findings.filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN");
@@ -1469,6 +1912,48 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
   return lines.join("\n");
 }
 
+function buildNoAnalysisMarkdown(payload, browserReport, savedFiles) {
+  const status = browserReport.report_quality_status || REPORT_IRRELEVANT_DATA_FILE;
+  const lines = [
+    `# Constrovet ${boardroomReportStatusLabel(status)}`,
+    "",
+    `Job: ${payload.job_id}`,
+    `Mode: ${payload.mode}`,
+    `Recipient: ${payload.email}`,
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "## Result",
+    "",
+    boardroomNoAnalysisHeadline(status),
+    "",
+    "No Constrovet executive analysis, recovery plan, 7/30/90 action plan, or cost-saving claim has been generated for this upload.",
+    "",
+    "## Classification",
+    "",
+    `Status: ${status}`,
+    `Reason: ${browserReport.input_relevance_reason || "No relevant construction project evidence was detected."}`,
+    `Gemini relevance status: ${browserReport.gemini_relevance_status || "NOT_RUN"}`,
+    `Gemini calls used today: ${browserReport.gemini_calls_used_today || 0}`,
+    "",
+    "## What Was Processed",
+    ""
+  ];
+  const outcomes = browserReport.document_outcomes || [];
+  if (outcomes.length) {
+    outcomes.forEach((item) => lines.push(`- ${item.file}: ${item.status}${item.reason ? ` - ${item.reason}` : ""}`));
+  } else {
+    lines.push("- No source document outcomes were recorded.");
+  }
+  lines.push("", "## Next Step", "");
+  lines.push("- Upload PDF or CSV project evidence with budget, actual, schedule, invoice/payment, BOQ, RA bill, leakage, or ESG fields.");
+  lines.push("- Image-only files can be classified for relevance but cannot support quantified findings without extracted cited evidence.");
+  if (savedFiles.length) {
+    lines.push("", "## Stored Source Files", "");
+    savedFiles.forEach((file) => lines.push(`- ${file.name}: ${file.drive_url}`));
+  }
+  return lines.join("\n");
+}
+
 function buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, savedFiles) {
   const outcomes = browserReport.document_outcomes || [];
   const rejected = ((browserReport.honesty_check || {}).documents_not_processed || []).filter((item) => /rejected from automation/i.test(item));
@@ -1518,9 +2003,7 @@ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
   if (!isValidEmail(email)) throw new Error("Valid user email is required before sending the executive report.");
   const recipient = String(email).trim();
   const cc = boardroomAdminCc(recipient);
-  const subject = boardroomIsIntakeException(report.browser_report || {})
-    ? `[Constrovet] Evidence Intake Exception - ${jobId}`
-    : `[Constrovet] Executive Action Plan - ${jobId}`;
+  const subject = `[Constrovet] ${boardroomReportSubjectPrefix(report.browser_report || {})} - ${jobId}`;
   const mail = {
     to: recipient,
     subject,
@@ -1808,6 +2291,7 @@ function boardroomAdminCc(recipient) {
 function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   const browserReport = report.browser_report || {};
   normalizeReportQuality(browserReport);
+  if (boardroomIsNoAnalysisNotice(browserReport)) return buildNoAnalysisEmailHtml(jobId, report);
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailHtml(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = findings
@@ -1838,6 +2322,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
 function buildExecutiveEmailText(jobId, report, resultUrl) {
   const browserReport = report.browser_report || {};
   normalizeReportQuality(browserReport);
+  if (boardroomIsNoAnalysisNotice(browserReport)) return buildNoAnalysisEmailText(jobId, report);
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailText(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = findings
@@ -1891,6 +2376,55 @@ function renderExecutiveActionsEmailHtml(browserReport) {
     ? actions.map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.action || action.recommendation || "")}</li>`).join("")
     : "<li>No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.</li>";
   return `<h2 style="font-size:18px;margin:18px 0 8px">Top 3 Decisions / Actions</h2><ol style="margin-top:0;padding-left:22px">${items}</ol>`;
+}
+
+function buildNoAnalysisEmailHtml(jobId, report) {
+  const browserReport = report.browser_report || {};
+  const status = browserReport.report_quality_status || REPORT_IRRELEVANT_DATA_FILE;
+  return `<div style="font-family:Arial,sans-serif;color:#172026;line-height:1.5;max-width:760px">
+    <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#991b1b">Constrovet ${escapeHtml(boardroomReportStatusLabel(status))}</p>
+    <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">${escapeHtml(boardroomNoAnalysisHeadline(status))}</h1>
+    <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
+    <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:6px;padding:12px;margin:14px 0"><strong>No analysis was generated.</strong> Constrovet did not create findings, recovery actions, 7/30/90 actions, or cost-saving claims for this upload.</div>
+    ${renderNoAnalysisKpisEmailHtml(browserReport, report)}
+    <h2 style="font-size:18px;margin:18px 0 8px">Classification</h2>
+    <p style="margin:0 0 8px"><strong>Status:</strong> ${escapeHtml(status)}<br><strong>Reason:</strong> ${escapeHtml(browserReport.input_relevance_reason || "No relevant construction project evidence was detected.")}<br><strong>Gemini relevance:</strong> ${escapeHtml(browserReport.gemini_relevance_status || "NOT_RUN")}</p>
+    ${renderDocumentOutcomesEmailHtml(browserReport)}
+    <h2 style="font-size:18px;margin:18px 0 8px">Accepted Evidence For Analysis</h2>
+    <p style="margin:0 0 12px">Upload PDF or CSV project evidence with budget, actual, schedule, invoice/payment, BOQ, RA bill, leakage, or ESG fields. Image-only uploads can be classified for relevance but cannot support quantified findings without extracted cited evidence.</p>
+    <p style="margin:14px 0;color:#66737d">The full evidence files are stored in the Constrovet project output folder for audit review.</p>
+  </div>`;
+}
+
+function buildNoAnalysisEmailText(jobId, report) {
+  const browserReport = report.browser_report || {};
+  const status = browserReport.report_quality_status || REPORT_IRRELEVANT_DATA_FILE;
+  const lines = [
+    `Constrovet ${boardroomReportStatusLabel(status)}`,
+    "",
+    `Job: ${jobId}`,
+    `Mode: ${report.mode}`,
+    `Generated: ${report.generated_at || ""}`,
+    "",
+    boardroomNoAnalysisHeadline(status),
+    "No analysis was generated. Constrovet did not create findings, recovery actions, 7/30/90 actions, or cost-saving claims for this upload.",
+    "",
+    "Classification",
+    `Status: ${status}`,
+    `Reason: ${browserReport.input_relevance_reason || "No relevant construction project evidence was detected."}`,
+    `Gemini relevance: ${browserReport.gemini_relevance_status || "NOT_RUN"}`,
+    `Gemini calls used today: ${browserReport.gemini_calls_used_today || 0}`,
+    "",
+    "What Was Processed"
+  ];
+  const outcomes = browserReport.document_outcomes || [];
+  if (outcomes.length) outcomes.forEach((item) => lines.push(`- ${item.file}: ${item.status}${item.reason ? ` - ${item.reason}` : ""}`));
+  else lines.push("- No source document outcomes were recorded.");
+  lines.push("", "Accepted Evidence For Analysis");
+  lines.push("- Upload PDF or CSV project evidence with budget, actual, schedule, invoice/payment, BOQ, RA bill, leakage, or ESG fields.");
+  lines.push("- Image-only uploads can be classified for relevance but cannot support quantified findings without extracted cited evidence.");
+  lines.push("", "The full evidence files are stored in the Constrovet project output folder for audit review.");
+  return lines.join("\n");
 }
 
 function buildIntakeExceptionEmailHtml(jobId, report, resultUrl) {
@@ -1979,6 +2513,22 @@ function renderIntakeKpisEmailHtml(browserReport, report) {
   </tr></table>`;
 }
 
+function renderNoAnalysisKpisEmailHtml(browserReport, report) {
+  const intake = report.form_intake || {};
+  const received = intake.received_file_count !== undefined ? intake.received_file_count : "unknown";
+  const accepted = intake.accepted_file_count !== undefined ? intake.accepted_file_count : "unknown";
+  const rejected = (intake.rejected_files || []).length;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin:14px 0;width:100%;max-width:680px"><tr>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${escapeHtml(received)}</strong><br><span style="color:#66737d">Files received</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${escapeHtml(accepted)}</strong><br><span style="color:#66737d">Files accepted</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${rejected}</strong><br><span style="color:#66737d">Files rejected</span></td>
+  </tr><tr>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${browserReport.documents_processed_count || 0}</strong><br><span style="color:#66737d">Documents processed</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>${escapeHtml(browserReport.gemini_relevance_status || "NOT_RUN")}</strong><br><span style="color:#66737d">Gemini relevance</span></td>
+    <td style="border:1px solid #d9ded8;padding:10px"><strong>0</strong><br><span style="color:#66737d">Cited findings</span></td>
+  </tr></table>`;
+}
+
 function renderDocumentOutcomesEmailHtml(browserReport) {
   const outcomes = (browserReport.document_outcomes || []).slice(0, 10);
   if (!outcomes.length) return "<h2 style=\"font-size:18px;margin:18px 0 8px\">What Was Processed</h2><p>No source document outcomes were recorded.</p>";
@@ -2019,7 +2569,42 @@ function boardroomMissingEvidenceItems(browserReport) {
 
 function boardroomIsIntakeException(browserReport) {
   normalizeReportQuality(browserReport);
-  return !browserReport || browserReport.report_quality_status === "EVIDENCE_INTAKE_EXCEPTION";
+  return !browserReport || browserReport.report_quality_status === REPORT_EVIDENCE_INTAKE_EXCEPTION;
+}
+
+function boardroomIsNoAnalysisNotice(browserReport) {
+  normalizeReportQuality(browserReport);
+  return [
+    REPORT_IRRELEVANT_DATA_FILE,
+    REPORT_UNSUPPORTED_FILE_TYPE,
+    REPORT_CONSTRUCTION_CONTEXT_ONLY
+  ].indexOf(browserReport.report_quality_status) >= 0;
+}
+
+function boardroomReportStatusLabel(status) {
+  const value = String(status || "");
+  if (value === REPORT_IRRELEVANT_DATA_FILE) return "Irrelevant Data File";
+  if (value === REPORT_UNSUPPORTED_FILE_TYPE) return "Unsupported Upload";
+  if (value === REPORT_CONSTRUCTION_CONTEXT_ONLY) return "Construction Context Only";
+  if (value === REPORT_EVIDENCE_INTAKE_EXCEPTION) return "Evidence Intake Exception";
+  return "Executive Action Plan";
+}
+
+function boardroomReportSubjectPrefix(browserReport) {
+  normalizeReportQuality(browserReport);
+  const status = browserReport.report_quality_status;
+  if (status === REPORT_IRRELEVANT_DATA_FILE) return "Irrelevant Upload";
+  if (status === REPORT_UNSUPPORTED_FILE_TYPE) return "Unsupported Upload";
+  if (status === REPORT_CONSTRUCTION_CONTEXT_ONLY) return "Construction Context Only";
+  if (status === REPORT_EVIDENCE_INTAKE_EXCEPTION) return "Evidence Intake Exception";
+  return "Executive Action Plan";
+}
+
+function boardroomNoAnalysisHeadline(status) {
+  if (status === REPORT_IRRELEVANT_DATA_FILE) return "Uploaded file is not relevant to construction project progress evidence";
+  if (status === REPORT_UNSUPPORTED_FILE_TYPE) return "Uploaded file type is not supported for Constrovet analysis";
+  if (status === REPORT_CONSTRUCTION_CONTEXT_ONLY) return "Construction context found, but no quantified evidence was extracted";
+  return "No cited evidence was extracted";
 }
 
 function boardroomBoardDecisionRequired(browserReport) {
@@ -2100,6 +2685,11 @@ function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
     delivery.email_status || "",
     delivery.email_error || "",
     report.report_quality_status || (report.browser_report || {}).report_quality_status || "",
+    report.input_classification_status || (report.browser_report || {}).input_classification_status || "",
+    report.input_relevance_reason || (report.browser_report || {}).input_relevance_reason || "",
+    report.gemini_relevance_status || (report.browser_report || {}).gemini_relevance_status || "",
+    report.gemini_calls_used_today || (report.browser_report || {}).gemini_calls_used_today || 0,
+    report.analysis_generated === undefined ? "" : String(Boolean(report.analysis_generated)),
     report.result_url_health || resultUrlHealth(report.result_url || "")
   ]);
 }
@@ -2133,6 +2723,11 @@ function appendBoardroomAuditRow(entry) {
     delivery.email_status || "",
     delivery.email_error || "",
     entry.report_quality_status || "",
+    entry.input_classification_status || "",
+    entry.input_relevance_reason || "",
+    entry.gemini_relevance_status || "",
+    entry.gemini_calls_used_today || 0,
+    entry.analysis_generated === undefined ? "" : String(Boolean(entry.analysis_generated)),
     entry.result_url_health || resultUrlHealth(entry.result_url || "")
   ]);
 }
@@ -2176,6 +2771,11 @@ function ensureAuditHeader(sheet) {
     "email_status",
     "email_error",
     "report_quality_status",
+    "input_classification_status",
+    "input_relevance_reason",
+    "gemini_relevance_status",
+    "gemini_calls_used_today",
+    "analysis_generated",
     "result_url_health"
   ];
   const width = header.length;

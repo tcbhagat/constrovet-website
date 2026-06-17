@@ -2,8 +2,8 @@
 
 This script is the free-tier Workspace processor for `https://www.constrovet.com/app/`.
 It receives explicit user requests for Deep Analysis or report email, stores files
-and outputs in Drive, calls Gemini only for Deep Analysis, and sends the report
-with `MailApp`.
+and outputs in Drive, calls Gemini only when explicitly enabled, and sends the
+report with `MailApp`.
 
 It also includes a separate zero-cost Virtual Boardroom Google Form intake
 automation. The form trigger copies accepted upload files from the Forms response
@@ -16,8 +16,17 @@ where possible, writes report artifacts, sends email, and appends an audit row.
 2. Create a new Apps Script project named `Constrovet Workspace Processor`.
 3. Paste `Code.gs` into the project.
 4. In **Project Settings > Script properties**, add:
-   - `GEMINI_API_KEY`: your approved Gemini API key.
-   - `GEMINI_MODEL`: optional, default `gemini-2.5-pro`.
+   - `GEMINI_API_KEY`: optional approved Gemini API key. Keep unset unless API
+     free-tier use has been explicitly approved.
+   - `GEMINI_MODEL`: optional. Deep Analysis defaults to `gemini-2.5-pro`;
+     relevance classification defaults to `gemini-2.5-flash` when enabled.
+   - `GEMINI_RELEVANCE_MODEL`: optional, default `gemini-2.5-flash`. This is
+     used only by the bounded relevance classifier.
+   - `ENABLE_GEMINI_RELEVANCE_GATE`: optional, default `false`. Set to `true`
+     only after confirming free-tier API quota.
+   - `GEMINI_DAILY_CALL_LIMIT`: optional, default `10`, for relevance
+     classification calls.
+   - `GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER`: optional, default `2097152`.
    - `BOARDROOM_FORM_ID`: Google Form ID for the Virtual Boardroom intake form.
    - `BOARDROOM_RESPONSE_FOLDER_ID`: optional Drive folder ID for the form file
      responses.
@@ -69,7 +78,9 @@ The trigger:
   email status is recorded as `EMAIL_NOT_SENT_MISSING_USER_EMAIL`.
 - Creates `My Drive/Constrovet/projects/form-<timestamp>-<shortid>/input/` and
   `/outputs/`.
-- Copies accepted PDF/CSV uploads into the project input folder.
+- Copies accepted PDF/CSV/image uploads into the project input folder. Images
+  are classification inputs only and cannot create quantified findings without
+  extracted cited evidence.
 - When `BOARDROOM_RESPONSE_FOLDER_ID` is set, rejects files outside that direct
   response folder.
 - Quarantines private-looking filenames such as medical, certificate, personal,
@@ -79,8 +90,9 @@ The trigger:
   service enabled. Without it, PDFs are copied and listed as
   `TEXT_EXTRACTION_UNAVAILABLE` missing evidence.
 - Writes `browser-report.json`, `final-report.json`, and
-  `executive-report.md`, then emails a professional executive action plan,
-  Markdown report attachment, and private result link to the submitter email.
+  `executive-report.md`, then emails a self-contained HTML/text report to the
+  submitter email. User emails do not include Markdown attachments or visible
+  private Apps Script report links.
   Automatic form-triggered emails always use the report from the current upload
   session folder. They do not look up or email the latest unrelated folder.
 - Writes `<job_id>-optional-gemini-review-pack.md` into the same `outputs/`
@@ -100,6 +112,13 @@ The trigger:
   - `EVIDENCE_INTAKE_EXCEPTION`: no cited findings exist and the email avoids
     recovery claims, shows received/accepted/rejected file counts, per-document
     extraction outcomes, required upload fields, and intake remediation steps.
+  - `IRRELEVANT_DATA_FILE`: uploaded content is unrelated to construction
+    project progress evidence; no analysis or 7/30/90 action plan is generated.
+  - `UNSUPPORTED_FILE_TYPE`: file type cannot be processed; no analysis or
+    7/30/90 action plan is generated.
+  - `CONSTRUCTION_CONTEXT_ONLY`: construction context exists, but no quantified
+    project progress/cost/schedule/ESG evidence was extracted; no executive
+    recovery action plan is generated.
 
 ## Email Delivery Debugging
 
@@ -107,7 +126,7 @@ If a report folder and output files exist but the recipient cannot find the
 email, check the audit spreadsheet first. New rows include:
 
 ```text
-email_source_mode | source_job_id | source_job_folder_url | source_final_report_url | submitter_email_source | email_to | email_cc | email_subject | email_status | email_error
+email_source_mode | source_job_id | source_job_folder_url | source_final_report_url | submitter_email_source | email_to | email_cc | email_subject | email_status | email_error | report_quality_status | input_classification_status | input_relevance_reason | gemini_relevance_status | gemini_calls_used_today | analysis_generated
 ```
 
 For normal Google Form submissions, `email_source_mode` must be
@@ -122,8 +141,14 @@ named `Email`.
 The audit row also includes:
 
 ```text
-report_quality_status | result_url_health
+report_quality_status | input_classification_status | input_relevance_reason | gemini_relevance_status | gemini_calls_used_today | analysis_generated | result_url_health
 ```
+
+`ENABLE_GEMINI_RELEVANCE_GATE` is optional and off by default. When enabled, it
+uses the Gemini API only for bounded image relevance classification, with
+`GEMINI_DAILY_CALL_LIMIT` and `GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER` as hard
+guards. If quota/API/parsing fails, the deterministic classifier is used and the
+audit row records `FAILED`, `QUOTA_SKIPPED`, or `NOT_RUN`.
 
 ## Optional Gemini Pro Web Review
 
@@ -144,7 +169,9 @@ Upload or paste that Markdown file into Gemini Pro web. It contains:
 
 Use Gemini's output only as an admin review aid unless it is manually copied
 back into the Apps Script report flow. If the review pack has no cited findings,
-Gemini should return `EVIDENCE_INTAKE_EXCEPTION`, not a recovery action plan.
+Gemini should return the matching no-claim status: `EVIDENCE_INTAKE_EXCEPTION`,
+`IRRELEVANT_DATA_FILE`, `UNSUPPORTED_FILE_TYPE`, or
+`CONSTRUCTION_CONTEXT_ONLY`, not a recovery action plan.
 
 `result_url_health` should be `SCRIPT_URL_PRESENT`. If it is
 `MISSING_RESULT_BASE_URL` or `INVALID_RESULT_BASE_URL`, set
@@ -215,9 +242,10 @@ Then select and run:
 resendConfiguredBoardroomReport
 ```
 
-The resend helper loads the existing `final-report.json`, reuses the saved
-Markdown report when present, sends the same private result link, updates
-`email_delivery` in the final report, and appends a `MANUAL_RESEND` audit row.
+The resend helper loads the existing `final-report.json`, rebuilds the same
+self-contained HTML/text email without attachments or visible private links,
+updates `email_delivery` in the final report, and appends a `MANUAL_RESEND`
+audit row.
 
 ## Private Result Display
 
