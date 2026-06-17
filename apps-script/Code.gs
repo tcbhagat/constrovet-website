@@ -2385,7 +2385,7 @@ function buildNoAnalysisEmailHtml(jobId, report) {
     <p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:.14em;text-transform:uppercase;color:#991b1b">Constrovet ${escapeHtml(boardroomReportStatusLabel(status))}</p>
     <h1 style="margin:0 0 12px;font-size:22px;line-height:1.2">${escapeHtml(boardroomNoAnalysisHeadline(status))}</h1>
     <p style="margin:0 0 12px"><strong>Job:</strong> ${escapeHtml(jobId)}<br><strong>Mode:</strong> ${escapeHtml(report.mode)}<br><strong>Generated:</strong> ${escapeHtml(report.generated_at || "")}</p>
-    <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:6px;padding:12px;margin:14px 0"><strong>No analysis was generated.</strong> Constrovet did not create findings, recovery actions, 7/30/90 actions, or cost-saving claims for this upload.</div>
+    <div style="border:1px solid #fecaca;background:#fef2f2;border-radius:6px;padding:12px;margin:14px 0"><strong>No analysis was generated.</strong> Constrovet did not create findings, recovery recommendations, or cost-saving claims for this upload.</div>
     ${renderNoAnalysisKpisEmailHtml(browserReport, report)}
     <h2 style="font-size:18px;margin:18px 0 8px">Classification</h2>
     <p style="margin:0 0 8px"><strong>Status:</strong> ${escapeHtml(status)}<br><strong>Reason:</strong> ${escapeHtml(browserReport.input_relevance_reason || "No relevant construction project evidence was detected.")}<br><strong>Gemini relevance:</strong> ${escapeHtml(browserReport.gemini_relevance_status || "NOT_RUN")}</p>
@@ -2407,7 +2407,7 @@ function buildNoAnalysisEmailText(jobId, report) {
     `Generated: ${report.generated_at || ""}`,
     "",
     boardroomNoAnalysisHeadline(status),
-    "No analysis was generated. Constrovet did not create findings, recovery actions, 7/30/90 actions, or cost-saving claims for this upload.",
+    "No analysis was generated. Constrovet did not create findings, recovery recommendations, or cost-saving claims for this upload.",
     "",
     "Classification",
     `Status: ${status}`,
