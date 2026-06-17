@@ -133,6 +133,19 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .cv-nav__links a:hover { color: var(--brand-700); background: var(--brand-50); }
 .cv-nav__links a.active { color: var(--brand-700); font-weight: 600; }
+.cv-nav__links .cv-nav__cta,
+.cv-nav__drawer .cv-nav__cta {
+  background: var(--accent-500);
+  color: var(--white);
+  font-weight: 700;
+}
+.cv-nav__links .cv-nav__cta:hover,
+.cv-nav__drawer .cv-nav__cta:hover,
+.cv-nav__links .cv-nav__cta.active,
+.cv-nav__drawer .cv-nav__cta.active {
+  background: var(--accent-600);
+  color: var(--white);
+}
 
 /* Hamburger */
 .cv-nav__hamburger {
@@ -167,6 +180,13 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   font-weight: 500;
   color: var(--slate-700);
   border-bottom: 1px solid var(--slate-100);
+}
+.cv-nav__drawer .cv-nav__cta {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-bottom: 0;
+  border-radius: var(--radius-sm);
+  text-align: center;
 }
 .cv-nav__drawer.open { display: flex; }
 

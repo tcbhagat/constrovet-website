@@ -42,7 +42,7 @@
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
   setResultActions(false);
-  setWorkspaceNote(workspaceEndpointConfigured() ? "" : "Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
+  setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
 
   input.addEventListener("change", () => {
     latestOutput = null;
@@ -61,44 +61,48 @@
     await runBrowserAnalysis();
   });
 
-  deepButton.addEventListener("click", async () => {
-    const output = await runBrowserAnalysis();
-    if (!output) return;
-    try {
-      setBusy(true);
-      setStatus("Submitting Deep Analysis to the Workspace processor...");
-      const response = await submitWorkspaceJob("DEEP_ANALYSIS");
-      setWorkspaceNote(response.message || "Deep Analysis request received. The Gemini-enhanced report will be emailed after processing.");
-      setStatus(`Deep Analysis request received${response.job_id ? `: ${response.job_id}` : ""}.`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error), true);
-    } finally {
-      setBusy(false);
-    }
-  });
+  if (deepButton) {
+    deepButton.addEventListener("click", async () => {
+      const output = await runBrowserAnalysis();
+      if (!output) return;
+      try {
+        setBusy(true);
+        setStatus("Submitting Deep Analysis to the Workspace processor...");
+        const response = await submitWorkspaceJob("DEEP_ANALYSIS");
+        setWorkspaceNote(response.message || "Deep Analysis request received. The Gemini-enhanced report will be emailed after processing.");
+        setStatus(`Deep Analysis request received${response.job_id ? `: ${response.job_id}` : ""}.`);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
 
-  emailButton.addEventListener("click", async () => {
-    const emailValidation = validateEmailField();
-    if (emailValidation) {
-      setStatus(emailValidation, true);
-      return;
-    }
-    if (!latestOutput) {
-      setStatus("Run Analyse first, then email the report.", true);
-      return;
-    }
-    try {
-      setBusy(true);
-      setStatus("Submitting browser report email request...");
-      const response = await submitWorkspaceJob("EMAIL_BROWSER_REPORT");
-      setWorkspaceNote(response.message || "Email request received. The browser report will be emailed after processing.");
-      setStatus(`Email request received${response.job_id ? `: ${response.job_id}` : ""}.`);
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error), true);
-    } finally {
-      setBusy(false);
-    }
-  });
+  if (emailButton) {
+    emailButton.addEventListener("click", async () => {
+      const emailValidation = validateEmailField();
+      if (emailValidation) {
+        setStatus(emailValidation, true);
+        return;
+      }
+      if (!latestOutput) {
+        setStatus("Run Analyse first, then email the report.", true);
+        return;
+      }
+      try {
+        setBusy(true);
+        setStatus("Submitting browser report email request...");
+        const response = await submitWorkspaceJob("EMAIL_BROWSER_REPORT");
+        setWorkspaceNote(response.message || "Email request received. The browser report will be emailed after processing.");
+        setStatus(`Email request received${response.job_id ? `: ${response.job_id}` : ""}.`);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : String(error), true);
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
 
   async function runBrowserAnalysis() {
     const files = Array.from(input.files || []);
@@ -126,11 +130,7 @@
       rationaleButton.textContent = "Citations and Rationale";
       setStatus(`Analysis complete: ${latestOutput.findings.length} cited findings from ${documents.length} file(s).`);
       setResultActions(true);
-      if (workspaceEndpointConfigured()) {
-        setWorkspaceNote("");
-      } else {
-        setWorkspaceNote("Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
-      }
+      setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
       return latestOutput;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
@@ -187,7 +187,7 @@
 
   function validateEmailField() {
     const email = normalizeEmail(emailInput.value);
-    if (!email) return "Enter an email address before analysis.";
+    if (!email) return "";
     if (!EMAIL_RE.test(email)) return "Enter a valid email address.";
     return "";
   }
@@ -982,11 +982,9 @@
   function setResultActions(enabled) {
     rationaleButton.disabled = !enabled;
     const workspaceReady = workspaceEndpointConfigured();
-    deepButton.disabled = !workspaceReady;
-    emailButton.disabled = !enabled || !workspaceReady;
-    if (!workspaceReady) {
-      setWorkspaceNote("Deep Analysis and email are being activated through the free Workspace Apps Script processor. Browser Analyse is available now.");
-    }
+    if (deepButton) deepButton.disabled = !workspaceReady;
+    if (emailButton) emailButton.disabled = !enabled || !workspaceReady;
+    setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
   }
 
   function setWorkspaceNote(message) {
@@ -997,9 +995,9 @@
 
   function setBusy(isBusy) {
     runButton.disabled = isBusy;
-    deepButton.disabled = isBusy || !workspaceEndpointConfigured();
+    if (deepButton) deepButton.disabled = isBusy || !workspaceEndpointConfigured();
     clearButton.disabled = isBusy;
-    emailButton.disabled = isBusy || !latestOutput || !workspaceEndpointConfigured();
+    if (emailButton) emailButton.disabled = isBusy || !latestOutput || !workspaceEndpointConfigured();
   }
 
   function workspaceEndpointConfigured() {
