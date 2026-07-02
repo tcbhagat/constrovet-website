@@ -228,6 +228,18 @@ The helper reads the latest audit row for the job and returns `email_to`,
 and the next action. You can also call
 `diagnoseBoardroomEmailDelivery("form-20260702-093301-c696d401")` directly.
 
+If the endpoint, resend job, or resend recipient may be misconfigured, run this
+no-argument setup helper from the Apps Script editor instead:
+
+```text
+configureConstrovetBoardroomRuntimeSettings
+```
+
+It sets `BOARDROOM_RESULT_BASE_URL` to the current `boardroom` web app URL, sets
+`BOARDROOM_RESEND_JOB_ID=form-20260702-093301-c696d401`, keeps
+`BOARDROOM_RESEND_EMAIL=bhagat.taran@gmail.com`, and immediately returns the
+audit-first diagnosis.
+
 To isolate mailbox filtering, set:
 
 ```text

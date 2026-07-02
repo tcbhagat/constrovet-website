@@ -3474,6 +3474,27 @@ function resendConfiguredBoardroomReportSmallThenFull() {
   return resendBoardroomReportSmallThenFull(jobId, recipient);
 }
 
+function configureConstrovetBoardroomRuntimeSettings() {
+  const endpoint = "https://script.google.com/macros/s/AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ/exec";
+  const jobId = "form-20260702-093301-c696d401";
+  const recipient = "bhagat.taran@gmail.com";
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    BOARDROOM_RESULT_BASE_URL: endpoint,
+    BOARDROOM_RESEND_JOB_ID: jobId,
+    BOARDROOM_RESEND_EMAIL: recipient
+  }, false);
+  return {
+    ok: true,
+    configured: {
+      BOARDROOM_RESULT_BASE_URL: endpoint,
+      BOARDROOM_RESEND_JOB_ID: jobId,
+      BOARDROOM_RESEND_EMAIL: recipient
+    },
+    diagnosis: diagnoseBoardroomEmailDelivery(jobId)
+  };
+}
+
 function diagnoseConfiguredBoardroomEmailDelivery() {
   const props = PropertiesService.getScriptProperties();
   const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim() || "form-20260702-093301-c696d401";
