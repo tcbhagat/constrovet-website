@@ -28,6 +28,9 @@ where possible, writes report artifacts, sends email, and appends an audit row.
      classification calls.
    - `GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER`: optional, default `2097152`.
    - `BOARDROOM_FORM_ID`: Google Form ID for the Virtual Boardroom intake form.
+   - `BOARDROOM_CORRECTION_FORM_ID`: optional Google Form ID for corrected
+     evidence submissions. The form must capture the original Constrovet job ID
+     and upload files.
    - `BOARDROOM_RESPONSE_FOLDER_ID`: optional Drive folder ID for the form file
      responses.
    - `BOARDROOM_NOTIFY_EMAIL`: optional fallback recipient, default
@@ -76,8 +79,13 @@ The trigger:
   for a form question titled like `Email`, `User Email`, `E-mail`, or `Mail`.
   If neither source contains a valid address, report files are still created but
   email status is recorded as `EMAIL_NOT_SENT_MISSING_USER_EMAIL`.
-- Creates `My Drive/Constrovet/projects/form-<timestamp>-<shortid>/input/` and
-  `/outputs/`.
+- Creates `My Drive/Constrovet/projects/form-<timestamp>-<shortid>/input/`,
+  `/outputs/`, `/missing_evidence/`, `/corrections/`, `/memory/`, and
+  `/archive/`.
+- Writes job state files using the formal loop states:
+  `INTAKE_RECEIVED`, `EXTRACTION_COMPLETE`, `VERIFICATION_COMPLETE`,
+  `ACTION_REPORT_SENT`, `MISSING_EVIDENCE_OPEN`, `CORRECTION_RECEIVED`,
+  `RERUN_COMPLETE`, and `ARCHIVED`.
 - Copies accepted PDF/CSV/image uploads into the project input folder. Images
   are classification inputs only and cannot create quantified findings without
   extracted cited evidence.
@@ -100,6 +108,15 @@ The trigger:
   optimized prompt and evidence-only payload. It is not sent to Gemini
   automatically and does not replace the deterministic report emailed to the
   user.
+- Runs a deterministic Workspace verifier before executive actions are used.
+  The verifier checks required citations, allowed financial categories,
+  `Actual - Budget` math, baseline/leakage separation, ESG separation, and
+  removes unsupported findings from the action plan.
+- Writes a structured missing-evidence queue to `/missing_evidence/` as JSON
+  and CSV. Queue items include job ID, required evidence type, status, owner
+  email when available, created date, resolved date, and the missing item.
+- Writes durable job memory to `/memory/` with correction history, verifier
+  results, recurring extraction issues, and open missing-evidence items.
 - Records email delivery metadata in both `final-report.json` and the audit
   sheet, including `email_source_mode`, source job/folder/report URLs,
   submitter email source, recipient, optional CC, subject, `EMAIL_SENT`,
@@ -222,6 +239,32 @@ using the same exact job folder. The report email does not attach the Markdown
 file or display the private Apps Script report link; those artifacts remain in
 the Drive output folder and audit metadata.
 
+## Correction Rerun Loop
+
+To let users submit missing or corrected evidence for an existing job:
+
+1. Create a separate Google Form with:
+   - a required short-answer field for the original Constrovet job ID
+   - a file-upload field for corrected evidence
+   - collected respondent email or a required email field
+2. Set `BOARDROOM_CORRECTION_FORM_ID` in Script Properties.
+3. Run `installBoardroomCorrectionFormTrigger()` once from the Apps Script
+   editor and approve permissions.
+
+When corrected evidence arrives, the script:
+
+- validates the original job ID,
+- copies correction files into the job `/corrections/` folder,
+- archives the current canonical outputs into `/archive/outputs-<timestamp>/`,
+- reruns extraction and deterministic verification against original input plus
+  correction files,
+- increments `correction_count` and `rerun_count`,
+- writes timestamped rerun outputs plus refreshed canonical report files, and
+- emails the submitter when an email is available.
+
+Canonical result links continue to load `<job_id>-final-report.json`; archived
+and timestamped rerun files preserve the evidence trail.
+
 To resend an existing Boardroom report without another form submission, call:
 
 ```javascript
@@ -284,6 +327,10 @@ the user-facing result location.
 ```text
 My Drive/Constrovet/projects/<job_id>/input/
 My Drive/Constrovet/projects/<job_id>/outputs/
+My Drive/Constrovet/projects/<job_id>/missing_evidence/
+My Drive/Constrovet/projects/<job_id>/corrections/
+My Drive/Constrovet/projects/<job_id>/memory/
+My Drive/Constrovet/projects/<job_id>/archive/
 ```
 
 The audit spreadsheet is created automatically and its ID is stored as

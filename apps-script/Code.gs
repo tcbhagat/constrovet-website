@@ -13,6 +13,15 @@ const REPORT_EVIDENCE_INTAKE_EXCEPTION = "EVIDENCE_INTAKE_EXCEPTION";
 const REPORT_IRRELEVANT_DATA_FILE = "IRRELEVANT_DATA_FILE";
 const REPORT_UNSUPPORTED_FILE_TYPE = "UNSUPPORTED_FILE_TYPE";
 const REPORT_CONSTRUCTION_CONTEXT_ONLY = "CONSTRUCTION_CONTEXT_ONLY";
+const JOB_STATE_INTAKE_RECEIVED = "INTAKE_RECEIVED";
+const JOB_STATE_EXTRACTION_COMPLETE = "EXTRACTION_COMPLETE";
+const JOB_STATE_VERIFICATION_COMPLETE = "VERIFICATION_COMPLETE";
+const JOB_STATE_ACTION_REPORT_SENT = "ACTION_REPORT_SENT";
+const JOB_STATE_MISSING_EVIDENCE_OPEN = "MISSING_EVIDENCE_OPEN";
+const JOB_STATE_CORRECTION_RECEIVED = "CORRECTION_RECEIVED";
+const JOB_STATE_RERUN_COMPLETE = "RERUN_COMPLETE";
+const JOB_STATE_ARCHIVED = "ARCHIVED";
+const HUMAN_REVIEW_PENDING = "PENDING";
 const GEMINI_RELEVANCE_GATE_PROPERTY = "ENABLE_GEMINI_RELEVANCE_GATE";
 const GEMINI_RELEVANCE_MODEL_PROPERTY = "GEMINI_RELEVANCE_MODEL";
 const GEMINI_DAILY_CALL_LIMIT_PROPERTY = "GEMINI_DAILY_CALL_LIMIT";
@@ -42,8 +51,20 @@ function doPost(e) {
     enforceRateLimit(payload.email);
 
     const folders = prepareJobFolders(payload.job_id);
+    writeJobState(folders, newJobState(payload.job_id, JOB_STATE_INTAKE_RECEIVED, {
+      mode: payload.mode,
+      email: payload.email,
+      received_file_count: (payload.files || []).length
+    }));
     const savedFiles = payload.mode === "DEEP_ANALYSIS" ? saveUploadedFiles(payload.files, folders.input) : [];
     const browserReport = payload.browser_report;
+    applyDeterministicVerification(browserReport, true);
+    writeJobState(folders, newJobState(payload.job_id, JOB_STATE_VERIFICATION_COMPLETE, {
+      mode: payload.mode,
+      email: payload.email,
+      finding_count: (browserReport.findings || []).length,
+      deterministic_verification_status: ((browserReport.deterministic_verifier_result || {}).verification_status || "UNKNOWN")
+    }));
     const verifierResult = payload.mode === "DEEP_ANALYSIS" ? runGeminiVerifier(browserReport) : fallbackVerifier(browserReport);
     const report = buildReport(payload, browserReport, verifierResult, savedFiles);
 
@@ -64,6 +85,14 @@ function doPost(e) {
     report.source_outputs_folder_url = folders.outputs.getUrl();
     report.source_final_report_url = finalFile.getUrl();
     report.email_source_mode = "API_POST_CURRENT_JOB";
+    attachEvidenceLoopMetadata(report, browserReport, folders, {
+      job_id: payload.job_id,
+      email: payload.email,
+      source_files: savedFiles,
+      correction_count: 0,
+      rerun_count: 0,
+      human_review_status: HUMAN_REVIEW_PENDING
+    });
     const geminiReviewPackFile = folders.outputs.createFile(`${payload.job_id}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
     report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
     finalFile.setContent(JSON.stringify(report, null, 2));
@@ -72,14 +101,26 @@ function doPost(e) {
     try {
       emailDelivery = sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url);
       report.email_delivery = emailDelivery;
+      report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_ACTION_REPORT_SENT;
+      writeJobMemory(folders, report, browserReport);
       finalFile.setContent(JSON.stringify(report, null, 2));
     } catch (error) {
       emailDelivery = failedEmailDelivery(payload.email, payload.job_id, error);
       report.email_delivery = emailDelivery;
+      report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_VERIFICATION_COMPLETE;
+      writeJobMemory(folders, report, browserReport);
       finalFile.setContent(JSON.stringify(report, null, 2));
       appendAuditRow(payload, report, savedFiles, folders.job.getUrl(), emailDelivery);
       throw error;
     }
+    writeJobState(folders, newJobState(payload.job_id, report.job_state, {
+      mode: payload.mode,
+      email: payload.email,
+      report_quality_status: report.report_quality_status,
+      finding_count: (browserReport.findings || []).length,
+      missing_evidence_count: (report.missing_evidence_queue || []).length,
+      email_status: emailDelivery.email_status || ""
+    }));
     appendAuditRow(payload, report, savedFiles, folders.job.getUrl(), emailDelivery);
 
     return jsonResponse({
@@ -98,6 +139,10 @@ function onFormSubmit(e) {
   return handleBoardroomFormSubmit(e);
 }
 
+function onCorrectionFormSubmit(e) {
+  return handleBoardroomCorrectionFormSubmit(e);
+}
+
 function handleBoardroomFormSubmit(e) {
   const startedAt = new Date();
   const jobId = makeBoardroomJobId(startedAt);
@@ -108,6 +153,40 @@ function handleBoardroomFormSubmit(e) {
   const submitterEmail = submitterEmailInfo.email;
   const folders = prepareJobFolders(jobId);
   const formFiles = getBoardroomFilesFromEvent(e);
+  writeJobState(folders, newJobState(jobId, JOB_STATE_INTAKE_RECEIVED, {
+    mode: "FORM_INTAKE",
+    email: submitterEmail,
+    received_file_count: formFiles.length,
+    submitter_email_source: submitterEmailInfo.source
+  }));
+  appendBoardroomAuditRow({
+    timestamp: startedAt,
+    job_id: jobId,
+    mode: "FORM_INTAKE_RECEIVED",
+    email: submitterEmail,
+    received_file_count: formFiles.length,
+    accepted_file_count: "",
+    rejected_files: [],
+    finding_count: "",
+    gemini_status: "NOT_STARTED",
+    drive_folder: folders.job.getUrl(),
+    result_url: "",
+    result_access_key: "",
+    email_source_mode: "CURRENT_UPLOAD_SESSION",
+    source_job_id: jobId,
+    source_job_folder_url: folders.job.getUrl(),
+    source_final_report_url: "",
+    submitter_email_source: submitterEmailInfo.source,
+    report_quality_status: "",
+    job_state: JOB_STATE_INTAKE_RECEIVED,
+    source_files: boardroomSourceFileNames(formFiles),
+    missing_evidence_count: 0,
+    correction_count: 0,
+    rerun_count: 0,
+    human_review_status: HUMAN_REVIEW_PENDING,
+    result_url_health: "",
+    email_delivery: emptyEmailDelivery(submitterEmail, jobId)
+  });
   const accepted = [];
   const rejected = [];
   const savedFiles = [];
@@ -129,10 +208,24 @@ function handleBoardroomFormSubmit(e) {
     documents.push(extractBoardroomDocument(copied));
   });
 
+  writeJobState(folders, newJobState(jobId, JOB_STATE_EXTRACTION_COMPLETE, {
+    mode: "FORM_INTAKE",
+    email: submitterEmail,
+    received_file_count: formFiles.length,
+    accepted_file_count: accepted.length,
+    rejected_file_count: rejected.length
+  }));
   const browserReport = buildBoardroomOutput(documents, rejected);
   const verifierResult = deepAnalysisEnabled
     ? runGeminiVerifier(browserReport)
     : fallbackVerifier(browserReport);
+  writeJobState(folders, newJobState(jobId, JOB_STATE_VERIFICATION_COMPLETE, {
+    mode: "FORM_INTAKE",
+    email: submitterEmail,
+    finding_count: (browserReport.findings || []).length,
+    deterministic_verification_status: ((browserReport.deterministic_verifier_result || {}).verification_status || "UNKNOWN"),
+    gemini_status: verifierResult.verification_status || verifierResult.status || "UNKNOWN"
+  }));
   const payload = {
     job_id: jobId,
     mode: deepAnalysisEnabled ? "FORM_DEEP_ANALYSIS" : "FORM_INTAKE_REPORT",
@@ -164,6 +257,14 @@ function handleBoardroomFormSubmit(e) {
   report.source_outputs_folder_url = folders.outputs.getUrl();
   report.source_final_report_url = finalFile.getUrl();
   report.email_source_mode = "CURRENT_UPLOAD_SESSION";
+  attachEvidenceLoopMetadata(report, browserReport, folders, {
+    job_id: jobId,
+    email: submitterEmail,
+    source_files: savedFiles,
+    correction_count: 0,
+    rerun_count: 0,
+    human_review_status: HUMAN_REVIEW_PENDING
+  });
   const geminiReviewPackFile = folders.outputs.createFile(`${jobId}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
   report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
   finalFile.setContent(JSON.stringify(report, null, 2));
@@ -176,7 +277,17 @@ function handleBoardroomFormSubmit(e) {
     }
   }
   report.email_delivery = emailDelivery;
+  report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_ACTION_REPORT_SENT;
+  writeJobMemory(folders, report, browserReport);
   finalFile.setContent(JSON.stringify(report, null, 2));
+  writeJobState(folders, newJobState(jobId, report.job_state, {
+    mode: payload.mode,
+    email: submitterEmail,
+    report_quality_status: report.report_quality_status,
+    finding_count: (browserReport.findings || []).length,
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
+    email_status: emailDelivery.email_status || ""
+  }));
   appendBoardroomAuditRow({
     timestamp: startedAt,
     job_id: jobId,
@@ -201,6 +312,14 @@ function handleBoardroomFormSubmit(e) {
     gemini_relevance_status: report.gemini_relevance_status,
     gemini_calls_used_today: report.gemini_calls_used_today,
     analysis_generated: report.analysis_generated,
+    job_state: report.job_state,
+    source_files: boardroomSourceFileNames(savedFiles),
+    extraction_status: JOB_STATE_EXTRACTION_COMPLETE,
+    verifier_status: (browserReport.deterministic_verifier_result || {}).verification_status || "",
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
+    correction_count: report.correction_count || 0,
+    rerun_count: report.rerun_count || 0,
+    human_review_status: report.human_review_status || HUMAN_REVIEW_PENDING,
     result_url_health: report.result_url_health,
     email_delivery: emailDelivery
   });
@@ -211,6 +330,193 @@ function handleBoardroomFormSubmit(e) {
     accepted_file_count: accepted.length,
     rejected_file_count: rejected.length,
     finding_count: browserReport.findings.length,
+    drive_folder: folders.job.getUrl()
+  };
+}
+
+function handleBoardroomCorrectionFormSubmit(e) {
+  const request = extractBoardroomCorrectionRequest(e);
+  if (!request.job_id) throw new Error("Correction form must include the original Constrovet job ID.");
+  if (!request.files.length) throw new Error("Correction form must include at least one evidence file.");
+  return rerunBoardroomJobWithCorrections(request.job_id, request.files, request.email);
+}
+
+function extractBoardroomCorrectionRequest(e) {
+  const submitterEmailInfo = getBoardroomSubmitterEmailInfo(e);
+  const responses = getBoardroomItemResponses(e);
+  let jobId = "";
+  responses.forEach((item) => {
+    const title = String(item.title || "").toLowerCase();
+    const response = String(item.response || "");
+    if (!jobId && /job|job id|original|reference/.test(title)) {
+      const match = response.match(/form-\d{8}-\d{6}-[a-zA-Z0-9-]{8}|cv-[a-zA-Z0-9-]+/);
+      if (match) jobId = match[0];
+    }
+  });
+  if (!jobId) {
+    const allText = responses.map((item) => String(item.response || "")).join(" ");
+    const match = allText.match(/form-\d{8}-\d{6}-[a-zA-Z0-9-]{8}|cv-[a-zA-Z0-9-]+/);
+    if (match) jobId = match[0];
+  }
+  return {
+    job_id: jobId,
+    email: submitterEmailInfo.email,
+    email_source: submitterEmailInfo.source,
+    files: getBoardroomFilesFromEvent(e)
+  };
+}
+
+function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail) {
+  const cleanedJobId = String(jobId || "").trim();
+  const job = findProjectFolder(cleanedJobId);
+  if (!job) throw new Error("Original Boardroom job folder was not found.");
+  const folders = prepareJobFolders(cleanedJobId);
+  const existingReport = loadReportForJob(cleanedJobId) || {};
+  const previousRerunCount = Number(existingReport.rerun_count || 0);
+  const previousCorrectionCount = Number(existingReport.correction_count || 0);
+  const acceptedCorrections = [];
+  const rejectedCorrections = [];
+  const documents = [];
+  const startedAt = new Date();
+
+  writeJobState(folders, newJobState(cleanedJobId, JOB_STATE_CORRECTION_RECEIVED, {
+    mode: "FORM_CORRECTION_RERUN",
+    email: recipientEmail || existingReport.email || "",
+    correction_file_count: (correctionFiles || []).length,
+    previous_rerun_count: previousRerunCount
+  }));
+
+  archiveCurrentOutputs(folders, cleanedJobId);
+
+  (correctionFiles || []).forEach((fileInfo) => {
+    const review = reviewBoardroomFile(fileInfo, acceptedCorrections.length, false, "");
+    if (!review.accept) {
+      rejectedCorrections.push({ ...fileInfo, reason: review.reason });
+      if (review.quarantine) quarantineBoardroomFile(fileInfo, review.reason);
+      return;
+    }
+    const copied = copyBoardroomFileToInput(fileInfo, folders.corrections);
+    acceptedCorrections.push(copied);
+  });
+
+  [...listBoardroomFolderFiles(folders.input), ...listBoardroomFolderFiles(folders.corrections)].forEach((fileInfo) => {
+    documents.push(extractBoardroomDocument(fileInfo));
+  });
+
+  const browserReport = buildBoardroomOutput(documents, rejectedCorrections);
+  const verifierResult = fallbackVerifier(browserReport);
+  const recipient = isValidEmail(recipientEmail) ? String(recipientEmail).trim() : (existingReport.email || "");
+  const payload = {
+    job_id: cleanedJobId,
+    mode: "FORM_CORRECTION_RERUN",
+    email: recipient
+  };
+  const savedFiles = [...listBoardroomFolderFiles(folders.input), ...acceptedCorrections];
+  const report = buildReport(payload, browserReport, verifierResult, savedFiles);
+  report.form_intake = existingReport.form_intake || {};
+  report.accepted_corrections = acceptedCorrections;
+  report.rejected_corrections = rejectedCorrections;
+  report.previous_report_generated_at = existingReport.generated_at || "";
+
+  const accessKey = existingReport.result_access_key || makeResultAccessKey();
+  report.result_access_key = accessKey;
+  report.result_url = existingReport.result_url || buildResultUrl(cleanedJobId, accessKey);
+  report.result_url_health = resultUrlHealth(report.result_url);
+  const suffix = Utilities.formatDate(startedAt, "GMT", "yyyyMMdd-HHmmss");
+  const browserFile = folders.outputs.createFile(`${cleanedJobId}-${suffix}-browser-report.json`, JSON.stringify(browserReport, null, 2), MimeType.PLAIN_TEXT);
+  const markdownFile = folders.outputs.createFile(`${cleanedJobId}-${suffix}-executive-report.md`, report.markdown, MimeType.PLAIN_TEXT);
+  const finalFile = folders.outputs.createFile(`${cleanedJobId}-${suffix}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.outputs, `${cleanedJobId}-browser-report.json`, JSON.stringify(browserReport, null, 2), MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.outputs, `${cleanedJobId}-executive-report.md`, report.markdown, MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.outputs, `${cleanedJobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
+  report.generated_files = {
+    browser_report_url: browserFile.getUrl(),
+    executive_report_url: markdownFile.getUrl(),
+    final_report_url: finalFile.getUrl()
+  };
+  report.source_job_id = cleanedJobId;
+  report.source_job_folder_url = folders.job.getUrl();
+  report.source_outputs_folder_url = folders.outputs.getUrl();
+  report.source_final_report_url = finalFile.getUrl();
+  report.email_source_mode = "CORRECTION_RERUN_CURRENT_JOB";
+  attachEvidenceLoopMetadata(report, browserReport, folders, {
+    job_id: cleanedJobId,
+    email: recipient,
+    source_files: savedFiles,
+    correction_count: previousCorrectionCount + acceptedCorrections.length,
+    rerun_count: previousRerunCount + 1,
+    human_review_status: HUMAN_REVIEW_PENDING
+  });
+  const geminiReviewPackFile = folders.outputs.createFile(`${cleanedJobId}-${suffix}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
+  report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
+  report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_RERUN_COMPLETE;
+  writeJobMemory(folders, report, browserReport);
+  upsertTextFile(folders.outputs, `${cleanedJobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
+
+  let emailDelivery = missingUserEmailDelivery(cleanedJobId);
+  if (isValidEmail(recipient)) {
+    try {
+      emailDelivery = sendReportEmail(recipient, cleanedJobId, report, markdownFile.getBlob(), report.result_url);
+    } catch (error) {
+      emailDelivery = failedEmailDelivery(recipient, cleanedJobId, error);
+    }
+  }
+  report.email_delivery = emailDelivery;
+  upsertTextFile(folders.outputs, `${cleanedJobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
+  writeJobState(folders, newJobState(cleanedJobId, report.job_state, {
+    mode: payload.mode,
+    email: recipient,
+    report_quality_status: report.report_quality_status,
+    finding_count: (browserReport.findings || []).length,
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
+    correction_count: report.correction_count,
+    rerun_count: report.rerun_count,
+    email_status: emailDelivery.email_status || ""
+  }));
+  appendBoardroomAuditRow({
+    timestamp: startedAt,
+    job_id: cleanedJobId,
+    mode: payload.mode,
+    email: recipient,
+    received_file_count: (correctionFiles || []).length,
+    accepted_file_count: acceptedCorrections.length,
+    rejected_files: rejectedCorrections,
+    finding_count: (browserReport.findings || []).length,
+    gemini_status: verifierResult.verification_status || verifierResult.status || "UNKNOWN",
+    drive_folder: folders.job.getUrl(),
+    result_url: report.result_url,
+    result_access_key: accessKey,
+    email_source_mode: report.email_source_mode,
+    source_job_id: cleanedJobId,
+    source_job_folder_url: folders.job.getUrl(),
+    source_final_report_url: report.source_final_report_url,
+    submitter_email_source: "CORRECTION_FORM",
+    report_quality_status: report.report_quality_status,
+    input_classification_status: report.input_classification_status,
+    input_relevance_reason: report.input_relevance_reason,
+    gemini_relevance_status: report.gemini_relevance_status,
+    gemini_calls_used_today: report.gemini_calls_used_today,
+    analysis_generated: report.analysis_generated,
+    job_state: report.job_state,
+    source_files: boardroomSourceFileNames(savedFiles),
+    extraction_status: JOB_STATE_EXTRACTION_COMPLETE,
+    verifier_status: (browserReport.deterministic_verifier_result || {}).verification_status || "",
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
+    correction_count: report.correction_count,
+    rerun_count: report.rerun_count,
+    human_review_status: report.human_review_status || HUMAN_REVIEW_PENDING,
+    result_url_health: report.result_url_health,
+    email_delivery: emailDelivery
+  });
+  return {
+    ok: true,
+    job_id: cleanedJobId,
+    accepted_correction_count: acceptedCorrections.length,
+    rejected_correction_count: rejectedCorrections.length,
+    finding_count: (browserReport.findings || []).length,
+    rerun_count: report.rerun_count,
+    job_state: report.job_state,
+    email_status: emailDelivery.email_status,
     drive_folder: folders.job.getUrl()
   };
 }
@@ -227,6 +533,20 @@ function installBoardroomFormTrigger() {
   existing.forEach((trigger) => ScriptApp.deleteTrigger(trigger));
   ScriptApp.newTrigger("onFormSubmit").forForm(form).onFormSubmit().create();
   return { ok: true, form_id: formId, trigger: "onFormSubmit", deleted_existing_triggers: existing.length };
+}
+
+function installBoardroomCorrectionFormTrigger() {
+  const props = PropertiesService.getScriptProperties();
+  const formId = props.getProperty("BOARDROOM_CORRECTION_FORM_ID");
+  if (!formId) throw new Error("BOARDROOM_CORRECTION_FORM_ID script property is required.");
+  const form = FormApp.openById(formId);
+  const existing = ScriptApp.getProjectTriggers().filter((trigger) => {
+    const handler = trigger.getHandlerFunction && trigger.getHandlerFunction();
+    return handler === "onCorrectionFormSubmit" || handler === "installBoardroomCorrectionFormTrigger";
+  });
+  existing.forEach((trigger) => ScriptApp.deleteTrigger(trigger));
+  ScriptApp.newTrigger("onCorrectionFormSubmit").forForm(form).onFormSubmit().create();
+  return { ok: true, form_id: formId, trigger: "onCorrectionFormSubmit", deleted_existing_triggers: existing.length };
 }
 
 function serveBoardroomResult(params) {
@@ -303,9 +623,16 @@ function sanitizeReportForViewer(report) {
     recoverable_cost_exposure: browserReport.recoverable_cost_exposure || {},
     immediate_control_failures: browserReport.immediate_control_failures || [],
     missing_evidence_blocking_recovery: browserReport.missing_evidence_blocking_recovery || [],
+    missing_evidence_queue: report.missing_evidence_queue || browserReport.missing_evidence_queue || [],
     executive_action_plan: browserReport.executive_action_plan || {},
     honesty_check: browserReport.honesty_check || {},
     gemini_verifier_result: report.gemini_verifier_result || {},
+    deterministic_verifier_result: browserReport.deterministic_verifier_result || {},
+    job_state: report.job_state || "",
+    correction_count: report.correction_count || 0,
+    rerun_count: report.rerun_count || 0,
+    human_review_status: report.human_review_status || "",
+    evidence_loop: report.evidence_loop || {},
     form_intake: report.form_intake || {},
     generated_files: {
       executive_report_url: report.generated_files && report.generated_files.executive_report_url ? report.generated_files.executive_report_url : "",
@@ -603,6 +930,46 @@ function copyBoardroomFileToInput(fileInfo, inputFolder) {
   };
 }
 
+function listBoardroomFolderFiles(folder) {
+  const files = [];
+  const iterator = folder.getFiles();
+  while (iterator.hasNext()) {
+    const file = iterator.next();
+    files.push({
+      id: file.getId(),
+      name: file.getName(),
+      mime_type: file.getMimeType(),
+      size_bytes: Number(file.getSize() || 0),
+      drive_url: file.getUrl()
+    });
+  }
+  return files;
+}
+
+function archiveCurrentOutputs(folders, jobId) {
+  const stamp = Utilities.formatDate(new Date(), "GMT", "yyyyMMdd-HHmmss");
+  const archiveFolder = getOrCreateFolder(folders.archive, `outputs-${stamp}`);
+  const names = [
+    `${jobId}-browser-report.json`,
+    `${jobId}-executive-report.md`,
+    `${jobId}-final-report.json`,
+    `${jobId}-optional-gemini-review-pack.md`,
+    `${jobId}-job-state.json`
+  ];
+  names.forEach((name) => {
+    const files = folders.outputs.getFilesByName(name);
+    while (files.hasNext()) {
+      const file = files.next();
+      file.makeCopy(name, archiveFolder);
+    }
+  });
+  writeJobState(folders, newJobState(jobId, JOB_STATE_ARCHIVED, {
+    archived_at: new Date().toISOString(),
+    archive_folder_url: archiveFolder.getUrl()
+  }));
+  return archiveFolder.getUrl();
+}
+
 function extractBoardroomDocument(fileInfo) {
   const kind = boardroomFileKind(fileInfo);
   if (kind === "csv") {
@@ -767,7 +1134,9 @@ function buildBoardroomOutput(documents, rejectedFiles) {
       gemini_relevance_status: classification.gemini_relevance_status || "NOT_RUN"
     });
   });
-  const citedFindings = scoreBoardroomFindings(dedupeBoardroomFindings(findings).slice(0, 80));
+  const rawFindings = scoreBoardroomFindings(dedupeBoardroomFindings(findings).slice(0, 80));
+  const deterministicVerifierResult = runDeterministicVerifier(rawFindings);
+  const citedFindings = scoreBoardroomFindings(deterministicVerifierResult.verified_findings);
   const reportQualityStatus = determineBoardroomReportStatus(citedFindings, documentOutcomes);
   const documentsWithNoSignal = documentOutcomes.filter((item) => item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE").length;
   const executiveActionPlan = reportQualityStatus === REPORT_EXECUTIVE_ACTION_PLAN || reportQualityStatus === REPORT_EVIDENCE_INTAKE_EXCEPTION
@@ -801,7 +1170,9 @@ function buildBoardroomOutput(documents, rejectedFiles) {
     documents_processed_count: (documents || []).length,
     documents_with_no_signal: documentsWithNoSignal,
     document_outcomes: documentOutcomes,
+    raw_finding_count: rawFindings.length,
     findings: citedFindings,
+    deterministic_verifier_result: deterministicVerifierResult,
     executive_brief: executiveBrief,
     top_5_actions: buildBoardroomTopExecutiveActions(citedFindings),
     recoverable_cost_exposure: buildBoardroomRecoverableCostExposure(citedFindings),
@@ -1106,9 +1477,16 @@ function boardroomEsgRe() {
 }
 
 function boardroomValueNear(lower, original, keywordRegex) {
-  if (!keywordRegex.test(lower)) return null;
-  const value = boardroomFirstAmount(original);
-  return value || null;
+  const text = String(original || "");
+  const keyword = new RegExp(keywordRegex.source, "i");
+  const match = keyword.exec(text);
+  if (!match) return null;
+  const after = text.slice(match.index, Math.min(text.length, match.index + 140));
+  const afterAmount = boardroomFirstAmount(after);
+  if (afterAmount) return afterAmount;
+  const before = text.slice(Math.max(0, match.index - 90), match.index);
+  const beforeAmount = boardroomLastAmount(before);
+  return beforeAmount || null;
 }
 
 function boardroomFirstAmount(text) {
@@ -1118,6 +1496,19 @@ function boardroomFirstAmount(text) {
   const unit = (match[2] || "").toLowerCase();
   if (unit === "crore" || unit === "cr") value *= 10000000;
   if (unit === "lakh" || unit === "lac") value *= 100000;
+  return value;
+}
+
+function boardroomLastAmount(text) {
+  const regex = /(?:₹|INR|Rs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
+  let match;
+  let value = 0;
+  while ((match = regex.exec(String(text || "")))) {
+    value = Number(match[1].replace(/,/g, ""));
+    const unit = (match[2] || "").toLowerCase();
+    if (unit === "crore" || unit === "cr") value *= 10000000;
+    if (unit === "lakh" || unit === "lac") value *= 100000;
+  }
   return value;
 }
 
@@ -1148,6 +1539,124 @@ function boardroomFinding(statement, category, amount, days, file, pageOrSheet, 
     },
     confidence
   };
+}
+
+function runDeterministicVerifier(findings) {
+  const verified = [];
+  const unsupported = [];
+  const corrected = [];
+  (findings || []).forEach((finding, index) => {
+    const normalized = normalizeFindingForVerification(finding);
+    const issues = verifyBoardroomFinding(normalized);
+    if (issues.length) {
+      unsupported.push({
+        source_finding_index: index + 1,
+        statement: finding.statement || "",
+        reasons: issues
+      });
+      return;
+    }
+    const originalDifference = Number(((finding.calculation || {}).difference) || 0);
+    const originalAmount = Number(finding.amount_inr || 0);
+    const budget = Number((normalized.calculation || {}).budget || 0);
+    const actual = Number((normalized.calculation || {}).actual || 0);
+    if (budget > 0 && actual > 0) {
+      const recalculated = actual - budget;
+      normalized.calculation.difference = recalculated;
+      if (actual > budget && normalized.financial_category === "LEAKAGE_AND_OVERRUN") normalized.amount_inr = recalculated;
+      if (originalDifference !== recalculated || (actual > budget && originalAmount !== normalized.amount_inr)) {
+        corrected.push({
+          source_finding_index: index + 1,
+          budget,
+          actual,
+          difference: recalculated,
+          formula: "Actual - Budget"
+        });
+      }
+    }
+    verified.push(normalized);
+  });
+  const status = unsupported.length
+    ? (verified.length ? "NEEDS_REVIEW" : "EVIDENCE_INTAKE_EXCEPTION")
+    : "VERIFIED";
+  return {
+    verification_status: status,
+    verifier: "DETERMINISTIC_WORKSPACE_VERIFIER",
+    raw_finding_count: (findings || []).length,
+    verified_finding_count: verified.length,
+    verified_findings: verified,
+    corrected_calculations: corrected,
+    unsupported_claims_removed: unsupported,
+    checks: [
+      "citation_required",
+      "category_allowed",
+      "actual_minus_budget_recalculated",
+      "positive_actual_over_budget_requires_leakage_category",
+      "baseline_and_esg_not_counted_as_leakage",
+      "amount_or_days_required_for leakage signals"
+    ],
+    model_audit_trail: {
+      raw_documents_sent_to_gemini: false,
+      gemini_used: false,
+      execution_layer: "Google Workspace Apps Script deterministic verifier"
+    }
+  };
+}
+
+function normalizeFindingForVerification(finding) {
+  const citation = ((finding || {}).citations || [])[0] || {};
+  const calculation = (finding || {}).calculation || {};
+  const normalized = {
+    statement: String((finding || {}).statement || ""),
+    financial_category: String((finding || {}).financial_category || ""),
+    amount_inr: Math.max(0, Number((finding || {}).amount_inr || 0)),
+    days: Math.max(0, Number((finding || {}).days || 0)),
+    citations: [{
+      file: String(citation.file || ""),
+      page_or_sheet: String(citation.page_or_sheet || ""),
+      quoted_span: String(citation.quoted_span || "").slice(0, 500)
+    }],
+    calculation: {
+      budget: Math.max(0, Number(calculation.budget || 0)),
+      actual: Math.max(0, Number(calculation.actual || 0)),
+      difference: Number(calculation.difference || 0),
+      formula: "Actual - Budget"
+    },
+    confidence: ["HIGH", "MEDIUM", "LOW"].indexOf((finding || {}).confidence) >= 0 ? finding.confidence : "LOW"
+  };
+  return normalized;
+}
+
+function verifyBoardroomFinding(finding) {
+  const issues = [];
+  const category = finding.financial_category;
+  const citation = (finding.citations || [])[0] || {};
+  const span = String(citation.quoted_span || "");
+  const evidenceText = `${finding.statement || ""} ${span}`.toLowerCase();
+  const budget = Number((finding.calculation || {}).budget || 0);
+  const actual = Number((finding.calculation || {}).actual || 0);
+  const allowed = ["BASELINE_BUDGET", "LEAKAGE_AND_OVERRUN", "ESG_METRIC"];
+
+  if (allowed.indexOf(category) < 0) issues.push("financial_category must be BASELINE_BUDGET, LEAKAGE_AND_OVERRUN, or ESG_METRIC.");
+  if (!citation.file || !citation.page_or_sheet || !span) issues.push("finding is missing required citation file, page/sheet, or quoted span.");
+  if (!finding.statement) issues.push("finding is missing a statement.");
+  if (finding.amount_inr < 0 || finding.days < 0) issues.push("amount_inr and days must not be negative.");
+  if (budget > 0 && actual > 0 && actual > budget && category !== "LEAKAGE_AND_OVERRUN") {
+    issues.push("Actual greater than Budget must be a separate LEAKAGE_AND_OVERRUN finding.");
+  }
+  if (category === "BASELINE_BUDGET" && !boardroomBaselineRe().test(evidenceText)) {
+    issues.push("BASELINE_BUDGET finding lacks cited baseline, BOQ, planned, contract, or budget evidence.");
+  }
+  if (category === "LEAKAGE_AND_OVERRUN" && finding.amount_inr <= 0 && finding.days <= 0 && !boardroomLeakageRe().test(evidenceText)) {
+    issues.push("LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal.");
+  }
+  if (category === "ESG_METRIC" && !boardroomEsgRe().test(evidenceText)) {
+    issues.push("ESG_METRIC finding lacks cited ESG metric evidence.");
+  }
+  if (category === "ESG_METRIC" && boardroomLeakageRe().test(evidenceText) && !boardroomEsgRe().test(evidenceText)) {
+    issues.push("ESG evidence cannot be used as leakage without separate cost evidence.");
+  }
+  return issues;
 }
 
 function dedupeBoardroomFindings(findings) {
@@ -1440,12 +1949,172 @@ function prepareJobFolders(jobId) {
   const job = getOrCreateFolder(projects, jobId);
   const input = getOrCreateFolder(job, "input");
   const outputs = getOrCreateFolder(job, "outputs");
-  return { root, projects, job, input, outputs };
+  const missingEvidence = getOrCreateFolder(job, "missing_evidence");
+  const corrections = getOrCreateFolder(job, "corrections");
+  const memory = getOrCreateFolder(job, "memory");
+  const archive = getOrCreateFolder(job, "archive");
+  return { root, projects, job, input, outputs, missingEvidence, corrections, memory, archive };
 }
 
 function getOrCreateFolder(parent, name) {
   const existing = parent.getFoldersByName(name);
   return existing.hasNext() ? existing.next() : parent.createFolder(name);
+}
+
+function upsertTextFile(folder, name, content, mimeType) {
+  const files = folder.getFilesByName(name);
+  if (files.hasNext()) {
+    const file = files.next();
+    file.setContent(content);
+    return file;
+  }
+  return folder.createFile(name, content, mimeType || MimeType.PLAIN_TEXT);
+}
+
+function newJobState(jobId, state, metadata) {
+  return {
+    job_id: jobId,
+    state,
+    updated_at: new Date().toISOString(),
+    metadata: metadata || {}
+  };
+}
+
+function writeJobState(folders, stateRecord) {
+  const file = upsertTextFile(folders.outputs, `${stateRecord.job_id}-job-state.json`, JSON.stringify(stateRecord, null, 2), MimeType.PLAIN_TEXT);
+  return file.getUrl();
+}
+
+function boardroomSourceFileNames(files) {
+  return (files || []).map((file) => file.name || file.file || file.id || "").filter(Boolean).join("; ");
+}
+
+function attachEvidenceLoopMetadata(report, browserReport, folders, options) {
+  const jobId = options.job_id || report.job_id;
+  const queue = buildMissingEvidenceQueue(jobId, browserReport, options.email);
+  browserReport.missing_evidence_queue = queue;
+  report.missing_evidence_queue = queue;
+  report.correction_count = Number(options.correction_count || 0);
+  report.rerun_count = Number(options.rerun_count || 0);
+  report.human_review_status = options.human_review_status || HUMAN_REVIEW_PENDING;
+  report.extraction_status = JOB_STATE_EXTRACTION_COMPLETE;
+  report.job_state = queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_VERIFICATION_COMPLETE;
+  report.evidence_loop = {
+    architecture: "WORKSPACE_FIRST",
+    job_state_model: [
+      JOB_STATE_INTAKE_RECEIVED,
+      JOB_STATE_EXTRACTION_COMPLETE,
+      JOB_STATE_VERIFICATION_COMPLETE,
+      JOB_STATE_ACTION_REPORT_SENT,
+      JOB_STATE_MISSING_EVIDENCE_OPEN,
+      JOB_STATE_CORRECTION_RECEIVED,
+      JOB_STATE_RERUN_COMPLETE,
+      JOB_STATE_ARCHIVED
+    ],
+    source_files: (options.source_files || []).map((file) => ({
+      name: file.name || "",
+      size_bytes: Number(file.size_bytes || 0),
+      drive_url: file.drive_url || ""
+    })),
+    missing_evidence_count: queue.length,
+    correction_count: report.correction_count,
+    rerun_count: report.rerun_count,
+    human_review_status: report.human_review_status
+  };
+  writeMissingEvidenceQueue(folders, jobId, queue);
+  writeJobMemory(folders, report, browserReport);
+  return report;
+}
+
+function buildMissingEvidenceQueue(jobId, browserReport, ownerEmail) {
+  const items = [
+    ...((browserReport || {}).missing_evidence_blocking_recovery || []),
+    ...(((browserReport || {}).honesty_check || {}).documents_not_processed || [])
+  ].filter(Boolean);
+  const seen = {};
+  return items
+    .map((item) => String(item || "").trim())
+    .filter((item) => item && !/No blocking evidence gap/i.test(item))
+    .filter((item) => !/Workspace form automation is deterministic|review citations before using findings/i.test(item))
+    .filter((item) => {
+      if (seen[item]) return false;
+      seen[item] = true;
+      return true;
+    })
+    .map((item, index) => ({
+      id: `${jobId}-ME-${String(index + 1).padStart(3, "0")}`,
+      job_id: jobId,
+      missing_item: item,
+      affected_finding_index: inferAffectedFindingIndex(item),
+      required_evidence_type: classifyMissingEvidenceType(item),
+      status: "OPEN",
+      owner_email: isValidEmail(ownerEmail) ? String(ownerEmail).trim() : "",
+      created_at: new Date().toISOString(),
+      resolved_at: ""
+    }));
+}
+
+function inferAffectedFindingIndex(item) {
+  const match = String(item || "").match(/finding\s+(\d+)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function classifyMissingEvidenceType(item) {
+  const text = String(item || "").toLowerCase();
+  if (/budget|actual|boq|invoice|payment|ra bill|ipc|cost/.test(text)) return "COST_AND_COMMERCIAL_EVIDENCE";
+  if (/delay|schedule|eot|days/.test(text)) return "SCHEDULE_EVIDENCE";
+  if (/diesel|fuel|energy|water|carbon|emission|waste/.test(text)) return "ESG_EVIDENCE";
+  if (/ocr|pdf|text extraction|advanced drive/.test(text)) return "EXTRACTABLE_TEXT_OR_OCR";
+  if (/file|page|sheet|traceability|citation/.test(text)) return "SOURCE_TRACEABILITY";
+  return "PROJECT_CONTROL_EVIDENCE";
+}
+
+function writeMissingEvidenceQueue(folders, jobId, queue) {
+  const json = JSON.stringify({ job_id: jobId, updated_at: new Date().toISOString(), items: queue || [] }, null, 2);
+  const csv = [
+    "id,job_id,status,owner_email,required_evidence_type,affected_finding_index,created_at,resolved_at,missing_item",
+    ...(queue || []).map((item) => [
+      csvCell(item.id),
+      csvCell(item.job_id),
+      csvCell(item.status),
+      csvCell(item.owner_email),
+      csvCell(item.required_evidence_type),
+      csvCell(item.affected_finding_index),
+      csvCell(item.created_at),
+      csvCell(item.resolved_at),
+      csvCell(item.missing_item)
+    ].join(","))
+  ].join("\n");
+  upsertTextFile(folders.missingEvidence, `${jobId}-missing-evidence-queue.json`, json, MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.missingEvidence, `${jobId}-missing-evidence-queue.csv`, csv, "text/csv");
+}
+
+function writeJobMemory(folders, report, browserReport) {
+  const verifier = (browserReport || {}).deterministic_verifier_result || {};
+  const memory = {
+    job_id: report.job_id,
+    updated_at: new Date().toISOString(),
+    durable_context_only: true,
+    report_quality_status: report.report_quality_status || "",
+    job_state: report.job_state || "",
+    correction_count: Number(report.correction_count || 0),
+    rerun_count: Number(report.rerun_count || 0),
+    accepted_corrections: report.accepted_corrections || [],
+    rejected_corrections: report.rejected_corrections || [],
+    verifier_status: verifier.verification_status || "",
+    corrected_calculations: verifier.corrected_calculations || [],
+    unsupported_claims_removed: verifier.unsupported_claims_removed || [],
+    missing_evidence_queue: report.missing_evidence_queue || [],
+    extraction_errors: ((browserReport || {}).document_outcomes || [])
+      .filter((item) => item.reason && item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE")
+      .map((item) => ({ file: item.file, status: item.status, reason: item.reason }))
+  };
+  upsertTextFile(folders.memory, `${report.job_id}-memory.json`, JSON.stringify(memory, null, 2), MimeType.PLAIN_TEXT);
+}
+
+function csvCell(value) {
+  const text = String(value === undefined || value === null ? "" : value);
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function saveUploadedFiles(files, inputFolder) {
@@ -1727,6 +2396,13 @@ function buildGeminiReviewPackPayload(report, browserReport) {
     documents_processed_count: report.documents_processed_count || (browserReport || {}).documents_processed_count || 0,
     documents_with_no_signal: report.documents_with_no_signal || (browserReport || {}).documents_with_no_signal || 0,
     document_outcomes: (browserReport || {}).document_outcomes || [],
+    deterministic_verifier_result: (browserReport || {}).deterministic_verifier_result || {},
+    missing_evidence_queue: report.missing_evidence_queue || (browserReport || {}).missing_evidence_queue || [],
+    job_state: report.job_state || "",
+    correction_count: report.correction_count || 0,
+    rerun_count: report.rerun_count || 0,
+    human_review_status: report.human_review_status || "",
+    evidence_loop: report.evidence_loop || {},
     form_intake: report.form_intake || {},
     saved_file_metadata: (report.saved_files || []).map((file) => ({
       name: file.name || "",
@@ -1785,24 +2461,67 @@ function extractJson(text) {
   return trimmed.slice(start, end + 1);
 }
 
+function applyDeterministicVerification(browserReport, force) {
+  if (!browserReport || typeof browserReport !== "object") return browserReport;
+  if (!force && browserReport.deterministic_verifier_result && Array.isArray(browserReport.findings)) return browserReport;
+  const originalFindings = browserReport.findings || [];
+  const deterministic = runDeterministicVerifier(originalFindings);
+  browserReport.raw_finding_count = browserReport.raw_finding_count === undefined ? originalFindings.length : browserReport.raw_finding_count;
+  browserReport.findings = scoreBoardroomFindings(deterministic.verified_findings || []);
+  browserReport.deterministic_verifier_result = deterministic;
+  const documentOutcomes = browserReport.document_outcomes || [];
+  const documentsNotProcessed = ((browserReport.honesty_check || {}).documents_not_processed || []);
+  const status = determineBoardroomReportStatus(browserReport.findings, documentOutcomes);
+  browserReport.report_quality_status = status;
+  browserReport.input_classification_status = browserReport.input_classification_status || status;
+  browserReport.analysis_generated = status === REPORT_EXECUTIVE_ACTION_PLAN;
+  browserReport.executive_brief = browserReport.findings.length
+    ? buildBoardroomExecutiveBrief(browserReport.findings, documentsNotProcessed)
+    : buildBoardroomNoFindingBrief(status, documentsNotProcessed);
+  browserReport.top_5_actions = buildBoardroomTopExecutiveActions(browserReport.findings);
+  browserReport.recoverable_cost_exposure = buildBoardroomRecoverableCostExposure(browserReport.findings);
+  browserReport.immediate_control_failures = buildBoardroomImmediateControlFailures(browserReport.findings);
+  browserReport.missing_evidence_blocking_recovery = browserReport.findings.length
+    ? buildBoardroomMissingEvidence(browserReport.findings, documentsNotProcessed)
+    : (browserReport.missing_evidence_blocking_recovery || documentsNotProcessed);
+  browserReport.executive_action_plan = status === REPORT_EXECUTIVE_ACTION_PLAN || status === REPORT_EVIDENCE_INTAKE_EXCEPTION
+    ? buildBoardroomExecutiveActionPlan(browserReport.findings)
+    : {};
+  browserReport.rationale = buildBoardroomRationale(browserReport.findings, browserReport.model_audit_trail || {
+    xai_method: ["Deterministic Workspace verifier rebuilt report from cited findings."]
+  });
+  const honesty = browserReport.honesty_check || {};
+  const removed = (deterministic.unsupported_claims_removed || []).map((item) => `Removed unsupported finding ${item.source_finding_index}: ${item.reasons.join("; ")}`);
+  browserReport.honesty_check = {
+    missing_evidence: [...(honesty.missing_evidence || []), ...removed],
+    documents_not_processed: honesty.documents_not_processed || [],
+    assumptions: honesty.assumptions || []
+  };
+  return browserReport;
+}
+
 function fallbackVerifier(browserReport) {
+  applyDeterministicVerification(browserReport);
+  const deterministic = (browserReport || {}).deterministic_verifier_result || {};
   return {
-    verification_status: "NOT_RUN",
+    verification_status: deterministic.verification_status || "VERIFIED",
     executive_brief: browserReport.executive_brief || {},
-    board_summary: "Browser-only report emailed without Gemini Deep Analysis.",
+    board_summary: "Deterministic Workspace verifier completed. Gemini Deep Analysis was not run.",
     top_decisions_required: browserReport.top_5_actions || [],
     contractor_questions: [],
     recovery_actions: browserReport.executive_action_plan || {},
-    unsupported_claims_removed: ["Gemini was not run for this email-only request."],
+    unsupported_claims_removed: deterministic.unsupported_claims_removed || [],
     honesty_check: browserReport.honesty_check || {},
     model_audit_trail: {
       raw_documents_sent_to_gemini: false,
-      gemini_used: false
+      gemini_used: false,
+      deterministic_verifier_used: true
     }
   };
 }
 
 function buildReport(payload, browserReport, verifierResult, savedFiles) {
+  applyDeterministicVerification(browserReport);
   normalizeReportQuality(browserReport);
   const markdown = buildMarkdownReport(payload, browserReport, verifierResult, savedFiles);
   return {
@@ -2554,9 +3273,10 @@ function renderExecutiveActionPlanEmailHtml(browserReport) {
 }
 
 function renderMissingEvidenceEmailHtml(browserReport) {
-  const items = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  const queue = (browserReport.missing_evidence_queue || []).slice(0, 8);
+  const items = queue.length ? queue.map((item) => `${item.required_evidence_type}: ${item.missing_item}`) : boardroomMissingEvidenceItems(browserReport).slice(0, 8);
   if (!items.length) return "";
-  return `<h2 style="font-size:18px;margin:18px 0 8px">Missing Evidence / Documents Not Processed</h2><ul style="margin-top:0;padding-left:20px">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Missing Evidence Request</h2><p style="margin:0 0 8px">Please submit corrected evidence against the same Constrovet job ID so the loop can rerun the review.</p><ul style="margin-top:0;padding-left:20px">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
 function boardroomMissingEvidenceItems(browserReport) {
@@ -2662,6 +3382,8 @@ function boardroomAnalysisIncomplete(browserReport) {
 function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
   const sheet = getAuditSheet();
   const delivery = emailDelivery || report.email_delivery || {};
+  const browserReport = report.browser_report || {};
+  const verifier = browserReport.deterministic_verifier_result || {};
   sheet.appendRow([
     new Date(),
     payload.job_id,
@@ -2690,7 +3412,15 @@ function appendAuditRow(payload, report, savedFiles, folderUrl, emailDelivery) {
     report.gemini_relevance_status || (report.browser_report || {}).gemini_relevance_status || "",
     report.gemini_calls_used_today || (report.browser_report || {}).gemini_calls_used_today || 0,
     report.analysis_generated === undefined ? "" : String(Boolean(report.analysis_generated)),
-    report.result_url_health || resultUrlHealth(report.result_url || "")
+    report.result_url_health || resultUrlHealth(report.result_url || ""),
+    report.job_state || "",
+    boardroomSourceFileNames(savedFiles),
+    report.extraction_status || "",
+    verifier.verification_status || "",
+    (report.missing_evidence_queue || []).length,
+    report.correction_count || 0,
+    report.rerun_count || 0,
+    report.human_review_status || HUMAN_REVIEW_PENDING
   ]);
 }
 
@@ -2728,7 +3458,15 @@ function appendBoardroomAuditRow(entry) {
     entry.gemini_relevance_status || "",
     entry.gemini_calls_used_today || 0,
     entry.analysis_generated === undefined ? "" : String(Boolean(entry.analysis_generated)),
-    entry.result_url_health || resultUrlHealth(entry.result_url || "")
+    entry.result_url_health || resultUrlHealth(entry.result_url || ""),
+    entry.job_state || "",
+    entry.source_files || "",
+    entry.extraction_status || "",
+    entry.verifier_status || "",
+    entry.missing_evidence_count || 0,
+    entry.correction_count || 0,
+    entry.rerun_count || 0,
+    entry.human_review_status || HUMAN_REVIEW_PENDING
   ]);
 }
 
@@ -2776,7 +3514,15 @@ function ensureAuditHeader(sheet) {
     "gemini_relevance_status",
     "gemini_calls_used_today",
     "analysis_generated",
-    "result_url_health"
+    "result_url_health",
+    "job_state",
+    "source_files",
+    "extraction_status",
+    "verifier_status",
+    "missing_evidence_count",
+    "correction_count",
+    "rerun_count",
+    "human_review_status"
   ];
   const width = header.length;
   const range = sheet.getRange(1, 1, 1, width);
