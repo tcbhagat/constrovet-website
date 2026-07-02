@@ -25,6 +25,9 @@ const HUMAN_REVIEW_PENDING = "PENDING";
 const ACTION_RECOVERABLE = "RECOVERABLE_ACTION";
 const ACTION_EVIDENCE_FOLLOWUP = "EVIDENCE_FOLLOWUP";
 const ACTION_MONITORING_CONTEXT = "MONITORING_CONTEXT";
+const DEEP_REVIEW_STATUS_READY = "READY_FOR_HUMAN_REVIEW";
+const DEEP_REVIEW_STATUS_NEEDS_EVIDENCE = "NEEDS_EVIDENCE_BEFORE_EXECUTIVE_USE";
+const DEEP_REVIEW_STATUS_BLOCKED = "BLOCKED_UNSUPPORTED_OR_NO_CITED_FINDINGS";
 const GEMINI_RELEVANCE_GATE_PROPERTY = "ENABLE_GEMINI_RELEVANCE_GATE";
 const GEMINI_RELEVANCE_MODEL_PROPERTY = "GEMINI_RELEVANCE_MODEL";
 const GEMINI_DAILY_CALL_LIMIT_PROPERTY = "GEMINI_DAILY_CALL_LIMIT";
@@ -98,6 +101,7 @@ function doPost(e) {
     });
     const geminiReviewPackFile = folders.outputs.createFile(`${payload.job_id}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
     report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
+    createDeepReviewArtifact(folders.outputs, payload.job_id, report, browserReport);
     finalFile.setContent(JSON.stringify(report, null, 2));
 
     let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
@@ -270,6 +274,7 @@ function handleBoardroomFormSubmit(e) {
   });
   const geminiReviewPackFile = folders.outputs.createFile(`${jobId}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
   report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
+  createDeepReviewArtifact(folders.outputs, jobId, report, browserReport);
   finalFile.setContent(JSON.stringify(report, null, 2));
   let emailDelivery = missingUserEmailDelivery(jobId);
   if (isValidEmail(submitterEmail)) {
@@ -452,6 +457,7 @@ function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail
   });
   const geminiReviewPackFile = folders.outputs.createFile(`${cleanedJobId}-${suffix}-optional-gemini-review-pack.md`, buildGeminiReviewPackMarkdown(report, browserReport), MimeType.PLAIN_TEXT);
   report.generated_files.gemini_review_pack_url = geminiReviewPackFile.getUrl();
+  createDeepReviewArtifact(folders.outputs, cleanedJobId, report, browserReport, { suffix });
   report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_RERUN_COMPLETE;
   writeJobMemory(folders, report, browserReport);
   upsertTextFile(folders.outputs, `${cleanedJobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
@@ -641,7 +647,8 @@ function sanitizeReportForViewer(report) {
       executive_report_url: report.generated_files && report.generated_files.executive_report_url ? report.generated_files.executive_report_url : "",
       final_report_url: report.generated_files && report.generated_files.final_report_url ? report.generated_files.final_report_url : "",
       browser_report_url: report.generated_files && report.generated_files.browser_report_url ? report.generated_files.browser_report_url : "",
-      gemini_review_pack_url: report.generated_files && report.generated_files.gemini_review_pack_url ? report.generated_files.gemini_review_pack_url : ""
+      gemini_review_pack_url: report.generated_files && report.generated_files.gemini_review_pack_url ? report.generated_files.gemini_review_pack_url : "",
+      deep_review_url: report.generated_files && report.generated_files.deep_review_url ? report.generated_files.deep_review_url : ""
     }
   };
 }
@@ -957,6 +964,7 @@ function archiveCurrentOutputs(folders, jobId) {
     `${jobId}-executive-report.md`,
     `${jobId}-final-report.json`,
     `${jobId}-optional-gemini-review-pack.md`,
+    `${jobId}-deep-review.json`,
     `${jobId}-job-state.json`
   ];
   names.forEach((name) => {
@@ -2175,6 +2183,341 @@ function attachEvidenceLoopMetadata(report, browserReport, folders, options) {
   return report;
 }
 
+function createDeepReviewArtifact(outputsFolder, jobId, report, browserReport, options) {
+  const review = buildDeepReview(report, browserReport);
+  report.deep_review = review;
+  if (!report.generated_files) report.generated_files = {};
+  const currentName = `${jobId}-deep-review.json`;
+  const currentFile = upsertTextFile(outputsFolder, currentName, JSON.stringify(review, null, 2), MimeType.PLAIN_TEXT);
+  report.generated_files.deep_review_url = currentFile.getUrl();
+  if (options && options.suffix) {
+    const versionedFile = outputsFolder.createFile(`${jobId}-${options.suffix}-deep-review.json`, JSON.stringify(review, null, 2), MimeType.PLAIN_TEXT);
+    report.generated_files.deep_review_url = versionedFile.getUrl();
+    report.generated_files.current_deep_review_url = currentFile.getUrl();
+  }
+  return review;
+}
+
+function buildDeepReview(report, browserReport) {
+  const safeBrowserReport = browserReport || {};
+  const findings = safeBrowserReport.findings || [];
+  const actions = collectDeepReviewActions(safeBrowserReport);
+  const unsupportedClaims = collectUnsupportedClaims(report, safeBrowserReport, actions);
+  const missedEvidenceQuestions = buildDeepReviewEvidenceQuestions(report, safeBrowserReport, findings);
+  const criticFindings = buildDeepReviewCriticFindings(findings, safeBrowserReport, actions);
+  const recommendedCorrections = buildDeepReviewCorrections(unsupportedClaims, missedEvidenceQuestions, criticFindings);
+  const citedActionIndexes = uniqueNumbers(actions.reduce((all, action) => all.concat(action.source_finding_indexes || []), []));
+  const citedFindingIndexes = uniqueNumbers(findings.map((_, index) => index + 1));
+  const status = determineDeepReviewStatus(report, safeBrowserReport, findings, unsupportedClaims, missedEvidenceQuestions);
+  return {
+    job_id: report.job_id || "",
+    generated_at: new Date().toISOString(),
+    review_status: status,
+    review_lane: "MANUAL_WORKSPACE_DEEP_REVIEW",
+    source_policy: {
+      raw_documents_included: false,
+      web_search_used: false,
+      external_model_called: false,
+      source_of_truth: "Existing Constrovet final-report.json, cited findings, verifier result, honesty check, actionability labels, and audit metadata.",
+      blocked_patterns: [
+        "No DuckDuckGo or live web search for findings.",
+        "No Colab/Ollama production runtime.",
+        "No Oracle/FastAPI deployment.",
+        "No eval-based calculator.",
+        "No invented amounts, dates, causes, owners, recovery steps, or legal conclusions."
+      ]
+    },
+    input_snapshot: {
+      report_quality_status: report.report_quality_status || safeBrowserReport.report_quality_status || "",
+      job_state: report.job_state || "",
+      email_status: ((report.email_delivery || {}).email_status || ""),
+      deterministic_verification_status: ((safeBrowserReport.deterministic_verifier_result || {}).verification_status || ""),
+      gemini_verification_status: ((report.gemini_verifier_result || {}).verification_status || (report.gemini_verifier_result || {}).status || "UNKNOWN"),
+      finding_count: findings.length,
+      action_count: actions.length,
+      missing_evidence_count: (report.missing_evidence_queue || safeBrowserReport.missing_evidence_queue || []).length,
+      correction_count: Number(report.correction_count || 0),
+      rerun_count: Number(report.rerun_count || 0)
+    },
+    specialist_lenses: buildDeepReviewSpecialistLenses(findings, safeBrowserReport),
+    critic_findings: criticFindings,
+    unsupported_claims: unsupportedClaims,
+    missed_evidence_questions: missedEvidenceQuestions,
+    recommended_corrections: recommendedCorrections,
+    source_finding_indexes: citedFindingIndexes,
+    action_source_finding_indexes: citedActionIndexes,
+    audit_metadata: {
+      email_source_mode: report.email_source_mode || "",
+      source_job_id: report.source_job_id || report.job_id || "",
+      source_job_folder_url: report.source_job_folder_url || "",
+      source_outputs_folder_url: report.source_outputs_folder_url || "",
+      source_final_report_url: report.source_final_report_url || "",
+      result_url_health: report.result_url_health || resultUrlHealth(report.result_url || ""),
+      human_review_status: report.human_review_status || HUMAN_REVIEW_PENDING
+    },
+    honesty_check: safeBrowserReport.honesty_check || {}
+  };
+}
+
+function collectDeepReviewActions(browserReport) {
+  const actions = [];
+  (browserReport.top_5_actions || []).forEach((action) => {
+    actions.push({
+      section: "top_5_actions",
+      title: action.title || "",
+      text: action.action || action.recommendation || "",
+      actionability: action.actionability || "",
+      source_finding_indexes: normalizeFindingIndexes(action.source_finding_indexes || [action.source_finding_index])
+    });
+  });
+  const plan = browserReport.executive_action_plan || {};
+  ["7_days", "30_days", "90_days"].forEach((section) => {
+    (plan[section] || []).forEach((action) => {
+      actions.push({
+        section,
+        title: action.title || "",
+        text: action.action || action.recommendation || "",
+        actionability: action.actionability || "",
+        source_finding_indexes: normalizeFindingIndexes(action.source_finding_indexes || [action.source_finding_index])
+      });
+    });
+  });
+  return actions;
+}
+
+function collectUnsupportedClaims(report, browserReport, actions) {
+  const claims = [];
+  const deterministic = browserReport.deterministic_verifier_result || {};
+  (deterministic.unsupported_claims_removed || []).forEach((item) => {
+    claims.push({
+      source: "deterministic_verifier",
+      claim: `Unsupported finding ${item.source_finding_index || ""}`.trim(),
+      reason: (item.reasons || []).join("; "),
+      source_finding_indexes: normalizeFindingIndexes([item.source_finding_index])
+    });
+  });
+  actions.forEach((action) => {
+    const sourceIndexes = normalizeFindingIndexes(action.source_finding_indexes || []);
+    const linkedFindings = sourceIndexes.map((index) => (browserReport.findings || [])[index - 1]).filter(Boolean);
+    const hasRecoverableSource = linkedFindings.some((item) => boardroomActionability(item) === ACTION_RECOVERABLE);
+    const text = `${action.title || ""} ${action.text || ""}`;
+    if (/recover|recovery|commercial claim|legal|liability|freeze spend|contain exposure/i.test(text) && !hasRecoverableSource) {
+      claims.push({
+        source: action.section || "executive_action",
+        claim: action.title || action.text || "Unsupported recovery-language action",
+        reason: "Recovery or containment language is allowed only when linked to RECOVERABLE_ACTION findings.",
+        source_finding_indexes: sourceIndexes
+      });
+    }
+    if (!sourceIndexes.length && /recover|claim|delay|cost|amount|budget|actual|invoice/i.test(text)) {
+      claims.push({
+        source: action.section || "executive_action",
+        claim: action.title || action.text || "Uncited executive action",
+        reason: "Commercially relevant actions must reference source finding indexes.",
+        source_finding_indexes: []
+      });
+    }
+  });
+  const recoveryActionsOutsidePlan = actions.filter((action) => /recover|recovery|commercial claim|commercial recovery|legal|liability|freeze spend|contain exposure/i.test(`${action.title || ""} ${action.text || ""}`));
+  if ((report.report_quality_status || browserReport.report_quality_status) !== REPORT_EXECUTIVE_ACTION_PLAN && recoveryActionsOutsidePlan.length) {
+    claims.push({
+      source: "report_mode",
+      claim: "Recovery-style executive actions were present outside EXECUTIVE_ACTION_PLAN mode.",
+      reason: "Irrelevant, unsupported, context-only, or intake-exception reports must not promote recovery actions.",
+      source_finding_indexes: uniqueNumbers(recoveryActionsOutsidePlan.reduce((all, action) => all.concat(action.source_finding_indexes || []), []))
+    });
+  }
+  return dedupeDeepReviewObjects(claims);
+}
+
+function buildDeepReviewEvidenceQuestions(report, browserReport, findings) {
+  const questions = [];
+  (report.missing_evidence_queue || browserReport.missing_evidence_queue || []).forEach((item) => {
+    questions.push({
+      question: `Submit ${item.required_evidence_type || "PROJECT_CONTROL_EVIDENCE"} for: ${item.missing_item || item}`,
+      reason: "Open missing-evidence queue item.",
+      source_finding_indexes: normalizeFindingIndexes([item.affected_finding_index])
+    });
+  });
+  const hasBudgetActual = findings.some((item) => Number((item.calculation || {}).budget || 0) > 0 && Number((item.calculation || {}).actual || 0) > 0);
+  if (findings.length && !hasBudgetActual) {
+    questions.push({
+      question: "Provide comparable Budget and Actual columns or rows for suspected financial variances.",
+      reason: "No finding contains both budget and actual values.",
+      source_finding_indexes: findings.map((_, index) => index + 1)
+    });
+  }
+  findings.forEach((item, index) => {
+    if (boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP) {
+      questions.push({
+        question: `Provide stronger commercial support for Finding ${index + 1}.`,
+        reason: "Finding is a watchlist or narrative signal, not a recoverable action.",
+        source_finding_indexes: [index + 1]
+      });
+    }
+  });
+  return dedupeDeepReviewObjects(questions);
+}
+
+function buildDeepReviewCriticFindings(findings, browserReport, actions) {
+  const critic = [];
+  if (!findings.length) {
+    critic.push({
+      severity: "HIGH",
+      issue: "No cited findings are available for executive action.",
+      recommendation: "Keep output as an intake exception and request structured evidence.",
+      source_finding_indexes: []
+    });
+  }
+  findings.forEach((item, index) => {
+    const findingIndex = index + 1;
+    const actionability = boardroomActionability(item);
+    if (!((item.citations || [])[0] || {}).quoted_span) {
+      critic.push({
+        severity: "HIGH",
+        issue: `Finding ${findingIndex} is missing a quoted span.`,
+        recommendation: "Do not use the finding until file, page/sheet, and quoted span are all present.",
+        source_finding_indexes: [findingIndex]
+      });
+    }
+    if (item.financial_category === "LEAKAGE_AND_OVERRUN" && actionability !== ACTION_RECOVERABLE) {
+      critic.push({
+        severity: "MEDIUM",
+        issue: `Finding ${findingIndex} is leakage/watchlist but not recoverable.`,
+        recommendation: "Keep it as evidence follow-up unless positive INR exposure or cited delay support exists.",
+        source_finding_indexes: [findingIndex]
+      });
+    }
+    if ((item.financial_category === "BASELINE_BUDGET" || item.financial_category === "ESG_METRIC") && actionability !== ACTION_MONITORING_CONTEXT) {
+      critic.push({
+        severity: "MEDIUM",
+        issue: `Finding ${findingIndex} should remain monitoring context.`,
+        recommendation: "Do not count baseline or ESG-only evidence as leakage.",
+        source_finding_indexes: [findingIndex]
+      });
+    }
+  });
+  const duplicateActions = findDuplicateDeepReviewActions(actions);
+  duplicateActions.forEach((duplicate) => critic.push(duplicate));
+  return dedupeDeepReviewObjects(critic);
+}
+
+function buildDeepReviewCorrections(unsupportedClaims, missedEvidenceQuestions, criticFindings) {
+  const corrections = [];
+  if (unsupportedClaims.length) {
+    corrections.push({
+      correction: "Remove unsupported recovery, liability, legal, or containment claims before executive use.",
+      reason: `${unsupportedClaims.length} unsupported claim(s) were detected.`,
+      source_finding_indexes: uniqueNumbers(unsupportedClaims.reduce((all, item) => all.concat(item.source_finding_indexes || []), []))
+    });
+  }
+  if (missedEvidenceQuestions.length) {
+    corrections.push({
+      correction: "Ask the submitter for missing evidence and rerun the same job after corrected evidence arrives.",
+      reason: `${missedEvidenceQuestions.length} missing-evidence question(s) remain open.`,
+      source_finding_indexes: uniqueNumbers(missedEvidenceQuestions.reduce((all, item) => all.concat(item.source_finding_indexes || []), []))
+    });
+  }
+  if (criticFindings.some((item) => /duplicate/i.test(item.issue || ""))) {
+    corrections.push({
+      correction: "Dedupe repeated executive actions before email or board circulation.",
+      reason: "Repeated action titles with the same source findings reduce executive actionability.",
+      source_finding_indexes: []
+    });
+  }
+  if (!corrections.length) {
+    corrections.push({
+      correction: "Proceed only after human review confirms citations and commercial context.",
+      reason: "No deterministic deep-review blocker was found.",
+      source_finding_indexes: []
+    });
+  }
+  return corrections;
+}
+
+function buildDeepReviewSpecialistLenses(findings, browserReport) {
+  return [
+    {
+      lens: "estimator",
+      check: "Budget, Actual, and Actual - Budget calculations are cited and positive exposure is not invented.",
+      finding_indexes: findings.map((item, index) => Number((item.calculation || {}).budget || 0) > 0 || Number((item.calculation || {}).actual || 0) > 0 ? index + 1 : 0).filter(Boolean)
+    },
+    {
+      lens: "compliance",
+      check: "No permit, liability, legal, or contractual entitlement claim is made without cited source evidence.",
+      finding_indexes: []
+    },
+    {
+      lens: "vendor",
+      check: "Vendor, invoice, PO, payment, and quote issues remain evidence follow-up unless cited amounts support action.",
+      finding_indexes: findings.map((item, index) => /vendor|invoice|po|purchase|quote|payment/i.test(`${item.statement || ""} ${JSON.stringify(item.citations || [])}`) ? index + 1 : 0).filter(Boolean)
+    },
+    {
+      lens: "risk",
+      check: "Risk score and severity are derived from cited findings and do not create new facts.",
+      finding_indexes: findings.map((_, index) => index + 1)
+    },
+    {
+      lens: "research",
+      check: "External research is disabled for findings; only document outcomes and honesty-check gaps are reviewed.",
+      finding_indexes: [],
+      document_outcomes_count: (browserReport.document_outcomes || []).length
+    }
+  ];
+}
+
+function determineDeepReviewStatus(report, browserReport, findings, unsupportedClaims, missedEvidenceQuestions) {
+  const mode = report.report_quality_status || browserReport.report_quality_status || "";
+  if (!findings.length || mode !== REPORT_EXECUTIVE_ACTION_PLAN) return DEEP_REVIEW_STATUS_BLOCKED;
+  if (unsupportedClaims.length || missedEvidenceQuestions.length) return DEEP_REVIEW_STATUS_NEEDS_EVIDENCE;
+  return DEEP_REVIEW_STATUS_READY;
+}
+
+function findDuplicateDeepReviewActions(actions) {
+  const seen = {};
+  const duplicates = [];
+  (actions || []).forEach((action) => {
+    const key = `${String(action.title || "").toLowerCase()}|${(action.source_finding_indexes || []).join("-")}`;
+    if (!key.replace("|", "")) return;
+    if (seen[key]) {
+      duplicates.push({
+        severity: "LOW",
+        issue: `Duplicate executive action: ${action.title || "Untitled action"}`,
+        recommendation: "Keep one action per title and source finding set.",
+        source_finding_indexes: action.source_finding_indexes || []
+      });
+    }
+    seen[key] = true;
+  });
+  return duplicates;
+}
+
+function normalizeFindingIndexes(indexes) {
+  return uniqueNumbers((indexes || []).map((index) => Number(index || 0)).filter((index) => index > 0));
+}
+
+function uniqueNumbers(values) {
+  const seen = {};
+  return (values || [])
+    .map((value) => Number(value || 0))
+    .filter((value) => value > 0)
+    .filter((value) => {
+      if (seen[value]) return false;
+      seen[value] = true;
+      return true;
+    });
+}
+
+function dedupeDeepReviewObjects(items) {
+  const seen = {};
+  return (items || []).filter((item) => {
+    const key = JSON.stringify(item || {});
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+}
+
 function buildMissingEvidenceQueue(jobId, browserReport, ownerEmail) {
   const items = [
     ...((browserReport || {}).missing_evidence_blocking_recovery || []),
@@ -3129,6 +3472,83 @@ function resendConfiguredBoardroomReportSmallThenFull() {
   if (!jobId) throw new Error("BOARDROOM_RESEND_JOB_ID script property is required.");
   const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || "").trim();
   return resendBoardroomReportSmallThenFull(jobId, recipient);
+}
+
+function diagnoseConfiguredBoardroomEmailDelivery() {
+  const props = PropertiesService.getScriptProperties();
+  const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim() || "form-20260702-093301-c696d401";
+  return diagnoseBoardroomEmailDelivery(jobId);
+}
+
+function diagnoseBoardroomEmailDelivery(jobId) {
+  const cleanedJobId = String(jobId || "").trim();
+  if (!cleanedJobId) throw new Error("A Boardroom job ID is required.");
+  const latest = findLatestAuditRecordForJob(cleanedJobId);
+  if (!latest) {
+    return {
+      ok: false,
+      job_id: cleanedJobId,
+      diagnosis: "AUDIT_ROW_NOT_FOUND",
+      next_steps: [
+        "Confirm the job ID is exact.",
+        "Search the audit sheet by timestamp, recipient, and subject.",
+        "If no audit row exists, inspect Apps Script executions for a form-trigger failure before email sending."
+      ]
+    };
+  }
+  const status = latest.email_status || "";
+  const diagnosis = {
+    ok: true,
+    job_id: cleanedJobId,
+    diagnosis: status || "EMAIL_STATUS_EMPTY",
+    audit_row: latest,
+    gmail_search: `in:anywhere "${cleanedJobId}"`,
+    next_steps: []
+  };
+  if (status === "EMAIL_SENT") {
+    diagnosis.next_steps = [
+      "Apps Script accepted the MailApp send; search Gmail with the exact job ID.",
+      "Check Spam, All Mail, Promotions, and Workspace/domain filtering.",
+      "Run sendBoardroomEmailSmokeTest with BOARDROOM_RESEND_EMAIL set to the intended recipient.",
+      "If the smoke test arrives but the report does not, inspect filtering of HTML content or sender/domain rules."
+    ];
+  } else if (status === "EMAIL_FAILED") {
+    diagnosis.next_steps = [
+      `Fix the MailApp failure shown in email_error: ${latest.email_error || "missing error text"}`,
+      "After the fix, run resendConfiguredBoardroomReportSmallThenFull with BOARDROOM_RESEND_JOB_ID and BOARDROOM_RESEND_EMAIL set."
+    ];
+  } else if (status === "EMAIL_NOT_SENT_MISSING_USER_EMAIL") {
+    diagnosis.next_steps = [
+      "Enable Google Form respondent email collection or add a required Email field.",
+      "Set BOARDROOM_RESEND_EMAIL to the intended recipient.",
+      "Run resendConfiguredBoardroomReportSmallThenFull for this job."
+    ];
+  } else {
+    diagnosis.next_steps = [
+      "Open the audit row and inspect email_to, email_subject, email_error, submitter_email_source, and email_source_mode.",
+      "If email_to is blank, fix form email capture and resend manually.",
+      "If email_error is blank and status is empty, inspect Apps Script execution logs around the job timestamp."
+    ];
+  }
+  return diagnosis;
+}
+
+function findLatestAuditRecordForJob(jobId) {
+  const sheet = getAuditSheet();
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return null;
+  const header = values[0];
+  const records = [];
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+    const row = values[rowIndex];
+    if (String(row[header.indexOf("job_id")] || "").trim() !== jobId) continue;
+    const record = { row_number: rowIndex + 1 };
+    header.forEach((name, index) => {
+      record[name] = row[index] || "";
+    });
+    records.push(record);
+  }
+  return records.length ? records[records.length - 1] : null;
 }
 
 function loadMarkdownBlobForJob(outputs, jobId, report) {

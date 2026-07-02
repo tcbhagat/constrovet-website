@@ -108,6 +108,11 @@ The trigger:
   optimized prompt and evidence-only payload. It is not sent to Gemini
   automatically and does not replace the deterministic report emailed to the
   user.
+- Writes `<job_id>-deep-review.json` into the same `outputs/` folder. This is
+  a deterministic manual Deep Review Lab artifact derived only from
+  `final-report.json`, cited findings, verifier output, honesty checks,
+  actionability labels, and audit metadata. It does not use Colab, Ollama,
+  DuckDuckGo/web search, Oracle/FastAPI deployment, or raw source documents.
 - Runs a deterministic Workspace verifier before executive actions are used.
   The verifier checks required citations, allowed financial categories,
   `Actual - Budget` math, baseline/leakage separation, ESG separation, and
@@ -205,6 +210,23 @@ If the audit row says `EMAIL_SENT`, Apps Script accepted the `MailApp` send and
 the next checks are Spam, All Mail, Promotions, and any Workspace/domain mail
 filtering. If the audit row says `EMAIL_FAILED`, the `email_error` column is the
 source of truth for the failure.
+
+For an audit-first diagnosis, set:
+
+```text
+BOARDROOM_RESEND_JOB_ID=form-20260702-093301-c696d401
+```
+
+Then run:
+
+```text
+diagnoseConfiguredBoardroomEmailDelivery
+```
+
+The helper reads the latest audit row for the job and returns `email_to`,
+`email_subject`, `email_status`, `email_error`, the exact Gmail search query,
+and the next action. You can also call
+`diagnoseBoardroomEmailDelivery("form-20260702-093301-c696d401")` directly.
 
 To isolate mailbox filtering, set:
 
