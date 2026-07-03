@@ -8,6 +8,8 @@ const DAILY_EMAIL_LIMIT = 5;
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_BOARDROOM_NOTIFY_EMAIL = "admin@constrovet.com";
 const BOARDROOM_ADMIN_CC_PROPERTY = "BOARDROOM_CC_ADMIN";
+const BOARDROOM_LAST_JOB_PROPERTY = "BOARDROOM_LAST_JOB_ID";
+const BOARDROOM_LIVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ/exec";
 const REPORT_EXECUTIVE_ACTION_PLAN = "EXECUTIVE_ACTION_PLAN";
 const REPORT_EVIDENCE_INTAKE_EXCEPTION = "EVIDENCE_INTAKE_EXCEPTION";
 const REPORT_IRRELEVANT_DATA_FILE = "IRRELEVANT_DATA_FILE";
@@ -55,6 +57,7 @@ function doPost(e) {
     const payload = parseRequest(e);
     validatePayload(payload);
     enforceRateLimit(payload.email);
+    rememberLatestBoardroomJob(payload.job_id);
 
     const folders = prepareJobFolders(payload.job_id);
     writeJobState(folders, newJobState(payload.job_id, JOB_STATE_INTAKE_RECEIVED, {
@@ -107,19 +110,18 @@ function doPost(e) {
     let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
     try {
       emailDelivery = sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url);
-      report.email_delivery = emailDelivery;
-      report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_ACTION_REPORT_SENT;
-      writeJobMemory(folders, report, browserReport);
-      finalFile.setContent(JSON.stringify(report, null, 2));
     } catch (error) {
       emailDelivery = failedEmailDelivery(payload.email, payload.job_id, error);
-      report.email_delivery = emailDelivery;
-      report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_VERIFICATION_COMPLETE;
-      writeJobMemory(folders, report, browserReport);
-      finalFile.setContent(JSON.stringify(report, null, 2));
-      appendAuditRow(payload, report, savedFiles, folders.job.getUrl(), emailDelivery);
-      throw error;
     }
+    emailDelivery = finalizeBoardroomEmailDelivery(payload.job_id, report, emailDelivery, {
+      mode: payload.mode,
+      recipient: payload.email,
+      source: "API_POST_CURRENT_JOB"
+    });
+    report.email_delivery = emailDelivery;
+    report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_ACTION_REPORT_SENT;
+    writeJobMemory(folders, report, browserReport);
+    finalFile.setContent(JSON.stringify(report, null, 2));
     writeJobState(folders, newJobState(payload.job_id, report.job_state, {
       mode: payload.mode,
       email: payload.email,
@@ -133,9 +135,14 @@ function doPost(e) {
     return jsonResponse({
       ok: true,
       job_id: payload.job_id,
+      result_url: report.result_url,
+      email_status: emailDelivery.email_status || "",
+      email_to: emailDelivery.email_to || "",
+      email_error: emailDelivery.email_error || "",
+      missing_evidence_count: (report.missing_evidence_queue || []).length,
       message: payload.mode === "DEEP_ANALYSIS"
-        ? "Deep Analysis request received. The Gemini-enhanced report will be emailed after processing."
-        : "Email request received. The browser report will be emailed after processing."
+        ? "Deep Analysis report generated. Use the result_url if email delivery is delayed or blocked."
+        : "Browser report generated. Use the result_url if email delivery is delayed or blocked."
     });
   } catch (error) {
     return jsonResponse({ ok: false, error: error && error.message ? error.message : String(error) });
@@ -153,6 +160,7 @@ function onCorrectionFormSubmit(e) {
 function handleBoardroomFormSubmit(e) {
   const startedAt = new Date();
   const jobId = makeBoardroomJobId(startedAt);
+  rememberLatestBoardroomJob(jobId);
   const props = PropertiesService.getScriptProperties();
   const responseFolderId = props.getProperty("BOARDROOM_RESPONSE_FOLDER_ID") || "";
   const deepAnalysisEnabled = String(props.getProperty("ENABLE_BOARDROOM_DEEP_ANALYSIS") || "false").toLowerCase() === "true";
@@ -284,6 +292,11 @@ function handleBoardroomFormSubmit(e) {
       emailDelivery = failedEmailDelivery(submitterEmail, jobId, error);
     }
   }
+  emailDelivery = finalizeBoardroomEmailDelivery(jobId, report, emailDelivery, {
+    mode: payload.mode,
+    recipient: submitterEmail,
+    source: "CURRENT_UPLOAD_SESSION"
+  });
   report.email_delivery = emailDelivery;
   report.job_state = report.missing_evidence_queue && report.missing_evidence_queue.length ? JOB_STATE_MISSING_EVIDENCE_OPEN : JOB_STATE_ACTION_REPORT_SENT;
   writeJobMemory(folders, report, browserReport);
@@ -338,6 +351,11 @@ function handleBoardroomFormSubmit(e) {
     accepted_file_count: accepted.length,
     rejected_file_count: rejected.length,
     finding_count: browserReport.findings.length,
+    result_url: report.result_url,
+    email_status: emailDelivery.email_status || "",
+    email_to: emailDelivery.email_to || "",
+    email_error: emailDelivery.email_error || "",
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
     drive_folder: folders.job.getUrl()
   };
 }
@@ -376,6 +394,7 @@ function extractBoardroomCorrectionRequest(e) {
 
 function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail) {
   const cleanedJobId = String(jobId || "").trim();
+  rememberLatestBoardroomJob(cleanedJobId);
   const job = findProjectFolder(cleanedJobId);
   if (!job) throw new Error("Original Boardroom job folder was not found.");
   const folders = prepareJobFolders(cleanedJobId);
@@ -470,6 +489,11 @@ function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail
       emailDelivery = failedEmailDelivery(recipient, cleanedJobId, error);
     }
   }
+  emailDelivery = finalizeBoardroomEmailDelivery(cleanedJobId, report, emailDelivery, {
+    mode: payload.mode,
+    recipient,
+    source: "CORRECTION_RERUN_CURRENT_JOB"
+  });
   report.email_delivery = emailDelivery;
   upsertTextFile(folders.outputs, `${cleanedJobId}-final-report.json`, JSON.stringify(report, null, 2), MimeType.PLAIN_TEXT);
   writeJobState(folders, newJobState(cleanedJobId, report.job_state, {
@@ -526,6 +550,10 @@ function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail
     rerun_count: report.rerun_count,
     job_state: report.job_state,
     email_status: emailDelivery.email_status,
+    email_to: emailDelivery.email_to || "",
+    email_error: emailDelivery.email_error || "",
+    result_url: report.result_url || "",
+    missing_evidence_count: (report.missing_evidence_queue || []).length,
     drive_folder: folders.job.getUrl()
   };
 }
@@ -3262,6 +3290,63 @@ function failedEmailDelivery(email, jobId, error) {
   return delivery;
 }
 
+function rememberLatestBoardroomJob(jobId) {
+  const cleanedJobId = String(jobId || "").trim();
+  if (!cleanedJobId) return;
+  PropertiesService.getScriptProperties().setProperty(BOARDROOM_LAST_JOB_PROPERTY, cleanedJobId);
+}
+
+function finalizeBoardroomEmailDelivery(jobId, report, delivery, options) {
+  const result = delivery || emptyEmailDelivery((options || {}).recipient || "", jobId);
+  const status = String(result.email_status || "");
+  if (!["EMAIL_FAILED", "EMAIL_NOT_SENT_MISSING_USER_EMAIL"].includes(status)) return result;
+  result.original_email_status = status;
+  const notice = sendBoardroomEmailAdminNotice(jobId, report, result, options || {});
+  result.admin_notice_status = notice.status;
+  result.admin_notice_to = notice.email_to || "";
+  result.admin_notice_error = notice.error || "";
+  if (notice.status === "EMAIL_SENT") {
+    result.email_status = status === "EMAIL_FAILED" ? "EMAIL_FAILED_ADMIN_NOTIFIED" : "EMAIL_NOT_SENT_ADMIN_NOTIFIED";
+  } else {
+    result.email_status = "EMAIL_ADMIN_NOTICE_FAILED";
+  }
+  return result;
+}
+
+function sendBoardroomEmailAdminNotice(jobId, report, delivery, options) {
+  const props = PropertiesService.getScriptProperties();
+  const admin = String(props.getProperty("BOARDROOM_NOTIFY_EMAIL") || DEFAULT_BOARDROOM_NOTIFY_EMAIL).trim();
+  if (!isValidEmail(admin)) {
+    return { status: "EMAIL_NOT_SENT_MISSING_ADMIN_EMAIL", email_to: "", error: "BOARDROOM_NOTIFY_EMAIL is not a valid email." };
+  }
+  const subject = `[Constrovet] Email delivery issue - ${jobId}`;
+  const resultUrl = report && report.result_url ? report.result_url : "";
+  const body = [
+    "Constrovet generated a report, but user email delivery needs attention.",
+    "",
+    `Job ID: ${jobId}`,
+    `Mode: ${(options || {}).mode || (report || {}).mode || ""}`,
+    `Intended recipient: ${delivery.email_to || (options || {}).recipient || ""}`,
+    `Delivery status: ${delivery.email_status || ""}`,
+    `Delivery error: ${delivery.email_error || ""}`,
+    `Report URL: ${resultUrl || "not available"}`,
+    `Result URL health: ${(report || {}).result_url_health || resultUrlHealth(resultUrl || "")}`,
+    `Missing evidence count: ${((report || {}).missing_evidence_queue || []).length}`,
+    "",
+    "The Drive outputs should still exist. Use the report URL or latest-job resend helper after fixing the delivery cause."
+  ].join("\n");
+  try {
+    MailApp.sendEmail({ to: admin, subject, body });
+    return { status: "EMAIL_SENT", email_to: admin, error: "" };
+  } catch (error) {
+    return {
+      status: "EMAIL_FAILED",
+      email_to: admin,
+      error: error && error.message ? error.message : String(error)
+    };
+  }
+}
+
 function sentEmailDelivery(recipient, subject, cc) {
   return {
     email_to: recipient,
@@ -3474,31 +3559,61 @@ function resendConfiguredBoardroomReportSmallThenFull() {
   return resendBoardroomReportSmallThenFull(jobId, recipient);
 }
 
+function resendLatestBoardroomReportSmallThenFull() {
+  const latest = findLatestBoardroomAuditRow();
+  if (!latest) throw new Error("No Boardroom audit row was found.");
+  const props = PropertiesService.getScriptProperties();
+  const recipient = String(props.getProperty("BOARDROOM_RESEND_EMAIL") || latest.email_to || latest.email || "").trim();
+  if (!isValidEmail(recipient)) throw new Error("BOARDROOM_RESEND_EMAIL or the latest audit row must contain a valid recipient email.");
+  return resendBoardroomReportSmallThenFull(latest.job_id, recipient);
+}
+
 function configureConstrovetBoardroomRuntimeSettings() {
-  const endpoint = "https://script.google.com/macros/s/AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ/exec";
-  const jobId = "form-20260702-093301-c696d401";
-  const recipient = "bhagat.taran@gmail.com";
+  return repairBoardroomRuntimeSettings();
+}
+
+function repairBoardroomRuntimeSettings() {
   const props = PropertiesService.getScriptProperties();
   props.setProperties({
-    BOARDROOM_RESULT_BASE_URL: endpoint,
-    BOARDROOM_RESEND_JOB_ID: jobId,
-    BOARDROOM_RESEND_EMAIL: recipient
+    BOARDROOM_RESULT_BASE_URL: BOARDROOM_LIVE_ENDPOINT
   }, false);
+  props.deleteProperty("BOARDROOM_RESEND_JOB_ID");
+  const latest = findLatestBoardroomAuditRow();
   return {
     ok: true,
     configured: {
-      BOARDROOM_RESULT_BASE_URL: endpoint,
-      BOARDROOM_RESEND_JOB_ID: jobId,
-      BOARDROOM_RESEND_EMAIL: recipient
+      BOARDROOM_RESULT_BASE_URL: BOARDROOM_LIVE_ENDPOINT,
+      BOARDROOM_RESEND_JOB_ID: "",
+      BOARDROOM_LAST_JOB_ID: props.getProperty(BOARDROOM_LAST_JOB_PROPERTY) || ""
     },
-    diagnosis: diagnoseBoardroomEmailDelivery(jobId)
+    latest_job: latest || null,
+    diagnosis: latest ? diagnoseBoardroomEmailDelivery(latest.job_id) : null
   };
 }
 
 function diagnoseConfiguredBoardroomEmailDelivery() {
   const props = PropertiesService.getScriptProperties();
-  const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || "").trim() || "form-20260702-093301-c696d401";
+  const jobId = String(props.getProperty("BOARDROOM_RESEND_JOB_ID") || props.getProperty(BOARDROOM_LAST_JOB_PROPERTY) || "").trim();
+  if (!jobId) return diagnoseLatestBoardroomEmailDelivery();
   return diagnoseBoardroomEmailDelivery(jobId);
+}
+
+function diagnoseLatestBoardroomEmailDelivery() {
+  const latest = findLatestBoardroomAuditRow();
+  if (!latest) {
+    return {
+      ok: false,
+      diagnosis: "AUDIT_ROW_NOT_FOUND",
+      next_steps: [
+        "Confirm the upload completed and the Apps Script trigger executed.",
+        "If the upload used the website app, check the browser JSON response for job_id and result_url.",
+        "If no audit row exists, inspect Apps Script executions for a failure before audit append."
+      ]
+    };
+  }
+  const diagnosis = diagnoseBoardroomEmailDelivery(latest.job_id);
+  diagnosis.latest_audit_row = latest;
+  return diagnosis;
 }
 
 function diagnoseBoardroomEmailDelivery(jobId) {
@@ -3533,16 +3648,17 @@ function diagnoseBoardroomEmailDelivery(jobId) {
       "Run sendBoardroomEmailSmokeTest with BOARDROOM_RESEND_EMAIL set to the intended recipient.",
       "If the smoke test arrives but the report does not, inspect filtering of HTML content or sender/domain rules."
     ];
-  } else if (status === "EMAIL_FAILED") {
+  } else if (["EMAIL_FAILED", "EMAIL_FAILED_ADMIN_NOTIFIED", "EMAIL_ADMIN_NOTICE_FAILED"].includes(status)) {
     diagnosis.next_steps = [
       `Fix the MailApp failure shown in email_error: ${latest.email_error || "missing error text"}`,
-      "After the fix, run resendConfiguredBoardroomReportSmallThenFull with BOARDROOM_RESEND_JOB_ID and BOARDROOM_RESEND_EMAIL set."
+      "After the fix, run resendLatestBoardroomReportSmallThenFull or set BOARDROOM_RESEND_JOB_ID and run resendConfiguredBoardroomReportSmallThenFull.",
+      status === "EMAIL_ADMIN_NOTICE_FAILED" ? "Admin fallback email also failed; inspect MailApp quota, authorization, and Workspace sender restrictions." : "Admin fallback was attempted; inspect BOARDROOM_NOTIFY_EMAIL if no admin notice arrived."
     ];
-  } else if (status === "EMAIL_NOT_SENT_MISSING_USER_EMAIL") {
+  } else if (["EMAIL_NOT_SENT_MISSING_USER_EMAIL", "EMAIL_NOT_SENT_ADMIN_NOTIFIED"].includes(status)) {
     diagnosis.next_steps = [
       "Enable Google Form respondent email collection or add a required Email field.",
       "Set BOARDROOM_RESEND_EMAIL to the intended recipient.",
-      "Run resendConfiguredBoardroomReportSmallThenFull for this job."
+      "Run resendLatestBoardroomReportSmallThenFull or resendConfiguredBoardroomReportSmallThenFull for this job."
     ];
   } else {
     diagnosis.next_steps = [
@@ -3554,22 +3670,47 @@ function diagnoseBoardroomEmailDelivery(jobId) {
   return diagnosis;
 }
 
+function findLatestBoardroomAuditRow() {
+  const sheet = getAuditSheet();
+  const values = sheet.getDataRange().getDisplayValues();
+  if (values.length < 2) return null;
+  const header = values[0];
+  const jobIdIndex = header.indexOf("job_id");
+  const modeIndex = header.indexOf("mode");
+  if (jobIdIndex < 0) return null;
+  for (let rowIndex = values.length - 1; rowIndex >= 1; rowIndex -= 1) {
+    const row = values[rowIndex];
+    const jobId = String(row[jobIdIndex] || "").trim();
+    const mode = modeIndex >= 0 ? String(row[modeIndex] || "") : "";
+    if (!jobId || jobId === "EMAIL_SMOKE_TEST") continue;
+    if (!/^form-|^cv-/.test(jobId) && !/FORM_|EMAIL_BROWSER_REPORT|DEEP_ANALYSIS|MANUAL_RESEND/.test(mode)) continue;
+    return auditRecordFromRow(header, row, rowIndex + 1);
+  }
+  return null;
+}
+
 function findLatestAuditRecordForJob(jobId) {
   const sheet = getAuditSheet();
   const values = sheet.getDataRange().getDisplayValues();
   if (values.length < 2) return null;
   const header = values[0];
+  const jobIdIndex = header.indexOf("job_id");
+  if (jobIdIndex < 0) return null;
   const records = [];
   for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
     const row = values[rowIndex];
-    if (String(row[header.indexOf("job_id")] || "").trim() !== jobId) continue;
-    const record = { row_number: rowIndex + 1 };
-    header.forEach((name, index) => {
-      record[name] = row[index] || "";
-    });
-    records.push(record);
+    if (String(row[jobIdIndex] || "").trim() !== jobId) continue;
+    records.push(auditRecordFromRow(header, row, rowIndex + 1));
   }
   return records.length ? records[records.length - 1] : null;
+}
+
+function auditRecordFromRow(header, row, rowNumber) {
+  const record = { row_number: rowNumber };
+  header.forEach((name, index) => {
+    record[name] = row[index] || "";
+  });
+  return record;
 }
 
 function loadMarkdownBlobForJob(outputs, jobId, report) {
