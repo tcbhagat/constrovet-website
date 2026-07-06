@@ -742,12 +742,20 @@ function groupFindingsByCategory(findings) {
 
 function renderActionPlanHtml(report) {
   if (boardroomIsNoAnalysisNotice(report)) return "";
+  const decisionPack = report.executive_decision_pack || {};
   const actions = report.executive_action_plan || {};
   const periods = ["7_days", "30_days", "90_days"];
-  return `<section class="section card"><h2>7 / 30 / 90 Actions</h2><div class="grid">${periods.map((period) => {
+  const decisionHtml = `<section class="section card"><h2>Board Decision Required</h2>
+    <p>${escapeHtml(decisionPack.decision_required || boardroomBoardDecisionRequired(report))}</p>
+    <p class="muted">INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || 0)} | Evidence: ${escapeHtml(decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}</p>
+  </section>`;
+  const actionHtml = `<section class="section card"><h2>7 / 30 / 90 Actions</h2><div class="grid">${periods.map((period) => {
     const items = actions[period] || [];
-    return `<div><h3>${escapeHtml(period.replace("_", " "))}</h3><ol class="actions">${items.length ? items.map((item) => `<li><strong>${escapeHtml(item.title || "Action")}:</strong> ${escapeHtml(item.recommendation || item.action || "")}</li>`).join("") : "<li class=\"muted\">No action produced for this horizon.</li>"}</ol></div>`;
+    return `<div><h3>${escapeHtml(period.replace("_", " "))}</h3><ol class="actions">${items.length ? items.map((item) => `<li><strong>${escapeHtml(item.title || "Action")}:</strong> ${escapeHtml(item.recommendation || item.action || "")}<br><span class="muted">Owner: ${escapeHtml(item.owner_role || "Project Controls")} | Evidence: ${escapeHtml(item.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Blocked: ${item.blocked_by_missing_evidence ? "Yes" : "No"}</span></li>`).join("") : "<li class=\"muted\">No action produced for this horizon.</li>"}</ol></div>`;
   }).join("")}</div></section>`;
+  const citations = decisionPack.citations || [];
+  const citationHtml = `<section class="section card"><h2>Citations Behind Actions</h2><ul class="actions">${citations.length ? citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</li>`).join("") : "<li class=\"muted\">No action citations were available.</li>"}</ul></section>`;
+  return decisionHtml + actionHtml + citationHtml;
 }
 
 function renderFindingGroupHtml(title, findings, tagClass) {
@@ -1187,6 +1195,13 @@ function buildBoardroomOutput(documents, rejectedFiles) {
   const executiveBrief = citedFindings.length
     ? buildBoardroomExecutiveBrief(citedFindings, documentsNotProcessed)
     : buildBoardroomNoFindingBrief(reportQualityStatus, documentsNotProcessed);
+  const executiveDecisionPack = buildExecutiveDecisionPack({
+    findings: citedFindings,
+    executiveBrief,
+    executiveActionPlan,
+    missingEvidence,
+    reportQualityStatus
+  });
   const modelAuditTrail = {
     analysis_mode: "workspace_form_deterministic_rules",
     execution_layer: "Google Workspace Apps Script form trigger",
@@ -1213,6 +1228,7 @@ function buildBoardroomOutput(documents, rejectedFiles) {
     findings: citedFindings,
     deterministic_verifier_result: deterministicVerifierResult,
     executive_brief: executiveBrief,
+    executive_decision_pack: executiveDecisionPack,
     top_5_actions: buildBoardroomTopExecutiveActions(citedFindings),
     recoverable_cost_exposure: buildBoardroomRecoverableCostExposure(citedFindings),
     immediate_control_failures: buildBoardroomImmediateControlFailures(citedFindings),
@@ -1805,6 +1821,32 @@ function boardroomControlTheme(item) {
   return "project_control";
 }
 
+function boardroomOwnerRole(item) {
+  const lower = item && item.citations && item.citations[0] ? String(item.citations[0].quoted_span || "").toLowerCase() : "";
+  if ((item || {}).financial_category === "ESG_METRIC" || /carbon|waste diversion|energy|water|fuel|diesel|electricity|emission|scope [123]/.test(lower)) return "ESG / Sustainability";
+  if (/ld|liquidated damages|delay|eot|extension of time|slippage|behind schedule/.test(lower) || boardroomHasScheduleImpactOnly(item)) return "Planning / Project Controls";
+  if (/delayed po|purchase order delay|po delay|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|consumption|material variance/.test(lower)) return "Procurement / Stores";
+  if (/penalty|debit note|deduction|back charge|variation|change order|claim|recovery|commercial/.test(lower)) return "Contracts / Commercial";
+  if (/budget|boq|actual|spent|cost incurred|paid|payment|invoice|ra bill|running account|ipc|expenditure/.test(lower)) return "Finance / Cost Control";
+  if ((item || {}).financial_category === "BASELINE_BUDGET") return "Project Controls";
+  return "Project Controls";
+}
+
+function boardroomDueHorizon(item) {
+  if (boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP) return "7_days";
+  if (boardroomHasQuantifiedCostExposure(item) || boardroomHasScheduleImpactOnly(item)) return "7_days";
+  if ((item || {}).financial_category === "ESG_METRIC" || (item || {}).financial_category === "BASELINE_BUDGET") return "90_days";
+  return "30_days";
+}
+
+function boardroomActionEvidenceStatus(item) {
+  if (!item || !((item.citations || [])[0] || {}).quoted_span) return "MISSING_CITATION";
+  if (boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP) return "CITED_BUT_NEEDS_SUPPORT";
+  if ((item.financial_category || "") === "BASELINE_BUDGET" || (item.financial_category || "") === "ESG_METRIC") return "MONITOR_ONLY";
+  if ((item.evidence_quality || "") === "STRUCTURED_ACTUAL_BUDGET") return "STRUCTURED_CITED_EVIDENCE";
+  return "CITED_EVIDENCE_REVIEW_REQUIRED";
+}
+
 function boardroomRankFindings(findings) {
   return [...findings].sort((a, b) => {
     const categoryScore = boardroomCategoryRank(b) - boardroomCategoryRank(a);
@@ -1882,6 +1924,80 @@ function buildBoardroomTopExecutiveActions(findings) {
   return dedupeExecutiveActions(actions).slice(0, 5).map((action, index) => ({ ...action, rank: index + 1 }));
 }
 
+function buildExecutiveDecisionPack(options) {
+  const findings = (options && options.findings) || [];
+  const actionPlan = (options && options.executiveActionPlan) || {};
+  const missingEvidence = actionableMissingEvidenceItems((options && options.missingEvidence) || []);
+  const status = (options && options.reportQualityStatus) || "";
+  const topActions = collectExecutiveActionCards(actionPlan).slice(0, 5);
+  const moneyAtStake = boardroomQuantifiedLeakageTotal(findings);
+  const headline = ((options && options.executiveBrief) || {}).headline || (
+    findings.length
+      ? `Cited project evidence produced ${findings.length} finding(s).`
+      : boardroomNoAnalysisHeadline(status || REPORT_EVIDENCE_INTAKE_EXCEPTION)
+  );
+  return {
+    headline,
+    money_at_stake_inr: moneyAtStake,
+    decision_required: boardroomBoardDecisionRequired({
+      findings,
+      top_5_actions: buildBoardroomTopExecutiveActions(findings),
+      report_quality_status: status
+    }),
+    top_actions: topActions,
+    owner_role: topActions.length ? topActions[0].owner_role : "",
+    due_horizon: topActions.length ? topActions[0].due_horizon : "",
+    evidence_status: boardroomDecisionPackEvidenceStatus(findings, missingEvidence),
+    source_finding_indexes: uniqueNumbers(topActions.reduce((all, action) => all.concat(action.source_finding_indexes || []), [])),
+    citations: boardroomActionCitationsFromIndexes(findings, uniqueNumbers(topActions.reduce((all, action) => all.concat(action.source_finding_indexes || []), []))),
+    blocked_by_missing_evidence: Boolean((missingEvidence || []).length),
+    missing_evidence: missingEvidence || []
+  };
+}
+
+function actionableMissingEvidenceItems(items) {
+  return (items || [])
+    .map((item) => String(item || "").trim())
+    .filter((item) => item && !/No blocking evidence gap/i.test(item))
+    .filter((item) => !/Workspace form automation is deterministic|review citations before using findings/i.test(item));
+}
+
+function collectExecutiveActionCards(actionPlan) {
+  const cards = [];
+  ["7_days", "30_days", "90_days"].forEach((horizon) => {
+    ((actionPlan || {})[horizon] || []).forEach((action) => {
+      cards.push({
+        title: action.title || "Action",
+        recommendation: action.recommendation || action.action || "",
+        owner_role: action.owner_role || "Project Controls",
+        due_horizon: action.due_horizon || horizon,
+        evidence_status: action.evidence_status || "CITED_EVIDENCE_REQUIRED",
+        source_finding_indexes: normalizeFindingIndexes(action.source_finding_indexes || [action.source_finding_index]),
+        citations: action.citations || [],
+        blocked_by_missing_evidence: Boolean(action.blocked_by_missing_evidence),
+        confidence: action.confidence || "LOW",
+        actionability: action.actionability || ""
+      });
+    });
+  });
+  return cards;
+}
+
+function boardroomDecisionPackEvidenceStatus(findings, missingEvidence) {
+  if (!findings.length) return "NO_CITED_FINDINGS";
+  if ((missingEvidence || []).length) return "CITED_WITH_OPEN_EVIDENCE_GAPS";
+  if (findings.some((item) => (item.evidence_quality || "") === "STRUCTURED_ACTUAL_BUDGET")) return "STRUCTURED_CITED_EVIDENCE";
+  return "CITED_EVIDENCE_REVIEW_REQUIRED";
+}
+
+function boardroomActionCitationsFromIndexes(findings, indexes) {
+  return normalizeFindingIndexes(indexes || [])
+    .map((index) => ((findings || [])[index - 1] || {}).citations || [])
+    .reduce((all, citations) => all.concat(citations), [])
+    .filter((citation) => citation && citation.file && citation.page_or_sheet && citation.quoted_span)
+    .slice(0, 10);
+}
+
 function boardroomActionTitle(item) {
   if (boardroomHasQuantifiedCostExposure(item)) return "Recover or contain quantified cost exposure";
   if (boardroomHasScheduleImpactOnly(item)) return "Validate cited schedule impact";
@@ -1892,7 +2008,7 @@ function boardroomActionTitle(item) {
 
 function boardroomActionText(item) {
   if (boardroomHasQuantifiedCostExposure(item)) {
-    return `Assign an owner to validate INR ${formatInr(item.amount_inr)} cited exposure against invoices, approvals, and BOQ support before recovery or avoidance action.`;
+    return `Approve validation of INR ${formatInr(item.amount_inr)} cited exposure against invoices, approvals, and BOQ support before any recovery or avoidance action.`;
   }
   if (boardroomHasScheduleImpactOnly(item)) {
     return `Validate ${item.days} cited delay day(s), identify the affected schedule activity, and add cost support before any commercial claim.`;
@@ -1905,11 +2021,17 @@ function boardroomActionText(item) {
 }
 
 function boardroomFindingAction(item, findings) {
+  const index = findings.indexOf(item) + 1;
   return {
     title: boardroomActionTitle(item),
     action: boardroomActionText(item),
-    source_finding_index: findings.indexOf(item) + 1,
-    source_finding_indexes: [findings.indexOf(item) + 1],
+    source_finding_index: index,
+    source_finding_indexes: [index],
+    owner_role: boardroomOwnerRole(item),
+    due_horizon: boardroomDueHorizon(item),
+    evidence_status: boardroomActionEvidenceStatus(item),
+    citations: boardroomActionCitationsFromIndexes(findings, [index]),
+    blocked_by_missing_evidence: boardroomActionability(item) !== ACTION_RECOVERABLE,
     risk_score: item.risk_score,
     severity: item.severity,
     recoverability: item.recoverability,
@@ -1924,6 +2046,11 @@ function boardroomAggregateAction(title, action, sourceFindingIndexes, actionabi
     action,
     source_finding_index: (sourceFindingIndexes || [])[0] || 0,
     source_finding_indexes: sourceFindingIndexes || [],
+    owner_role: actionability === ACTION_MONITORING_CONTEXT ? "Project Controls" : "Finance / Cost Control",
+    due_horizon: actionability === ACTION_MONITORING_CONTEXT ? "90_days" : "7_days",
+    evidence_status: actionability === ACTION_MONITORING_CONTEXT ? "MONITOR_ONLY" : "MISSING_EVIDENCE",
+    citations: [],
+    blocked_by_missing_evidence: actionability === ACTION_EVIDENCE_FOLLOWUP,
     risk_score: 0,
     severity: "LOW",
     recoverability: "LOW",
@@ -1993,21 +2120,24 @@ function buildBoardroomExecutiveActionPlan(findings) {
   if (quantified.length) {
     plan["7_days"].push(boardroomAction(
       "Validate quantified exposure",
-      `Check invoices, approvals, BOQ lines, and payment records for INR ${formatInr(quantified[0].amount_inr)} cited exposure before assigning recovery work.`,
+      `Approve validation of INR ${formatInr(quantified[0].amount_inr)} cited exposure against invoices, approvals, BOQ lines, and payment records before assigning recovery work.`,
       quantified.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      quantified[0].confidence
+      quantified[0].confidence,
+      findings
     ));
     plan["30_days"].push(boardroomAction(
       "Decide recovery or avoidance route",
       "Proceed only on quantified findings whose cited amount, approval trail, and responsibility can be verified from source records.",
       quantified.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM"
+      "MEDIUM",
+      findings
     ));
     plan["90_days"].push(boardroomAction(
       "Prevent recurrence of verified exposure",
       "Convert verified quantified exposure into monthly variance checks and closeout evidence requirements.",
       quantified.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM"
+      "MEDIUM",
+      findings
     ));
   }
 
@@ -2016,43 +2146,49 @@ function buildBoardroomExecutiveActionPlan(findings) {
       "Validate cited schedule impact",
       `Confirm ${scheduleOnly[0].days} cited delay day(s), affected activity, and current critical-path status before cost escalation.`,
       scheduleOnly.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      scheduleOnly[0].confidence
+      scheduleOnly[0].confidence,
+      findings
     ));
     plan["30_days"].push(boardroomAction(
       "Update schedule forecast",
       "Reflect cited delay-day evidence in the next schedule review and collect cost support separately if a cost claim is expected.",
       scheduleOnly.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM"
+      "MEDIUM",
+      findings
     ));
   }
 
   if (followups.length || (!quantified.length && !scheduleOnly.length)) {
     plan["7_days"].push(boardroomAction(
       "Collect missing commercial support",
-      "Request comparable Budget/Actual values, invoice or payment references, BOQ line labels, and delay-day support for watchlist findings.",
+      "Request invoice/payment/BOQ support, comparable Budget/Actual values, BOQ line labels, and delay-day support for watchlist findings.",
       followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW"
+      "LOW",
+      findings
     ));
     plan["30_days"].push(boardroomAction(
       "Rerun after corrected evidence",
       "Submit corrected evidence against the same job ID and rerun the review before executive escalation.",
       followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW"
+      "LOW",
+      findings
     ));
     plan["90_days"].push(boardroomAction(
       "Standardize intake only if gaps recur",
       "If repeated evidence gaps continue, standardize the intake template for Budget, Actual, invoice, schedule, and ESG fields.",
       followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW"
+      "LOW",
+      findings
     ));
   }
 
   if (monitoring.length) {
     plan["90_days"].push(boardroomAction(
       "Track context outside leakage",
-      "Keep baseline and ESG items in monitoring dashboards unless separate cost evidence supports a leakage finding.",
+      "Monitor only: keep baseline and ESG items in dashboards unless separate cost evidence supports a leakage finding.",
       monitoring.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW"
+      "LOW",
+      findings
     ));
   }
 
@@ -2083,8 +2219,23 @@ function buildBoardroomIntakeRemediationPlan() {
   };
 }
 
-function boardroomAction(title, recommendation, sourceFindingIndexes, confidence) {
-  return { title, recommendation, source_finding_indexes: sourceFindingIndexes, confidence };
+function boardroomAction(title, recommendation, sourceFindingIndexes, confidence, findings) {
+  const indexes = normalizeFindingIndexes(sourceFindingIndexes || []);
+  const linkedFindings = indexes.map((index) => ((findings || [])[index - 1])).filter(Boolean);
+  const primary = linkedFindings[0] || null;
+  const actionability = primary ? boardroomActionability(primary) : ACTION_EVIDENCE_FOLLOWUP;
+  return {
+    title,
+    recommendation,
+    source_finding_indexes: indexes,
+    owner_role: primary ? boardroomOwnerRole(primary) : "Project Controls",
+    due_horizon: primary ? boardroomDueHorizon(primary) : "7_days",
+    evidence_status: primary ? boardroomActionEvidenceStatus(primary) : "MISSING_EVIDENCE",
+    citations: boardroomActionCitationsFromIndexes(findings || [], indexes),
+    blocked_by_missing_evidence: !primary || actionability === ACTION_EVIDENCE_FOLLOWUP,
+    actionability,
+    confidence
+  };
 }
 
 function dedupeBoardroomPlanActions(actions) {
@@ -2611,6 +2762,9 @@ function writeMissingEvidenceQueue(folders, jobId, queue) {
 
 function writeJobMemory(folders, report, browserReport) {
   const verifier = (browserReport || {}).deterministic_verifier_result || {};
+  const projectKnowledge = buildProjectKnowledgeMemory(report, browserReport);
+  const actionRegister = buildActionRegisterMemory(report, browserReport);
+  const evidenceGapRegister = buildEvidenceGapRegisterMemory(report, browserReport);
   const memory = {
     job_id: report.job_id,
     updated_at: new Date().toISOString(),
@@ -2630,6 +2784,114 @@ function writeJobMemory(folders, report, browserReport) {
       .map((item) => ({ file: item.file, status: item.status, reason: item.reason }))
   };
   upsertTextFile(folders.memory, `${report.job_id}-memory.json`, JSON.stringify(memory, null, 2), MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.memory, "project-knowledge.json", JSON.stringify(projectKnowledge, null, 2), MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.memory, "action-register.json", JSON.stringify(actionRegister, null, 2), MimeType.PLAIN_TEXT);
+  upsertTextFile(folders.memory, "evidence-gap-register.json", JSON.stringify(evidenceGapRegister, null, 2), MimeType.PLAIN_TEXT);
+}
+
+function buildProjectKnowledgeMemory(report, browserReport) {
+  const findings = (browserReport || {}).findings || [];
+  const verifier = (browserReport || {}).deterministic_verifier_result || {};
+  return {
+    job_id: report.job_id || "",
+    updated_at: new Date().toISOString(),
+    source_policy: "PROJECT_LEVEL_EVIDENCE_ONLY",
+    prohibited_inferences: [
+      "No invented causes, liability, entitlement, recovery probability, legal conclusions, or savings.",
+      "No global cross-project benchmarking."
+    ],
+    report_quality_status: report.report_quality_status || (browserReport || {}).report_quality_status || "",
+    executive_decision_pack: (browserReport || {}).executive_decision_pack || report.executive_decision_pack || {},
+    normalized_cited_facts: findings.map((finding, index) => ({
+      finding_index: index + 1,
+      statement: finding.statement || "",
+      financial_category: finding.financial_category || "",
+      amount_inr: Number(finding.amount_inr || 0),
+      days: Number(finding.days || 0),
+      calculation: finding.calculation || {},
+      confidence: finding.confidence || "LOW",
+      evidence_quality: finding.evidence_quality || "",
+      recoverability: finding.recoverability || "",
+      actionability: finding.actionability || "",
+      owner_role: boardroomOwnerRole(finding),
+      due_horizon: boardroomDueHorizon(finding),
+      citations: finding.citations || []
+    })),
+    recurring_extraction_issues: ((browserReport || {}).document_outcomes || [])
+      .filter((item) => item.reason && item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE")
+      .map((item) => ({ file: item.file || "", status: item.status || "", reason: item.reason || "" })),
+    verifier_status: verifier.verification_status || "",
+    corrected_calculations: verifier.corrected_calculations || [],
+    unsupported_claims_removed: verifier.unsupported_claims_removed || []
+  };
+}
+
+function buildActionRegisterMemory(report, browserReport) {
+  const pack = (browserReport || {}).executive_decision_pack || report.executive_decision_pack || {};
+  const actions = collectExecutiveActionCards((browserReport || {}).executive_action_plan || {});
+  return {
+    job_id: report.job_id || "",
+    updated_at: new Date().toISOString(),
+    status_policy: "OPEN_UNTIL_HUMAN_REVIEW_OR_CORRECTION",
+    board_decision_required: pack.decision_required || "",
+    money_at_stake_inr: Number(pack.money_at_stake_inr || 0),
+    actions: actions.map((action, index) => ({
+      id: `${report.job_id || "job"}-action-${index + 1}`,
+      status: "OPEN",
+      title: action.title || "Action",
+      recommendation: action.recommendation || action.action || "",
+      owner_role: action.owner_role || "Project Controls",
+      due_horizon: action.due_horizon || "",
+      evidence_status: action.evidence_status || "",
+      blocked_by_missing_evidence: Boolean(action.blocked_by_missing_evidence),
+      source_finding_indexes: action.source_finding_indexes || [],
+      citations: action.citations || [],
+      confidence: action.confidence || "LOW"
+    }))
+  };
+}
+
+function buildEvidenceGapRegisterMemory(report, browserReport) {
+  const queue = report.missing_evidence_queue || (browserReport || {}).missing_evidence_queue || [];
+  const missing = actionableMissingEvidenceItems(boardroomMissingEvidenceItems(browserReport || {}));
+  const seen = {};
+  const items = [];
+  queue.forEach((item) => {
+    const key = `${item.required_evidence_type || ""}|${item.missing_item || ""}|${item.affected_finding_index || ""}`;
+    seen[key] = true;
+    items.push({
+      id: item.id || "",
+      job_id: item.job_id || report.job_id || "",
+      status: item.status || "OPEN",
+      owner_email: item.owner_email || "",
+      required_evidence_type: item.required_evidence_type || "PROJECT_CONTROL_EVIDENCE",
+      affected_finding_index: item.affected_finding_index || "",
+      missing_item: item.missing_item || "",
+      created_at: item.created_at || "",
+      resolved_at: item.resolved_at || ""
+    });
+  });
+  missing.forEach((item, index) => {
+    const key = `UNSTRUCTURED_GAP|${item}|`;
+    if (seen[key]) return;
+    items.push({
+      id: `${report.job_id || "job"}-gap-${index + 1}`,
+      job_id: report.job_id || "",
+      status: "OPEN",
+      owner_email: "",
+      required_evidence_type: classifyMissingEvidenceType(item),
+      affected_finding_index: "",
+      missing_item: item,
+      created_at: new Date().toISOString(),
+      resolved_at: ""
+    });
+  });
+  return {
+    job_id: report.job_id || "",
+    updated_at: new Date().toISOString(),
+    source_policy: "OPEN_GAPS_ONLY_NO_INFERRED_FACTS",
+    items
+  };
 }
 
 function csvCell(value) {
@@ -3007,6 +3269,13 @@ function applyDeterministicVerification(browserReport, force) {
   browserReport.executive_action_plan = status === REPORT_EXECUTIVE_ACTION_PLAN || status === REPORT_EVIDENCE_INTAKE_EXCEPTION
     ? buildBoardroomExecutiveActionPlan(browserReport.findings)
     : {};
+  browserReport.executive_decision_pack = buildExecutiveDecisionPack({
+    findings: browserReport.findings,
+    executiveBrief: browserReport.executive_brief,
+    executiveActionPlan: browserReport.executive_action_plan,
+    missingEvidence: browserReport.missing_evidence_blocking_recovery || [],
+    reportQualityStatus: status
+  });
   browserReport.rationale = buildBoardroomRationale(browserReport.findings, browserReport.model_audit_trail || {
     xai_method: ["Deterministic Workspace verifier rebuilt report from cited findings."]
   });
@@ -3053,6 +3322,7 @@ function buildReport(payload, browserReport, verifierResult, savedFiles) {
     saved_files: savedFiles,
     report_quality_status: browserReport.report_quality_status,
     input_classification_status: browserReport.input_classification_status || browserReport.report_quality_status,
+    executive_decision_pack: browserReport.executive_decision_pack || {},
     input_relevance_reason: browserReport.input_relevance_reason || "",
     gemini_relevance_status: browserReport.gemini_relevance_status || "NOT_RUN",
     gemini_calls_used_today: browserReport.gemini_calls_used_today || 0,
@@ -3080,6 +3350,15 @@ function normalizeReportQuality(browserReport) {
   if (browserReport.documents_with_no_signal === undefined) {
     browserReport.documents_with_no_signal = (browserReport.document_outcomes || []).filter((item) => item.status !== "STRUCTURED_CONSTRUCTION_EVIDENCE").length;
   }
+  if (!browserReport.executive_decision_pack) {
+    browserReport.executive_decision_pack = buildExecutiveDecisionPack({
+      findings,
+      executiveBrief: browserReport.executive_brief || {},
+      executiveActionPlan: browserReport.executive_action_plan || {},
+      missingEvidence: browserReport.missing_evidence_blocking_recovery || [],
+      reportQualityStatus: browserReport.report_quality_status
+    });
+  }
 }
 
 function resultUrlHealth(url) {
@@ -3095,6 +3374,7 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, savedFiles);
   const findings = browserReport.findings || [];
   const totalLeakage = boardroomQuantifiedLeakageTotal(findings);
+  const decisionPack = browserReport.executive_decision_pack || {};
   const lines = [
     "# Constrovet Executive Report",
     "",
@@ -3113,22 +3393,36 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     "",
     "## Board Decision Required",
     "",
-    boardroomBoardDecisionRequired(browserReport),
+    decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport),
+    "",
+    "## Executive Decision Pack",
+    "",
+    `INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || totalLeakage)}`,
+    `Evidence status: ${decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}`,
+    `Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}`,
     "",
     "## Top Actions",
     ""
   ];
-  (browserReport.top_5_actions || []).forEach((action) => {
-    lines.push(`- ${action.rank || ""}. ${action.title || "Action"}: ${action.action || ""}`);
+  (decisionPack.top_actions || browserReport.top_5_actions || []).forEach((action, index) => {
+    lines.push(`- ${index + 1}. ${action.title || "Action"}: ${action.recommendation || action.action || ""}`);
+    lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Due: ${String(action.due_horizon || "").replace("_", " ")}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}`);
+    if ((action.source_finding_indexes || []).length) lines.push(`  Source findings: ${action.source_finding_indexes.join(", ")}`);
   });
   lines.push("", "## 7/30/90 Action Plan", "");
   ["7_days", "30_days", "90_days"].forEach((period) => {
     lines.push(`### ${period.replace("_", " ")}`);
     ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => {
       lines.push(`- ${action.title}: ${action.recommendation}`);
+      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}`);
     });
     lines.push("");
   });
+  lines.push("## Citations Behind Actions", "");
+  (decisionPack.citations || []).forEach((citation) => {
+    lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`);
+  });
+  if (!((decisionPack.citations || []).length)) lines.push("- No action citations were available.");
   lines.push("## Gemini Deep Analysis", "", JSON.stringify(verifierResult, null, 2), "", "## Citations", "");
   findings.forEach((finding, index) => {
     const citation = (finding.citations || [])[0] || {};
@@ -3744,6 +4038,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailHtml(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = boardroomQuantifiedLeakageTotal(findings);
+  const decisionPack = browserReport.executive_decision_pack || {};
   const headline = browserReport.executive_brief && browserReport.executive_brief.headline
     ? browserReport.executive_brief.headline
     : "No executive headline was produced.";
@@ -3756,10 +4051,12 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
     <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
     ${renderExecutiveKpisEmailHtml(browserReport, leakageTotal)}
     <h2 style="font-size:18px;margin:18px 0 8px">Board Decision Required</h2>
-    <p style="margin:0 0 12px">${escapeHtml(boardroomBoardDecisionRequired(browserReport))}</p>
+    <p style="margin:0 0 8px">${escapeHtml(decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport))}</p>
+    <p style="margin:0 0 12px;color:#66737d">INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || leakageTotal)} | Evidence: ${escapeHtml(decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}</p>
     ${renderExecutiveActionsEmailHtml(browserReport)}
     ${renderExecutiveActionPlanEmailHtml(browserReport)}
     ${renderEvidenceQualityEmailHtml(browserReport)}
+    ${renderActionCitationsEmailHtml(browserReport)}
     ${renderMissingEvidenceEmailHtml(browserReport)}
     <p style="margin:14px 0;color:#66737d">The full evidence files are stored in the Constrovet project output folder for audit review.</p>
     <p style="margin:14px 0;color:#66737d;font-size:13px">Decision-support only. Review cited evidence before commercial, legal, or recovery action.</p>
@@ -3773,6 +4070,7 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
   if (boardroomIsIntakeException(browserReport)) return buildIntakeExceptionEmailText(jobId, report, resultUrl);
   const findings = browserReport.findings || [];
   const leakageTotal = boardroomQuantifiedLeakageTotal(findings);
+  const decisionPack = browserReport.executive_decision_pack || {};
   const lines = [
     "Constrovet Executive Action Plan",
     "This report was requested from Constrovet Boardroom intake.",
@@ -3790,17 +4088,30 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`,
     "",
     "Board Decision Required",
-    boardroomBoardDecisionRequired(browserReport)
+    decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport),
+    `INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || leakageTotal)}`,
+    `Evidence status: ${decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}`,
+    `Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}`
   ];
   lines.push("", "Top 3 Decisions / Actions");
-  const actions = (browserReport.top_5_actions || []).slice(0, 3);
-  if (actions.length) actions.forEach((action) => lines.push(`- ${action.title || "Action"}: ${action.action || action.recommendation || ""}`));
+  const actions = (decisionPack.top_actions || browserReport.top_5_actions || []).slice(0, 3);
+  if (actions.length) actions.forEach((action) => {
+    lines.push(`- ${action.title || "Action"}: ${action.action || action.recommendation || ""}`);
+    lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Due: ${String(action.due_horizon || "").replace("_", " ")}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}`);
+  });
   else lines.push("- No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.");
   lines.push("", "7/30/90 Action Plan");
   ["7_days", "30_days", "90_days"].forEach((period) => {
     lines.push(period.replace("_", " "));
-    ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => lines.push(`- ${action.title}: ${action.recommendation}`));
+    ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => {
+      lines.push(`- ${action.title}: ${action.recommendation}`);
+      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}`);
+    });
   });
+  if ((decisionPack.citations || []).length) {
+    lines.push("", "Citations Behind Actions");
+    (decisionPack.citations || []).slice(0, 6).forEach((citation) => lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`));
+  }
   const missing = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
   if (missing.length) {
     lines.push("", "Missing Evidence / Documents Not Processed");
@@ -3816,9 +4127,10 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
 }
 
 function renderExecutiveActionsEmailHtml(browserReport) {
-  const actions = (browserReport.top_5_actions || []).slice(0, 3);
+  const pack = browserReport.executive_decision_pack || {};
+  const actions = (pack.top_actions || browserReport.top_5_actions || []).slice(0, 3);
   const items = actions.length
-    ? actions.map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.action || action.recommendation || "")}</li>`).join("")
+    ? actions.map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.action || action.recommendation || "")}<br><span style="color:#66737d">Owner: ${escapeHtml(action.owner_role || "Project Controls")} | Due: ${escapeHtml(String(action.due_horizon || "").replace("_", " "))} | Evidence: ${escapeHtml(action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")}</span></li>`).join("")
     : "<li>No cited executive action was produced. Review missing evidence and resubmit clearer project evidence.</li>";
   return `<h2 style="font-size:18px;margin:18px 0 8px">Top 3 Decisions / Actions</h2><ol style="margin-top:0;padding-left:22px">${items}</ol>`;
 }
@@ -3992,10 +4304,16 @@ function renderEvidenceQualityEmailHtml(browserReport) {
 function renderExecutiveActionPlanEmailHtml(browserReport) {
   const plan = browserReport.executive_action_plan || {};
   const blocks = ["7_days", "30_days", "90_days"].map((period) => {
-    const items = (plan[period] || []).map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.recommendation || "")}</li>`).join("");
+    const items = (plan[period] || []).map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.recommendation || "")}<br><span style="color:#66737d">Owner: ${escapeHtml(action.owner_role || "Project Controls")} | Evidence: ${escapeHtml(action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}</span></li>`).join("");
     return `<h3 style="font-size:15px;margin:12px 0 4px">${escapeHtml(period.replace("_", " "))}</h3><ul style="margin-top:0;padding-left:20px">${items || "<li>No action produced for this horizon.</li>"}</ul>`;
   }).join("");
   return `<h2 style="font-size:18px;margin:18px 0 8px">7 / 30 / 90 Action Plan</h2>${blocks}`;
+}
+
+function renderActionCitationsEmailHtml(browserReport) {
+  const citations = ((browserReport.executive_decision_pack || {}).citations || []).slice(0, 6);
+  if (!citations.length) return "";
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Citations Behind Actions</h2><ul style="margin-top:0;padding-left:20px">${citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</li>`).join("")}</ul>`;
 }
 
 function renderMissingEvidenceEmailHtml(browserReport) {

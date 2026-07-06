@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "statement": "Synthetic unsupported leakage without citation must be removed.",
+      "financial_category": "LEAKAGE_AND_OVERRUN",
+      "amount_inr": 250000,
+      "days": 0,
+      "citations": [],
+      "calculation": {
+        "budget": 0,
+        "actual": 0,
+        "difference": 0,
+        "formula": "Actual - Budget"
+      },
+      "confidence": "LOW"
+    }
+  ]
+}
