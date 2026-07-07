@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSM Core Private Beta Demo | Constrovet</title>
+  <meta name="description" content="Private beta demo for SSM Core statutory transaction verification using sample data only.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="canonical" href="https://www.constrovet.com/ssm-core-demo/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="cv-nav-placeholder"></div>
+
+  <main class="ssm-shell">
+    <section class="ssm-hero">
+      <div>
+        <span class="ssm-kicker">Private beta - sample data only</span>
+        <h1>SSM Core transaction verification demo</h1>
+        <p>
+          Test statutory rule checks against a local SSM_Core API exposed for scheduled beta windows.
+          Do not enter real PAN, GSTIN, bank, payroll, vendor, customer, or client records.
+        </p>
+      </div>
+      <div class="ssm-api-status" aria-live="polite">
+        <span>API</span>
+        <strong id="apiStatus">Not checked</strong>
+        <small id="apiBaseLabel"></small>
+      </div>
+    </section>
+
+    <section class="ssm-warning" role="note">
+      <strong>Use sample data only.</strong>
+      This is a private beta simulation. It is not production compliance advice, bank connectivity, ERP integration, or a live statutory filing system.
+    </section>
+
+    <section class="ssm-passcode" id="passcodePanel">
+      <div>
+        <h2>Demo access</h2>
+        <p>Enter the shared beta passcode provided for your test window.</p>
+      </div>
+      <form id="passcodeForm" class="ssm-inline-form">
+        <label for="demoPasscode">Passcode</label>
+        <input id="demoPasscode" name="demoPasscode" type="password" autocomplete="current-password" required>
+        <button type="submit">Unlock demo</button>
+      </form>
+    </section>
+
+    <section class="ssm-grid" id="demoWorkbench" hidden>
+      <article class="ssm-panel">
+        <div class="ssm-panel__head">
+          <div>
+            <span>Gatekeeper API</span>
+            <h2>Transaction tester</h2>
+          </div>
+          <button type="button" id="clearPasscodeButton" class="ssm-button ssm-button--ghost">Lock</button>
+        </div>
+
+        <div class="ssm-scenarios" aria-label="Sample transaction scenarios">
+          <button type="button" data-scenario="cleanInvoice">Clean invoice</button>
+          <button type="button" data-scenario="puneVendor">Pune vendor payment</button>
+          <button type="button" data-scenario="mumbaiPayroll">Mumbai payroll</button>
+          <button type="button" data-scenario="highValueInvoice">High value invoice</button>
+        </div>
+
+        <form id="transactionForm" class="ssm-form">
+          <label>
+            Transaction type
+            <select name="transaction_type" required>
+              <option value="vendor_payment">vendor_payment</option>
+              <option value="payroll">payroll</option>
+              <option value="invoice">invoice</option>
+            </select>
+          </label>
+          <label>
+            Amount
+            <input name="amount" type="number" min="1" step="0.01" value="75000" required>
+          </label>
+          <label>
+            Entity location
+            <select name="entity_location" required>
+              <option value="Pune">Pune</option>
+              <option value="Mumbai">Mumbai</option>
+            </select>
+          </label>
+          <label>
+            Tax components JSON
+            <textarea name="tax_components" rows="6" spellcheck="false">{"gst_rate": 18, "tds_rate": 1, "sample_only": true}</textarea>
+          </label>
+          <button type="submit" class="ssm-button">Verify transaction</button>
+        </form>
+      </article>
+
+      <article class="ssm-panel ssm-result-panel">
+        <div class="ssm-panel__head">
+          <div>
+            <span>Decision</span>
+            <h2>Verification result</h2>
+          </div>
+          <button type="button" id="refreshBlockedButton" class="ssm-button ssm-button--ghost">Refresh CA queue</button>
+        </div>
+        <div id="resultPanel" class="ssm-result ssm-result--empty">
+          <strong>Ready for a sample transaction.</strong>
+          <p>Results will show an approval token or the statutory rule that blocked the transaction.</p>
+        </div>
+
+        <div class="ssm-test-kit">
+          <h3>Client test kit</h3>
+          <ul>
+            <li>Use only the sample buttons or synthetic values.</li>
+            <li>Check one expected approval and one expected block.</li>
+            <li>Open the CA queue, override a blocked row, then consume the one-time unlock token.</li>
+            <li>Send feedback from the contact link after the test window.</li>
+          </ul>
+          <a id="feedbackLink" href="/pages/contact.html">Send beta feedback</a>
+        </div>
+      </article>
+    </section>
+
+    <section class="ssm-panel ssm-ca-panel" id="caPanel" hidden>
+      <div class="ssm-panel__head">
+        <div>
+          <span>CA Dashboard Backend</span>
+          <h2>Blocked transactions</h2>
+        </div>
+        <small id="queueStatus">Not loaded</small>
+      </div>
+      <div class="ssm-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Transaction</th>
+              <th>Status</th>
+              <th>Rule</th>
+              <th>Source PDF</th>
+              <th>Override</th>
+            </tr>
+          </thead>
+          <tbody id="blockedRows">
+            <tr><td colspan="5">No blocked transactions loaded.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <form id="unlockForm" class="ssm-inline-form ssm-unlock-form">
+        <label for="unlockToken">Unlock token</label>
+        <input id="unlockToken" name="unlockToken" type="text" autocomplete="off" placeholder="Paste one-time token">
+        <button type="submit" class="ssm-button ssm-button--ghost">Consume token</button>
+      </form>
+      <div id="overrideResult" class="ssm-mini-result" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <div id="cv-footer-placeholder"></div>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
