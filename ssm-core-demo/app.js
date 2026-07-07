@@ -45,6 +45,7 @@
 
   document.getElementById("apiBaseLabel").textContent = apiBaseUrl;
   document.getElementById("feedbackLink").href = feedbackUrl;
+  applyPasscodeFromPrivateLink();
 
   passcodeForm.addEventListener("submit", function (event) {
     event.preventDefault();
@@ -272,6 +273,16 @@
       return stripTrailingSlash(fromQuery);
     }
     return stripTrailingSlash(sessionStorage.getItem("ssmCoreDemoApiBaseUrl") || fallback);
+  }
+
+  function applyPasscodeFromPrivateLink() {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const passcode = hash.get("passcode");
+    if (!passcode) return;
+    sessionStorage.setItem(passcodeKey, passcode);
+    passcodeForm.elements.demoPasscode.value = passcode;
+    const cleanUrl = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, document.title, cleanUrl);
   }
 
   function escapeHtml(value) {
