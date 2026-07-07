@@ -1,4 +1,4 @@
 window.SSM_CORE_DEMO_CONFIG = {
-  apiBaseUrl: "http://localhost:8000",
+  apiBaseUrl: "https://petroleum-importantly-shoot-link.trycloudflare.com",
   feedbackUrl: "/pages/contact.html"
 };
