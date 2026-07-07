@@ -5,6 +5,9 @@
   const apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl || "http://localhost:8000");
   const feedbackUrl = config.feedbackUrl || "/pages/contact.html";
   const passcodeKey = "ssmCoreDemoPasscode";
+  const maxDefaultBlockedRows = 10;
+  let latestBlockedRows = [];
+  let showAllBlockedRows = false;
 
   const samples = {
     cleanInvoice: {
@@ -41,6 +44,8 @@
   const resultPanel = document.getElementById("resultPanel");
   const blockedRows = document.getElementById("blockedRows");
   const queueStatus = document.getElementById("queueStatus");
+  const toggleBlockedRowsButton = document.getElementById("toggleBlockedRowsButton");
+  const resetDemoQueueButton = document.getElementById("resetDemoQueueButton");
   const overrideResult = document.getElementById("overrideResult");
 
   document.getElementById("apiBaseLabel").textContent = apiBaseUrl;
@@ -91,6 +96,11 @@
   });
 
   document.getElementById("refreshBlockedButton").addEventListener("click", loadBlockedTransactions);
+  toggleBlockedRowsButton.addEventListener("click", function () {
+    showAllBlockedRows = !showAllBlockedRows;
+    renderBlockedRows(latestBlockedRows);
+  });
+  resetDemoQueueButton.addEventListener("click", resetDemoQueue);
 
   document.getElementById("unlockForm").addEventListener("submit", async function (event) {
     event.preventDefault();
@@ -160,11 +170,12 @@
     queueStatus.textContent = "Loading...";
     try {
       const body = await apiFetch("/get_blocked_transactions", { method: "GET" });
-      renderBlockedRows(body.blocked_transactions || []);
-      queueStatus.textContent = `${body.blocked_transactions.length} blocked rows`;
+      latestBlockedRows = body.blocked_transactions || [];
+      renderBlockedRows(latestBlockedRows);
     } catch (error) {
       blockedRows.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
       queueStatus.textContent = "Unavailable";
+      toggleBlockedRowsButton.hidden = true;
     }
   }
 
@@ -189,9 +200,17 @@
   function renderBlockedRows(rows) {
     if (!rows.length) {
       blockedRows.innerHTML = '<tr><td colspan="5">No blocked transactions found.</td></tr>';
+      queueStatus.textContent = "0 blocked rows";
+      toggleBlockedRowsButton.hidden = true;
       return;
     }
-    blockedRows.innerHTML = rows.map(function (row) {
+    const visibleRows = showAllBlockedRows ? rows : rows.slice(0, maxDefaultBlockedRows);
+    const hiddenCount = Math.max(rows.length - visibleRows.length, 0);
+    queueStatus.textContent = hiddenCount ? `${visibleRows.length} of ${rows.length} blocked rows` : `${rows.length} blocked rows`;
+    toggleBlockedRowsButton.hidden = rows.length <= maxDefaultBlockedRows;
+    toggleBlockedRowsButton.textContent = showAllBlockedRows ? "Show latest 10" : "Show all";
+
+    blockedRows.innerHTML = visibleRows.map(function (row) {
       const payload = row.transaction_payload || {};
       const rule = row.violated_rule || {};
       const source = row.raw_pdf_source || {};
@@ -217,6 +236,26 @@
         approveByCa(button.dataset.overrideId);
       });
     });
+  }
+
+  async function resetDemoQueue() {
+    const operatorPasscode = window.prompt("Enter operator passcode to clear demo blocked rows.");
+    if (!operatorPasscode) return;
+    if (!window.confirm("Clear all DEMO blocked transaction rows for the next client test session?")) return;
+
+    overrideResult.textContent = "Resetting demo queue...";
+    try {
+      const body = await apiFetch("/reset_demo_queue", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "X-SSM-Operator-Passcode": operatorPasscode }
+      });
+      showAllBlockedRows = false;
+      overrideResult.textContent = `Demo queue reset. Deleted ${body.deleted || 0} rows.`;
+      loadBlockedTransactions();
+    } catch (error) {
+      overrideResult.textContent = error.message;
+    }
   }
 
   async function approveByCa(transactionId) {

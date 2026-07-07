@@ -38,6 +38,38 @@
       This is a private beta simulation. It is not production compliance advice, bank connectivity, ERP integration, or a live statutory filing system.
     </section>
 
+    <section class="ssm-panel ssm-download-panel">
+      <div>
+        <span class="ssm-kicker">Client test pack</span>
+        <h2>Download synthetic test data</h2>
+        <p>
+          Use these files for the production upload workflow tests. The SSM Beta page below uses the four sample buttons.
+        </p>
+      </div>
+      <div class="ssm-download-grid">
+        <a href="./test-data/tally_vendor_payments.csv" download>
+          <strong>Tally vendor payments</strong>
+          <span>Includes Pune vendor block boundary rows.</span>
+        </a>
+        <a href="./test-data/zoho_payroll_invoice.csv" download>
+          <strong>Zoho payroll and invoice</strong>
+          <span>Includes Mumbai payroll and Pune invoice blocks.</span>
+        </a>
+        <a href="./test-data/generic_mixed_upload.csv" download>
+          <strong>Generic mixed upload</strong>
+          <span>Approve, block, and duplicate workflow rows.</span>
+        </a>
+        <a href="./test-data/malformed_upload.csv" download>
+          <strong>Malformed upload</strong>
+          <span>Negative test file for validation errors.</span>
+        </a>
+        <a href="./test-data/ssm_client_test_plan.md">
+          <strong>Client test plan</strong>
+          <span>Novice sequence with expected results.</span>
+        </a>
+      </div>
+    </section>
+
     <section class="ssm-passcode" id="passcodePanel">
       <div>
         <h2>Demo access</h2>
@@ -127,7 +159,11 @@
           <span>CA Dashboard Backend</span>
           <h2>Blocked transactions</h2>
         </div>
-        <small id="queueStatus">Not loaded</small>
+        <div class="ssm-queue-actions">
+          <small id="queueStatus">Not loaded</small>
+          <button type="button" id="toggleBlockedRowsButton" class="ssm-button ssm-button--ghost" hidden>Show all</button>
+          <button type="button" id="resetDemoQueueButton" class="ssm-button ssm-button--danger">Reset demo queue</button>
+        </div>
       </div>
       <div class="ssm-table-wrap">
         <table>

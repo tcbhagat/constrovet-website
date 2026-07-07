@@ -1,0 +1,6 @@
+transaction_type,amount,entity_location,tax_components,expected_result
+unknown,1000,Pune,{},validation_error_invalid_transaction_type
+invoice,-500,Mumbai,{},validation_error_negative_amount
+vendor_payment,not-a-number,Pune,{},validation_error_amount_not_numeric
+payroll,125000,Nagpur,{},validation_error_unsupported_location
+invoice,950000,Pune,"{bad json",validation_error_malformed_tax_json
