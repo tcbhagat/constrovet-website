@@ -1,6 +1,6 @@
 transaction_type,amount,entity_location,tax_components,account,email,expected_result
-invoice,75000,Mumbai,"{""gst_rate"":18,""sample_only"":true}",account 123456789012,clean.invoice@example.com,approve_clean_invoice
-vendor_payment,250000,Pune,"{""gst_rate"":18,""tds_rate"":1}",acct 222233334444,blocked.vendor@example.com,block_DEMO-GST-PUNE-VENDOR-250K
-payroll,125000,Mumbai,"{""professional_tax"":200}",a/c 333344445555,blocked.payroll@example.com,block_DEMO-LABOUR-MUMBAI-PAYROLL-100K
-invoice,950000,Pune,"{""gst_rate"":18}",account 444455556666,blocked.invoice@example.com,block_DEMO-HIGH-INVOICE-PUNE-900K
-vendor_payment,250000,Pune,"{""gst_rate"":18,""tds_rate"":1}",acct 222233334444,duplicate.vendor@example.com,duplicate_block_row
+invoice,75000,Mumbai,"{""gst_rate"":18,""sample_only"":true}",DEMO-ACCOUNT-201,DEMO-EMAIL-201,approve_clean_invoice
+vendor_payment,250000,Pune,"{""gst_rate"":18,""tds_rate"":1}",DEMO-ACCOUNT-202,DEMO-EMAIL-202,block_DEMO-GST-PUNE-VENDOR-250K
+payroll,125000,Mumbai,"{""professional_tax"":200}",DEMO-ACCOUNT-203,DEMO-EMAIL-203,block_DEMO-LABOUR-MUMBAI-PAYROLL-100K
+invoice,950000,Pune,"{""gst_rate"":18}",DEMO-ACCOUNT-204,DEMO-EMAIL-204,block_DEMO-HIGH-INVOICE-PUNE-900K
+vendor_payment,250000,Pune,"{""gst_rate"":18,""tds_rate"":1}",DEMO-ACCOUNT-202,DEMO-EMAIL-205,duplicate_block_row

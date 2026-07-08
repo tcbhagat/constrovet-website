@@ -1,6 +1,6 @@
 # SSM Core Client Test Plan
 
-Use only the private one-click link shared for your scheduled test window. Do not enter real PAN, GSTIN, bank, payroll, vendor, customer, employee, or client records.
+Use only the private one-click link shared for your scheduled test window. Do not enter real PAN, GSTIN, bank, payroll, vendor, customer, employee, or client records. Downloadable files use obvious placeholder identifiers only, such as `DEMO-PAN-001` and `DEMO-ACCOUNT-001`.
 
 ## Button Demo Sequence
 
