@@ -42,7 +42,7 @@
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   }
   setResultActions(false);
-  setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
+  setWorkspaceNote("For full project review, request pilot access before sharing confidential records.");
 
   input.addEventListener("change", () => {
     latestOutput = null;
@@ -67,9 +67,9 @@
       if (!output) return;
       try {
         setBusy(true);
-        setStatus("Submitting Deep Analysis to the Workspace processor...");
+        setStatus("Requesting enhanced review...");
         const response = await submitWorkspaceJob("DEEP_ANALYSIS");
-        setWorkspaceNote(response.message || "Deep Analysis request received. The Gemini-enhanced report will be emailed after processing.");
+        setWorkspaceNote(response.message || "Enhanced review request received.");
         setStatus(`Deep Analysis request received${response.job_id ? `: ${response.job_id}` : ""}.`);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error), true);
@@ -92,9 +92,9 @@
       }
       try {
         setBusy(true);
-        setStatus("Submitting browser report email request...");
+        setStatus("Submitting report email request...");
         const response = await submitWorkspaceJob("EMAIL_BROWSER_REPORT");
-        setWorkspaceNote(response.message || "Email request received. The browser report will be emailed after processing.");
+        setWorkspaceNote(response.message || "Email request received.");
         setStatus(`Email request received${response.job_id ? `: ${response.job_id}` : ""}.`);
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error), true);
@@ -130,7 +130,7 @@
       rationaleButton.textContent = "Citations and Rationale";
       setStatus(`Analysis complete: ${latestOutput.findings.length} cited findings from ${documents.length} file(s).`);
       setResultActions(true);
-      setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
+      setWorkspaceNote("For full project review, request pilot access before sharing confidential records.");
       return latestOutput;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error), true);
@@ -285,15 +285,15 @@
     const citedFindings = scoreFindings(dedupeFindings(findings).slice(0, 80));
     const modelAuditTrail = {
       analysis_mode: "browser_deterministic_rules",
-      execution_layer: "GitHub Pages static page",
-      file_handling: "Files are read in the browser session and are not uploaded to a server.",
+      execution_layer: "local_demo_review",
+      file_handling: "Files selected here stay in this demo session.",
       xai_method: [
         "Evidence windows are selected from rows or sentences containing construction cost, schedule, leakage, commercial-control, or ESG keywords.",
         "Financial categories are assigned by deterministic keyword rules.",
         "When budget and actual are both cited and actual is greater than budget, overrun is calculated as Actual - Budget.",
         "Risk score combines cash impact, category, urgency, evidence quality, and confidence; it does not create new facts.",
         "Confidence is higher when structured budget and actual evidence is present, and lower when only narrative keyword evidence is present.",
-        "Gemini and other LLM verification are not run by the Analyse button."
+        "Enhanced review is not run by the Analyse button."
       ]
     };
     const executiveBrief = buildExecutiveBrief(citedFindings, documentsNotProcessed);
@@ -309,13 +309,13 @@
       model_audit_trail: modelAuditTrail,
       gemini_verifier_result: {
         status: "NOT_RUN",
-        reason: "The Analyse button does not call Gemini. Deep Analysis sends an evidence-bound payload to the Workspace Apps Script processor after explicit user action.",
-        allowed_input_policy: "Send only findings, cited spans, calculations, action plan, and honesty check to Gemini."
+        reason: "The Analyse button runs a local demo review only. Full review requires approved pilot access.",
+        allowed_input_policy: "Use only findings, cited spans, calculations, action plan, and honesty check for review."
       },
       honesty_check: {
         missing_evidence: [
           "Browser analysis is deterministic and keyword based; review citations before using findings for decisions.",
-          "Gemini/LLM verification is not run by the Analyse button."
+          "Enhanced review is not run by the Analyse button."
         ],
         documents_not_processed: documentsNotProcessed,
         assumptions: [
@@ -892,7 +892,7 @@
   async function submitWorkspaceJob(mode) {
     const endpoint = String(APP_CONFIG.appsScriptEndpoint || "").trim();
     if (!endpoint) {
-      throw new Error("Workspace processor is not configured yet. Deploy the Apps Script web app and set appsScriptEndpoint in assets/js/constrovet-app-config.js.");
+      throw new Error("Enhanced review is not available in this local demo. Request pilot access for a full review.");
     }
     if (!latestOutput) throw new Error("Run Analyse first.");
     const payload = await buildWorkspaceJobPayload(mode);
@@ -905,7 +905,7 @@
     return {
       ok: true,
       job_id: payload.job_id,
-      message: "Request submitted to the Workspace processor. The report will be emailed after processing."
+      message: "Request submitted. The report will be shared after review."
     };
   }
 
@@ -984,7 +984,7 @@
     const workspaceReady = workspaceEndpointConfigured();
     if (deepButton) deepButton.disabled = !workspaceReady;
     if (emailButton) emailButton.disabled = !enabled || !workspaceReady;
-    setWorkspaceNote("For emailed executive reports, use Boardroom intake. This page runs local browser analysis only.");
+    setWorkspaceNote("For full project review, request pilot access before sharing confidential records.");
   }
 
   function setWorkspaceNote(message) {

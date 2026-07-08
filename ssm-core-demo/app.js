@@ -81,7 +81,7 @@
     const payload = readTransactionForm();
     if (!payload) return;
 
-    setResult("Checking transaction...", "The API is evaluating current statutory rules.", "empty");
+    setResult("Checking transaction...", "The demo service is evaluating the sample rule set.", "empty");
     try {
       const body = await apiFetch("/verify_transaction", {
         method: "POST",
@@ -92,7 +92,7 @@
         loadBlockedTransactions();
       }
     } catch (error) {
-      setResult("API request failed", error.message, "block");
+      setResult("Demo request failed", error.message, "block");
     }
   });
 
@@ -307,7 +307,7 @@
     const text = await response.text();
     const body = text ? JSON.parse(text) : {};
     if (!response.ok) {
-      throw new Error(body.detail || `API returned HTTP ${response.status}`);
+      throw new Error(body.detail || `Demo service returned HTTP ${response.status}`);
     }
     return body;
   }

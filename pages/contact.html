@@ -65,19 +65,19 @@
 
   <main>
     <div class="cv-hero-band">
-      <h1>Contact Constrovet</h1>
-      <p>Request a pilot discussion without sending confidential project files through the public form.</p>
+      <h1>Request Pilot Access</h1>
+      <p>Tell us what you want reviewed. Do not send confidential project files through this public form.</p>
     </div>
 
     <section class="cv-section cv-section--bg-slate">
       <div class="cv-copy-grid">
         <article class="cv-card">
-          <h2>Start a Project Intelligence Discussion</h2>
+          <h2>Start the right review conversation</h2>
           <p>
-            Share the review objective, project stage, and the type of intelligence needed: cost leakage, BOQ variance, schedule delay, ESG evidence, procurement risk, or financier review.
+            Share the review objective, project stage, and the business question: cost leakage, BOQ variance, schedule delay, ESG evidence, procurement risk, financier review, CA pilot, or recovery planning.
           </p>
           <p>
-            Do not attach or paste confidential BOQs, invoices, contracts, or project files here. Real project documents belong inside the authenticated app workflow.
+            Do not attach or paste confidential BOQs, invoices, contracts, or client records here. We will confirm the pilot scope and safe document path separately.
           </p>
           <p>
             If the form does not submit, email <a href="mailto:admin@constrovet.com">admin@constrovet.com</a>.
@@ -113,8 +113,20 @@
             </div>
 
             <div>
+              <label for="interest">Review interest</label>
+              <select id="interest" name="Review interest">
+                <option value="Pilot access">Pilot access</option>
+                <option value="CA statutory cockpit">CA statutory cockpit</option>
+                <option value="Cost leakage review">Cost leakage review</option>
+                <option value="Schedule delay review">Schedule delay review</option>
+                <option value="ESG evidence review">ESG evidence review</option>
+                <option value="Financier due diligence">Financier due diligence</option>
+              </select>
+            </div>
+
+            <div>
               <label for="message">Project review need *</label>
-              <textarea id="message" name="Message" rows="5" required placeholder="Example: cost overrun review, ESG/carbon metrics, delay impact, financier due diligence, or document-backed recovery actions"></textarea>
+              <textarea id="message" name="Message" rows="5" required placeholder="Example: We want a pilot review for a Maharashtra contractor with cost overrun, delay exposure, and evidence gaps. No confidential records are included in this form."></textarea>
             </div>
 
             <button type="submit" class="cv-btn cv-btn--primary" style="width:100%;justify-content:center;">
