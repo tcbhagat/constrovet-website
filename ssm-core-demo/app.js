@@ -3,7 +3,7 @@
 
   const config = window.SSM_CORE_DEMO_CONFIG || {};
   const apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl || "http://localhost:8000");
-  const feedbackUrl = config.feedbackUrl || "/pages/contact.html";
+  const feedbackUrl = config.feedbackUrl || "/pages/contact.html?interest=ssm-ca-feedback";
   const passcodeKey = "ssmCoreDemoPasscode";
   const maxDefaultBlockedRows = 10;
   let latestBlockedRows = [];
@@ -50,6 +50,7 @@
 
   document.getElementById("apiBaseLabel").textContent = apiBaseUrl;
   document.getElementById("feedbackLink").href = feedbackUrl;
+  wireGuidedAnchors();
   applyPasscodeFromPrivateLink();
 
   passcodeForm.addEventListener("submit", function (event) {
@@ -129,6 +130,22 @@
     passcodePanel.hidden = true;
     demoWorkbench.hidden = false;
     caPanel.hidden = false;
+  }
+
+  function wireGuidedAnchors() {
+    document.querySelectorAll('a[href^="#"]').forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        const targetId = link.getAttribute("href").slice(1);
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        event.preventDefault();
+        if ((target === demoWorkbench || target === caPanel) && demoWorkbench.hidden) {
+          passcodePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
   }
 
   async function checkApiHealth() {

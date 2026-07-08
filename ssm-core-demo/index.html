@@ -20,11 +20,17 @@
     <section class="ssm-hero">
       <div>
         <span class="ssm-kicker">Private beta - sample data only</span>
-        <h1>SSM Core transaction verification demo</h1>
+        <h1>Test a CA-reviewed statutory transaction cockpit for Maharashtra SMEs</h1>
         <p>
-          Test statutory rule checks against a local SSM_Core API exposed for scheduled beta windows.
+          Use synthetic Pune/Mumbai transactions to see how statutory PDFs, extracted rules,
+          transaction checks, CA override, and audit evidence connect in one workflow.
           Do not enter real PAN, GSTIN, bank, payroll, vendor, customer, or client records.
         </p>
+        <div class="ssm-hero-actions" aria-label="CA demo actions">
+          <a href="#guidedTest" class="ssm-button">Start guided test</a>
+          <a href="#caTestPack" class="ssm-button ssm-button--ghost">Download CA test pack</a>
+          <a href="/pages/contact.html?interest=ssm-ca-pilot" class="ssm-button ssm-button--ghost">Request CA pilot</a>
+        </div>
       </div>
       <div class="ssm-api-status" aria-live="polite">
         <span>API</span>
@@ -38,12 +44,108 @@
       This is a private beta simulation. It is not production compliance advice, bank connectivity, ERP integration, or a live statutory filing system.
     </section>
 
-    <section class="ssm-panel ssm-download-panel">
+    <section class="ssm-guided-grid" aria-label="CA guided navigation">
+      <section class="ssm-panel ssm-guide-panel" id="guidedTest">
+        <div>
+          <span class="ssm-kicker">Guided CA test path</span>
+          <h2>Run the review like a CA desk</h2>
+          <p>
+            Follow the steps in sequence during your test window. The goal is to assess evidence,
+            explainability, override control, and client-readiness rather than legal correctness.
+          </p>
+        </div>
+        <ol class="ssm-guide-steps">
+          <li><a href="#apiStatus">Check API online</a></li>
+          <li><a href="#demoWorkbench">Run clean invoice</a></li>
+          <li><a href="#demoWorkbench">Run blocked Maharashtra scenario</a></li>
+          <li><a href="#caPanel">Review statutory evidence</a></li>
+          <li><a href="#caPanel">Approve by CA</a></li>
+          <li><a href="#unlockToken">Consume unlock token</a></li>
+          <li><a href="#caFeedback">Send feedback</a></li>
+          <li><a href="#pilotSubscription">Request pilot subscription</a></li>
+        </ol>
+      </section>
+
+      <section class="ssm-panel ssm-value-panel">
+        <div>
+          <span class="ssm-kicker">Why Maharashtra CAs should test</span>
+          <h2>Pain points this workflow targets</h2>
+        </div>
+        <ul class="ssm-split-list">
+          <li>Manual tracking of MAHAGST, Professional Tax, MCA, and Labour updates.</li>
+          <li>Client transaction review happening after payment instead of before payment.</li>
+          <li>Difficulty proving which PDF, circular, or rule caused a block.</li>
+          <li>Repeated advisory work without a reusable decision trail.</li>
+          <li>MCA/source access failures creating evidence gaps that need explicit status tracking.</li>
+          <li>Need for CA-reviewed decisions before SME teams rely on compliance outputs.</li>
+        </ul>
+      </section>
+    </section>
+
+    <section class="ssm-panel ssm-practice-panel">
       <div>
-        <span class="ssm-kicker">Client test pack</span>
+        <span class="ssm-kicker">Practice improvement</span>
+        <h2>What this improves in CA practice</h2>
+      </div>
+      <div class="ssm-practice-grid">
+        <p>Turns circular/PDF monitoring into an evidence-backed workflow.</p>
+        <p>Gives junior staff a guided transaction testing sequence.</p>
+        <p>Produces explainable approve/block decisions.</p>
+        <p>Keeps CA override as the final professional control.</p>
+        <p>Creates a client-ready audit trail without exposing real PAN, GSTIN, or bank data in beta.</p>
+      </div>
+    </section>
+
+    <section class="ssm-panel ssm-sample-panel" aria-labelledby="sampleCaseTitle">
+      <div class="ssm-sample-head">
+        <div>
+          <span class="ssm-kicker">Professional sample case</span>
+          <h2 id="sampleCaseTitle">Synthetic Maharashtra transaction review</h2>
+        </div>
+        <a href="#demoWorkbench" class="ssm-button ssm-button--ghost">Try this case</a>
+      </div>
+      <div class="ssm-sample-grid">
+        <div>
+          <h3>Sample input</h3>
+          <pre><code>{
+  "client_profile": "Synthetic Maharashtra SME",
+  "transaction_type": "vendor_payment",
+  "amount": 250000,
+  "entity_location": "Pune",
+  "tax_components": {
+    "gst_rate": 18,
+    "tds_rate": 0,
+    "sample_only": true,
+    "memo": "synthetic vendor payment"
+  }
+}</code></pre>
+        </div>
+        <div>
+          <h3>Sample output</h3>
+          <pre><code>{
+  "decision": "403_Block",
+  "rule": "DEMO-GST-PUNE-VENDOR-250K",
+  "reason": "Transaction matched a Maharashtra demo statutory rule requiring CA review before approval.",
+  "source_evidence": "Linked public statutory PDF and extracted text row",
+  "ca_action": "Review evidence, approve by CA if justified, generate one-time unlock token",
+  "audit_value": "Creates a transaction-level trail showing payload, rule, source PDF, CA decision, and unlock status"
+}</code></pre>
+        </div>
+      </div>
+      <p class="ssm-sample-note">
+        This shows how a CA can move from reactive compliance checking to pre-transaction statutory control.
+        The demo is synthetic, but the workflow targets real Maharashtra pain points: frequent state circulars,
+        Professional Tax/GST changes, labour-code evidence review, MCA source availability issues, and client teams
+        needing fast explainable approval decisions.
+      </p>
+    </section>
+
+    <section class="ssm-panel ssm-download-panel" id="caTestPack">
+      <div>
+        <span class="ssm-kicker">CA test pack</span>
         <h2>Download synthetic test data</h2>
         <p>
-          Use these files for the production upload workflow tests. The SSM Beta page below uses the four sample buttons.
+          Use these files for upload workflow tests and internal CA review discussions. The button demo below uses the four sample scenarios.
         </p>
       </div>
       <div class="ssm-download-grid">
@@ -93,10 +195,10 @@
         </div>
 
         <div class="ssm-scenarios" aria-label="Sample transaction scenarios">
-          <button type="button" data-scenario="cleanInvoice">Clean invoice</button>
-          <button type="button" data-scenario="puneVendor">Pune vendor payment</button>
-          <button type="button" data-scenario="mumbaiPayroll">Mumbai payroll</button>
-          <button type="button" data-scenario="highValueInvoice">High value invoice</button>
+          <button type="button" data-scenario="cleanInvoice">Clean invoice<span>Expected approval case</span></button>
+          <button type="button" data-scenario="puneVendor">Pune vendor payment<span>Expected Maharashtra block case</span></button>
+          <button type="button" data-scenario="mumbaiPayroll">Mumbai payroll<span>Expected labour/payroll block case</span></button>
+          <button type="button" data-scenario="highValueInvoice">High value invoice<span>Expected high-value review case</span></button>
         </div>
 
         <form id="transactionForm" class="ssm-form">
@@ -141,14 +243,14 @@
         </div>
 
         <div class="ssm-test-kit">
-          <h3>Client test kit</h3>
+          <h3>CA test kit</h3>
           <ul>
             <li>Use only the sample buttons or synthetic values.</li>
             <li>Check one expected approval and one expected block.</li>
             <li>Open the CA queue, override a blocked row, then consume the one-time unlock token.</li>
-            <li>Send feedback from the contact link after the test window.</li>
+            <li>Send CA feedback from the contact link after the test window.</li>
           </ul>
-          <a id="feedbackLink" href="/pages/contact.html">Send beta feedback</a>
+          <a id="feedbackLink" href="/pages/contact.html?interest=ssm-ca-feedback">Send CA feedback</a>
         </div>
       </article>
     </section>
@@ -158,6 +260,7 @@
         <div>
           <span>CA Dashboard Backend</span>
           <h2>Blocked transactions</h2>
+          <p class="ssm-ca-hint">Use this like a CA review desk: blocked item, rule, source PDF, override, unlock token.</p>
         </div>
         <div class="ssm-queue-actions">
           <small id="queueStatus">Not loaded</small>
@@ -187,6 +290,28 @@
         <button type="submit" class="ssm-button ssm-button--ghost">Consume token</button>
       </form>
       <div id="overrideResult" class="ssm-mini-result" aria-live="polite"></div>
+    </section>
+
+    <section class="ssm-panel ssm-feedback-panel" id="caFeedback">
+      <div>
+        <span class="ssm-kicker">Feedback and pilot subscription</span>
+        <h2>Help shape the CA cockpit</h2>
+        <p>
+          Use these prompts when you send feedback. Keep the public form free of confidential client documents.
+        </p>
+      </div>
+      <div class="ssm-feedback-grid">
+        <p>Which CA workflow would you use this for first: payroll, vendor payment, invoice review, PT/GST tracking, or labour compliance?</p>
+        <p>Which evidence would your firm need before trusting a block decision?</p>
+        <p>Would your clients prefer CSV upload, Tally export, Zoho export, or API integration later?</p>
+      </div>
+      <div class="ssm-pilot-cta" id="pilotSubscription">
+        <p>
+          For 1-5 invited CA firms. No real client data through the public page.
+          Pilot onboarding uses a controlled review window.
+        </p>
+        <a href="/pages/contact.html?interest=ssm-ca-pilot" class="ssm-button">Request CA pilot subscription</a>
+      </div>
     </section>
   </main>
 

@@ -58,6 +58,17 @@ body {
   font-size: 1.04rem;
 }
 
+.ssm-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.ssm-hero-actions a {
+  text-decoration: none;
+}
+
 .ssm-api-status,
 .ssm-warning,
 .ssm-passcode,
@@ -89,6 +100,137 @@ body {
   border-color: #f0cf8a;
   background: #fff8e8;
   color: #573b00;
+}
+
+.ssm-guided-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.ssm-guide-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.ssm-guide-panel p,
+.ssm-feedback-panel p,
+.ssm-sample-note {
+  color: var(--ssm-muted);
+}
+
+.ssm-guide-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ssm-step;
+}
+
+.ssm-guide-steps li {
+  counter-increment: ssm-step;
+}
+
+.ssm-guide-steps a {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--ssm-line);
+  border-radius: 8px;
+  color: var(--ssm-ink);
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.ssm-guide-steps a::before {
+  content: counter(ssm-step);
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf7f7;
+  color: var(--ssm-teal-dark);
+  font-weight: 800;
+}
+
+.ssm-guide-steps a:hover {
+  border-color: var(--ssm-teal);
+  background: #f2fbfb;
+}
+
+.ssm-split-list,
+.ssm-practice-grid,
+.ssm-feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ssm-split-list li,
+.ssm-practice-grid p,
+.ssm-feedback-grid p {
+  margin: 0;
+  border: 1px solid var(--ssm-line);
+  border-radius: 8px;
+  background: var(--ssm-soft);
+  color: var(--ssm-muted);
+  padding: 12px;
+}
+
+.ssm-practice-panel,
+.ssm-sample-panel,
+.ssm-feedback-panel {
+  margin-bottom: 18px;
+}
+
+.ssm-sample-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.ssm-sample-head a {
+  text-decoration: none;
+}
+
+.ssm-sample-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ssm-sample-grid h3 {
+  margin: 0 0 8px;
+}
+
+.ssm-sample-grid pre {
+  min-height: 100%;
+  margin: 0;
+  overflow-x: auto;
+  border: 1px solid var(--ssm-line);
+  border-radius: 8px;
+  background: #0f171b;
+  color: #e7f4f4;
+  padding: 14px;
+}
+
+.ssm-sample-grid code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ssm-sample-note {
+  margin: 14px 0 0;
 }
 
 .ssm-download-panel {
@@ -253,8 +395,16 @@ body {
 }
 
 .ssm-scenarios button {
+  display: grid;
+  gap: 4px;
   padding: 8px;
   white-space: normal;
+}
+
+.ssm-scenarios button span {
+  color: var(--ssm-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
 .ssm-form {
@@ -319,8 +469,18 @@ body {
   color: var(--ssm-muted);
 }
 
+.ssm-test-kit a {
+  color: var(--ssm-teal-dark);
+  font-weight: 800;
+}
+
 .ssm-ca-panel {
   margin-top: 18px;
+}
+
+.ssm-ca-hint {
+  margin: 4px 0 0;
+  color: var(--ssm-muted);
 }
 
 .ssm-queue-actions {
@@ -387,6 +547,24 @@ body {
   min-width: min(520px, 100%);
 }
 
+.ssm-pilot-cta {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  margin-top: 16px;
+  border-top: 1px solid var(--ssm-line);
+  padding-top: 16px;
+}
+
+.ssm-pilot-cta p {
+  margin: 0;
+}
+
+.ssm-pilot-cta a {
+  text-decoration: none;
+}
+
 @media (max-width: 900px) {
   .ssm-shell {
     width: min(100% - 24px, 760px);
@@ -394,16 +572,23 @@ body {
   }
 
   .ssm-hero,
+  .ssm-guided-grid,
   .ssm-grid,
   .ssm-passcode,
-  .ssm-download-panel {
+  .ssm-download-panel,
+  .ssm-sample-grid,
+  .ssm-split-list,
+  .ssm-practice-grid,
+  .ssm-feedback-grid {
     grid-template-columns: 1fr;
   }
 
   .ssm-passcode,
   .ssm-inline-form,
   .ssm-panel__head,
-  .ssm-queue-actions {
+  .ssm-queue-actions,
+  .ssm-sample-head,
+  .ssm-pilot-cta {
     display: grid;
     align-items: stretch;
   }
