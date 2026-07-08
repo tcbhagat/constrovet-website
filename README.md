@@ -2,6 +2,8 @@
 
 Static HTML site for **constrovet.com** — hosted on GitHub Pages.
 
+For operating procedures, route checks, incident runbooks, and zero-budget controls, see [OPERATIONS_MAINTENANCE.md](OPERATIONS_MAINTENANCE.md).
+
 ---
 
 ## 📁 Project Structure
