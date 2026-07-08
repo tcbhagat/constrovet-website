@@ -5,6 +5,7 @@
   const apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl || "http://localhost:8000");
   const feedbackUrl = config.feedbackUrl || "/pages/contact.html?interest=ssm-ca-feedback";
   const passcodeKey = "ssmCoreDemoPasscode";
+  const passcodeErrorMessage = "Demo passcode expired or incorrect. Reopen the latest private client link.";
   const maxDefaultBlockedRows = 10;
   let latestBlockedRows = [];
   let showAllBlockedRows = false;
@@ -58,9 +59,7 @@
     const passcode = new FormData(passcodeForm).get("demoPasscode").toString().trim();
     if (!passcode) return;
     sessionStorage.setItem(passcodeKey, passcode);
-    revealWorkbench();
-    checkApiHealth();
-    loadBlockedTransactions();
+    validatePasscodeAndOpen();
   });
 
   document.getElementById("clearPasscodeButton").addEventListener("click", function () {
@@ -121,15 +120,47 @@
   });
 
   if (sessionStorage.getItem(passcodeKey)) {
-    revealWorkbench();
-    checkApiHealth();
-    loadBlockedTransactions();
+    validatePasscodeAndOpen();
   }
 
   function revealWorkbench() {
     passcodePanel.hidden = true;
     demoWorkbench.hidden = false;
     caPanel.hidden = false;
+  }
+
+  function showPasscodePanel(message) {
+    sessionStorage.removeItem(passcodeKey);
+    passcodeForm.reset();
+    passcodePanel.hidden = false;
+    demoWorkbench.hidden = true;
+    caPanel.hidden = true;
+    latestBlockedRows = [];
+    blockedRows.innerHTML = '<tr><td colspan="5">Demo access required.</td></tr>';
+    queueStatus.textContent = "Locked";
+    toggleBlockedRowsButton.hidden = true;
+    if (message) {
+      setResult("Demo access required", message, "block");
+    }
+  }
+
+  async function validatePasscodeAndOpen() {
+    setResult("Checking demo access...", "Validating the private test link.", "empty");
+    try {
+      await apiFetch("/get_blocked_transactions", { method: "GET" });
+      revealWorkbench();
+      checkApiHealth();
+      loadBlockedTransactions();
+      setResult("Ready for a sample transaction.", "Results will show an approval token or the statutory rule that blocked the transaction.", "empty");
+    } catch (error) {
+      if (error.status === 401) {
+        showPasscodePanel(passcodeErrorMessage);
+        return;
+      }
+      revealWorkbench();
+      checkApiHealth();
+      setResult("Demo access check failed", error.message, "block");
+    }
   }
 
   function wireGuidedAnchors() {
@@ -190,6 +221,10 @@
       latestBlockedRows = body.blocked_transactions || [];
       renderBlockedRows(latestBlockedRows);
     } catch (error) {
+      if (error.status === 401) {
+        showPasscodePanel(passcodeErrorMessage);
+        return;
+      }
       blockedRows.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
       queueStatus.textContent = "Unavailable";
       toggleBlockedRowsButton.hidden = true;
@@ -307,7 +342,9 @@
     const text = await response.text();
     const body = text ? JSON.parse(text) : {};
     if (!response.ok) {
-      throw new Error(body.detail || `Demo service returned HTTP ${response.status}`);
+      const error = new Error(body.detail || `Demo service returned HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
     }
     return body;
   }
