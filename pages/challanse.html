@@ -1,29 +1,26 @@
 <!DOCTYPE html>
-<!-- ============================================================
-     PAGE: ChallanSe  (pages/challanse.html)
-     Supervisor-first UX guidance for low-friction field workflows.
-     ============================================================ -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChallanSe | Supervisor-Friendly Field UX | Constrovet</title>
-  <meta name="description" content="Zero-budget UX guidance for low-literacy construction site supervisors: big buttons, one task per screen, local language labels, and clear feedback.">
+  <title>ChallanSe | Simple Site Receipt Capture | Constrovet</title>
+  <meta name="description" content="ChallanSe helps site supervisors capture challans without forms and gives project teams a clear path from field receipt to review.">
   <link rel="canonical" href="https://www.constrovet.com/pages/challanse.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Constrovet">
-  <meta property="og:title" content="ChallanSe | Supervisor-Friendly Field UX">
-  <meta property="og:description" content="Simple, high-contrast UX patterns for construction site supervisors.">
+  <meta property="og:title" content="ChallanSe | Simple Site Receipt Capture">
+  <meta property="og:description" content="A simpler way to capture site challans and identify receipts that need review.">
   <meta property="og:url" content="https://www.constrovet.com/pages/challanse.html">
-  <meta property="og:image" content="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&amp;fit=crop&amp;w=1200&amp;q=72">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="ChallanSe | Supervisor-Friendly Field UX">
-  <meta name="twitter:description" content="Zero-budget UX patterns for construction supervisors.">
-  <meta name="twitter:image" content="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&amp;fit=crop&amp;w=1200&amp;q=72">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="ChallanSe | Simple Site Receipt Capture">
+  <meta name="twitter:description" content="A simpler way to capture site challans and identify receipts that need review.">
+  <link rel="icon" href="../ATC-logo3.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/style.css?v=20260714">
+  <link rel="stylesheet" href="../assets/css/challanse.css?v=20260714">
+  <script>document.documentElement.classList.add('cs-js');</script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -47,7 +44,7 @@
         "@id": "https://www.constrovet.com/pages/challanse.html#webpage",
         "url": "https://www.constrovet.com/pages/challanse.html",
         "name": "ChallanSe",
-        "description": "Supervisor-first UX guidance for low-friction construction field workflows.",
+        "description": "Simple site receipt capture for construction supervisors and project teams.",
         "isPartOf": {"@id": "https://www.constrovet.com/#website"},
         "publisher": {"@id": "https://www.constrovet.com/#organization"}
       },
@@ -63,205 +60,157 @@
   }
   </script>
 </head>
-<body>
-
+<body class="cs-page">
   <div id="cv-nav-placeholder"></div>
 
   <main>
-    <section class="cv-hero-band challanse-hero">
-      <span class="challanse-badge">Zero-budget UX for site supervisors</span>
-      <h1>ChallanSe</h1>
-      <p>
-        A simple field-interface standard for construction supervisors who need fast,
-        clear actions without typing, menus, or long explanations.
-      </p>
-    </section>
+    <section class="cs-hero" aria-labelledby="cs-title">
+      <div class="cs-shell cs-hero__grid">
+        <div class="cs-hero__copy">
+          <p class="cs-eyebrow">Challan capture for active sites</p>
+          <h1 id="cs-title">Capture receipts.<br>Keep the gate moving.</h1>
+          <p class="cs-lead">Supervisors photograph a challan, choose the vendor, and move on. Project teams get a clear path from field receipt to review.</p>
+          <a class="cs-button" href="/pages/contact.html?interest=challanse">Request Pilot</a>
+          <p class="cs-quiet">No forms or typing during capture.</p>
+        </div>
 
-    <section class="cv-section cv-section--bg-white">
-      <div class="cv-copy-grid">
-        <article class="cv-article">
-          <h2>What to simplify first</h2>
-          <p>
-            Build for recognition, not reading. The screen should show the next action immediately,
-            use icons before text, and make the safe path the default path.
-          </p>
-          <div class="challanse-flow">
-            <div class="challanse-flow__step challanse-callout">
-              <div class="challanse-flow__num">1</div>
-              <div>
-                <h3>One screen, one job</h3>
-                <p>Keep each screen focused on a single task: capture, confirm, or save.</p>
-              </div>
+        <div class="cs-phone" role="img" aria-label="ChallanSe supervisor capture screen with challan camera, four vendors, and quantity controls">
+          <div class="cs-phone__top">
+            <span>Receive</span>
+            <span lang="hi">सामग्री लें</span>
+          </div>
+          <div class="cs-camera">
+            <div class="cs-camera__paper" aria-hidden="true">
+              <span></span><span></span><span></span>
             </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">2</div>
-              <div>
-                <h3>Three choices maximum</h3>
-                <p>Replace long menus with 3–5 large choices so users do not need to scroll or search.</p>
-              </div>
+            <p>Point at challan</p>
+            <span lang="hi">चालान सामने रखें</span>
+          </div>
+          <div class="cs-phone__controls">
+            <p>Vendor <span lang="hi">विक्रेता</span></p>
+            <div class="cs-vendors">
+              <span class="is-selected">A</span><span>B</span><span>C</span><span>D</span>
             </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">3</div>
-              <div>
-                <h3>Use local language labels</h3>
-                <p>Show the label in the language the supervisor speaks first; keep English secondary if needed.</p>
-              </div>
+            <div class="cs-quantity">
+              <span aria-hidden="true">−</span><strong>1</strong><span aria-hidden="true">+</span>
             </div>
           </div>
-        </article>
-
-        <aside class="cv-note-panel cv-note-panel--accent">
-          <h2>Zero-budget best practices</h2>
-          <p>
-            These do not require new hardware, paid APIs, or backend changes.
-          </p>
-          <ul class="challanse-bullets">
-            <li>Use large tap targets and strong contrast.</li>
-            <li>Prefer icons, numbers, and colors over typing.</li>
-            <li>Save the last used choice by default.</li>
-            <li>Confirm success with one clear visual state.</li>
-            <li>Use vibration or sound only as a secondary cue.</li>
-          </ul>
-        </aside>
+        </div>
       </div>
     </section>
 
-    <section class="cv-section cv-section--bg-slate">
-      <div class="cv-section__header">
-        <h2 class="cv-section__title">Patterns to introduce now</h2>
-        <p class="cv-section__sub">Small UI changes that reduce mistakes on active sites.</p>
-      </div>
+    <section class="cs-section" aria-labelledby="cs-workflow-title">
+      <div class="cs-shell">
+        <div class="cs-heading">
+          <p class="cs-eyebrow">What happens next</p>
+          <h2 id="cs-workflow-title">Four clear steps</h2>
+        </div>
 
-      <div class="challanse-grid">
-        <article class="challanse-card">
-          <div class="challanse-card__icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/>
-            </svg>
+        <div class="cs-workflow" data-cs-workflow>
+          <div class="cs-workflow__tabs" role="tablist" aria-label="ChallanSe workflow">
+            <button type="button" role="tab" id="cs-tab-capture" aria-controls="cs-panel-capture" aria-selected="true" tabindex="0"><span>1</span> Capture</button>
+            <button type="button" role="tab" id="cs-tab-save" aria-controls="cs-panel-save" aria-selected="false" tabindex="-1"><span>2</span> Save</button>
+            <button type="button" role="tab" id="cs-tab-send" aria-controls="cs-panel-send" aria-selected="false" tabindex="-1"><span>3</span> Send</button>
+            <button type="button" role="tab" id="cs-tab-check" aria-controls="cs-panel-check" aria-selected="false" tabindex="-1"><span>4</span> Check</button>
           </div>
-          <h3>Big buttons</h3>
-          <p>Use controls that are easy to hit with dusty fingers, gloves, and one-handed use.</p>
-        </article>
 
-        <article class="challanse-card">
-          <div class="challanse-card__icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h10"/>
-            </svg>
+          <div class="cs-workflow__panels">
+            <article class="cs-workflow__panel" role="tabpanel" id="cs-panel-capture" aria-labelledby="cs-tab-capture" tabindex="0">
+              <div class="cs-state cs-state--capture" aria-hidden="true">
+                <div class="cs-state__paper"><span></span><span></span><span></span></div>
+                <div class="cs-state__vendors"><i>A</i><i>B</i><i>C</i><i>D</i></div>
+              </div>
+              <div>
+                <p class="cs-step-label">Capture · <span lang="hi">फोटो लें</span></p>
+                <h3>Photograph the challan</h3>
+                <p>Choose one of the familiar vendor options. No form is required.</p>
+              </div>
+            </article>
+
+            <article class="cs-workflow__panel" role="tabpanel" id="cs-panel-save" aria-labelledby="cs-tab-save" tabindex="0" hidden>
+              <div class="cs-state cs-state--save" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 12 4 4L19 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <strong>Saved</strong>
+                <span lang="hi">सुरक्षित</span>
+              </div>
+              <div>
+                <p class="cs-step-label">Save · <span lang="hi">सुरक्षित करें</span></p>
+                <h3>Keep the receipt on the device</h3>
+                <p>The capture remains available when the site connection is unavailable.</p>
+              </div>
+            </article>
+
+            <article class="cs-workflow__panel" role="tabpanel" id="cs-panel-send" aria-labelledby="cs-tab-send" tabindex="0" hidden>
+              <div class="cs-state cs-state--send" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <strong>Ready to send</strong>
+                <span lang="hi">भेजने के लिए तैयार</span>
+              </div>
+              <div>
+                <p class="cs-step-label">Send · <span lang="hi">भेजें</span></p>
+                <h3>Transfer when conditions allow</h3>
+                <p>Receipts wait until the site's permitted connection conditions are available.</p>
+              </div>
+            </article>
+
+            <article class="cs-workflow__panel" role="tabpanel" id="cs-panel-check" aria-labelledby="cs-tab-check" tabindex="0" hidden>
+              <div class="cs-state cs-state--check" aria-hidden="true">
+                <div><i></i><span>Verified</span></div>
+                <div><i></i><span>Review needed</span></div>
+              </div>
+              <div>
+                <p class="cs-step-label">Check · <span lang="hi">जाँचें</span></p>
+                <h3>See what needs attention</h3>
+                <p>Project teams can separate verified receipts from items requiring review.</p>
+              </div>
+            </article>
           </div>
-          <h3>Short lists</h3>
-          <p>Show only the most common actions first. Hide advanced options behind a secondary screen.</p>
-        </article>
+        </div>
 
-        <article class="challanse-card">
-          <div class="challanse-card__icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M7 4h10l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/>
-            </svg>
-          </div>
-          <h3>Plain confirmations</h3>
-          <p>Show “Saved” or “Failed” with a simple color state and no technical wording.</p>
-        </article>
-
-        <article class="challanse-card">
-          <div class="challanse-card__icon" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20m8-10H4"/>
-            </svg>
-          </div>
-          <h3>One tap, one result</h3>
-          <p>A tap should do one thing only. Do not combine capture, review, and submit on the same control.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="cv-section cv-section--bg-white">
-      <div class="cv-copy-grid">
-        <article class="cv-article">
-          <h2>Recommended supervisor flow</h2>
-          <p>
-            A practical low-friction sequence for challan or receipt capture.
-          </p>
-          <div class="challanse-flow">
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">1</div>
-              <div>
-                <h3>Open camera</h3>
-                <p>No landing screen clutter. The camera should be the first screen.</p>
-              </div>
-            </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">2</div>
-              <div>
-                <h3>Detect paper</h3>
-                <p>Use automatic detection to avoid asking the supervisor to line up the frame manually.</p>
-              </div>
-            </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">3</div>
-              <div>
-                <h3>Choose vendor</h3>
-                <p>Show the top vendors as large circles or tiles, not drop-down lists.</p>
-              </div>
-            </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">4</div>
-              <div>
-                <h3>Adjust quantity</h3>
-                <p>Use plus and minus controls instead of keyboard entry where possible.</p>
-              </div>
-            </div>
-            <div class="challanse-flow__step">
-              <div class="challanse-flow__num">5</div>
-              <div>
-                <h3>Save and exit</h3>
-                <p>Confirm save immediately, then close the screen or return to the camera with no extra steps.</p>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <aside class="cv-note-panel">
-          <h2>Do not do this</h2>
-          <table class="challanse-table">
-            <thead>
-              <tr>
-                <th>Pattern</th>
-                <th>Problem</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Long forms</td>
-                <td>Too much reading and typing for field conditions.</td>
-              </tr>
-              <tr>
-                <td>Hidden menus</td>
-                <td>Users must search instead of acting.</td>
-              </tr>
-              <tr>
-                <td>Technical errors</td>
-                <td>They do not tell the supervisor what to do next.</td>
-              </tr>
-              <tr>
-                <td>Weak contrast</td>
-                <td>Hard to see in sunlight and dusty environments.</td>
-              </tr>
-            </tbody>
-          </table>
-        </aside>
+        <noscript>
+          <ol class="cs-noscript">
+            <li><strong>Capture:</strong> Photograph the challan and choose the vendor.</li>
+            <li><strong>Save:</strong> Keep the receipt on the device when connectivity is unavailable.</li>
+            <li><strong>Send:</strong> Transfer it when permitted connection conditions are available.</li>
+            <li><strong>Check:</strong> Separate verified receipts from items requiring review.</li>
+          </ol>
+        </noscript>
       </div>
     </section>
 
-    <section class="cv-section cv-section--bg-slate">
-      <div class="cv-section__header cv-section__header--center">
-        <h2 class="cv-section__title">Implementation rule</h2>
-        <p class="cv-section__sub">If a feature needs explanation, the screen is too complex.</p>
+    <section class="cs-section cs-section--soft" aria-labelledby="cs-benefits-title">
+      <div class="cs-shell">
+        <div class="cs-heading">
+          <p class="cs-eyebrow">Built for the site</p>
+          <h2 id="cs-benefits-title">Less effort. Clearer follow-up.</h2>
+        </div>
+        <div class="cs-benefits">
+          <article><span aria-hidden="true">01</span><h3>Simple for supervisors</h3><p>Camera first, four vendor choices, and no keyboard.</p></article>
+          <article><span aria-hidden="true">02</span><h3>Ready for weak connectivity</h3><p>Capture now and transfer when site conditions allow.</p></article>
+          <article><span aria-hidden="true">03</span><h3>Clear for project teams</h3><p>Verified receipts and review items stay easy to distinguish.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="cs-cta" aria-labelledby="cs-cta-title">
+      <div class="cs-shell cs-cta__inner">
+        <div>
+          <p class="cs-eyebrow">Start with one site</p>
+          <h2 id="cs-cta-title">See ChallanSe in your workflow.</h2>
+        </div>
+        <a class="cs-button" href="/pages/contact.html?interest=challanse">Request Pilot</a>
       </div>
     </section>
   </main>
 
-  <div id="cv-footer-placeholder"></div>
-  <script src="../assets/js/main.js?v=20260605"></script>
+  <footer class="cs-footer">
+    <div class="cs-shell cs-footer__inner">
+      <span>© <span id="cs-year"></span> Constrovet</span>
+      <nav aria-label="Footer"><a href="/pages/privacy.html">Privacy</a><a href="/pages/contact.html?interest=challanse">Contact</a></nav>
+    </div>
+  </footer>
+
+  <script src="../assets/js/main.js?v=20260714"></script>
+  <script src="../assets/js/challanse.js?v=20260714"></script>
 </body>
 </html>

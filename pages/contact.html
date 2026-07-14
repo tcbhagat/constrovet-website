@@ -116,6 +116,7 @@
               <label for="interest">Review interest</label>
               <select id="interest" name="Review interest">
                 <option value="Pilot access">Pilot access</option>
+                <option value="ChallanSe pilot">ChallanSe pilot</option>
                 <option value="CA statutory cockpit">CA statutory cockpit</option>
                 <option value="Cost leakage review">Cost leakage review</option>
                 <option value="Schedule delay review">Schedule delay review</option>
@@ -129,7 +130,7 @@
               <textarea id="message" name="Message" rows="5" required placeholder="Example: We want a pilot review for a Maharashtra contractor with cost overrun, delay exposure, and evidence gaps. No confidential records are included in this form."></textarea>
             </div>
 
-            <button type="submit" class="cv-btn cv-btn--primary" style="width:100%;justify-content:center;">
+            <button type="submit" class="cv-btn cv-btn--primary cv-form__submit">
               Send Message
             </button>
           </form>
@@ -151,6 +152,15 @@
   </main>
 
   <div id="cv-footer-placeholder"></div>
-  <script src="../assets/js/main.js"></script>
+  <script>
+    (function () {
+      const interest = new URLSearchParams(window.location.search).get("interest");
+      const select = document.getElementById("interest");
+      if (interest === "challanse" && select) {
+        select.value = "ChallanSe pilot";
+      }
+    })();
+  </script>
+  <script src="../assets/js/main.js?v=20260714"></script>
 </body>
 </html>
