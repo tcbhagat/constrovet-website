@@ -1,4 +1,5 @@
 window.SSM_CORE_DEMO_CONFIG = {
-  apiBaseUrl: "http://localhost:8000",
+  retired: true,
+  apiBaseUrl: "",
   feedbackUrl: "/pages/contact.html"
 };

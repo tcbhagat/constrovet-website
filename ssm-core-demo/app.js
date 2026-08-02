@@ -2,7 +2,7 @@
   "use strict";
 
   const config = window.SSM_CORE_DEMO_CONFIG || {};
-  const apiBaseUrl = resolveApiBaseUrl(config.apiBaseUrl || "http://localhost:8000");
+  const apiBaseUrl = config.retired ? "Retired" : resolveApiBaseUrl(config.apiBaseUrl || "http://localhost:8000");
   const feedbackUrl = config.feedbackUrl || "/pages/contact.html?interest=ssm-ca-feedback";
   const passcodeKey = "ssmCoreDemoPasscode";
   const passcodeErrorMessage = "Demo passcode expired or incorrect. Reopen the latest private client link.";
@@ -51,6 +51,13 @@
 
   document.getElementById("apiBaseLabel").textContent = apiBaseUrl;
   document.getElementById("feedbackLink").href = feedbackUrl;
+  if (config.retired) {
+    document.getElementById("apiStatus").textContent = "Retired";
+    passcodePanel.hidden = true;
+    demoWorkbench.hidden = true;
+    caPanel.hidden = true;
+    return;
+  }
   wireGuidedAnchors();
   applyPasscodeFromPrivateLink();
 

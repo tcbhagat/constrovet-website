@@ -192,7 +192,7 @@ Use `git revert` for rollback. Do not rewrite public history during an incident 
 
 1. Confirm the public SSM demo route loads.
 2. Keep all demo data synthetic.
-3. If private SSM services are offline, mark the demo as public-shell only.
+3. Keep the retired demo marked as an archived public shell; no private SSM service is expected.
 4. Do not expose local service URLs, tunnels, or private test artifacts on the public site.
 
 ## Public Safety Scan
