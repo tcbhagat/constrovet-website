@@ -17,10 +17,17 @@ status_for() {
   curl -sS -L -o /dev/null -w "%{http_code}" "$1"
 }
 
-for path in "/" "/demo" "/app/" "/boardroom/" "/pages/challanse.html" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
+for path in "/" "/demo" "/app/" "/boardroom/" "/claim-companion/" "/pages/challanse.html" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
   status="$(status_for "${LIVE_URL}${path}")"
   [[ "$status" == "200" ]] || fail "${LIVE_URL}${path} returned HTTP ${status}"
 done
+
+claim_companion_html="$(curl -sS -L "${LIVE_URL}/claim-companion/")"
+grep -Fq "Know your likely hospital cost before treatment." <<<"$claim_companion_html" || fail "${LIVE_URL}/claim-companion/ does not contain the approved headline"
+grep -Fq "AKfycbztIOGwyzfkpUXawfjPv0GezE1DeCGiHxD8t3EoRtpCxB6thN2IT39rJKR8P6-n-mIRqg" "claim-companion/script.js" || fail "Claim Companion script does not contain the approved Apps Script endpoint"
+
+home_html="$(curl -sS -L "${LIVE_URL}/")"
+grep -Fq 'href="/claim-companion/"' <<<"$home_html" || fail "${LIVE_URL}/ does not link to Claim Companion"
 
 company_html="$(curl -sS -L "${LIVE_URL}/pages/company.html")"
 grep -Fq "$EXPECTED_LABEL" <<<"$company_html" || fail "${LIVE_URL}/pages/company.html does not contain '$EXPECTED_LABEL'"
@@ -35,4 +42,4 @@ fi
 
 echo "OK: GitHub Pages production routes verified"
 echo "site: ${LIVE_URL}"
-echo "routes: / /demo /app/ /boardroom/ /pages/challanse.html /llms.txt /sitemap.xml /robots.txt"
+echo "routes: / /demo /app/ /boardroom/ /claim-companion/ /pages/challanse.html /llms.txt /sitemap.xml /robots.txt"

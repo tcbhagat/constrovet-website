@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claim Companion | Pre-Treatment Cost Estimate</title>
+  <meta name="description" content="Provide your policy and proposed treatment details to request an independent pre-treatment hospital cost estimate.">
+  <link rel="canonical" href="https://www.constrovet.com/claim-companion/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Claim Companion">
+  <meta property="og:title" content="Claim Companion — Pre-Treatment Financial Clearance">
+  <meta property="og:description" content="Request an independent estimate of likely out-of-pocket hospital costs before treatment.">
+  <meta property="og:url" content="https://www.constrovet.com/claim-companion/">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="/ATC-logo3.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260818">
+</head>
+<body>
+  <header class="cc-header">
+    <a class="cc-brand" href="/claim-companion/" aria-label="Claim Companion home">
+      <svg viewBox="0 0 48 52" aria-hidden="true">
+        <path d="M24 3 43 10v13c0 12-7.7 21.5-19 26C12.7 44.5 5 35 5 23V10L24 3Z"/>
+        <path d="m15.5 25 5.4 5.4L33 18.3"/>
+      </svg>
+      <span>Claim Companion</span>
+    </a>
+    <a class="cc-back" href="/" aria-label="Back to Constrovet home">
+      <span aria-hidden="true">←</span> Back to Constrovet
+    </a>
+  </header>
+
+  <main class="cc-main">
+    <section class="cc-intro" aria-labelledby="cc-title">
+      <h1 id="cc-title">Know your likely hospital cost before treatment.</h1>
+      <p>Review your policy inputs and request a pre-treatment financial clearance estimate.</p>
+    </section>
+
+    <form class="cc-form" id="claim-form" novalidate>
+      <div class="cc-grid">
+        <div class="cc-field">
+          <label for="patient-name">Full Name <span aria-hidden="true">*</span></label>
+          <input id="patient-name" name="patientName" type="text" autocomplete="name" placeholder="Enter your full name" required>
+        </div>
+        <div class="cc-field">
+          <label for="email">Email Address <span aria-hidden="true">*</span></label>
+          <input id="email" name="email" type="email" autocomplete="email" placeholder="Enter your email address" required>
+        </div>
+        <div class="cc-field">
+          <label for="provider-name">Insurance Provider <span aria-hidden="true">*</span></label>
+          <input id="provider-name" name="providerName" type="text" autocomplete="organization" placeholder="e.g. Star Health, Niva Bupa" required>
+        </div>
+        <div class="cc-field">
+          <label for="policy-number">Policy Number <span class="cc-optional">(optional)</span></label>
+          <input id="policy-number" name="policyNumber" type="text" autocomplete="off" placeholder="Enter policy number">
+        </div>
+        <div class="cc-field">
+          <label for="sum-insured">Sum Insured (₹) <span aria-hidden="true">*</span></label>
+          <input id="sum-insured" name="sumInsured" type="number" min="1" inputmode="numeric" placeholder="Enter sum insured" required>
+        </div>
+        <div class="cc-field">
+          <label for="treatment-name">Treatment / Procedure Name <span aria-hidden="true">*</span></label>
+          <input id="treatment-name" name="treatmentName" type="text" placeholder="Enter treatment or procedure name" required>
+        </div>
+        <div class="cc-field">
+          <label for="estimated-cost">Estimated Hospital Bill (₹) <span aria-hidden="true">*</span></label>
+          <input id="estimated-cost" name="estimatedCost" type="number" min="1" inputmode="numeric" placeholder="Enter estimated hospital bill" required>
+        </div>
+        <div class="cc-field">
+          <label for="proposed-hospital">Proposed Hospital Name <span aria-hidden="true">*</span></label>
+          <input id="proposed-hospital" name="proposedHospital" type="text" autocomplete="organization" placeholder="Enter proposed hospital name" required>
+        </div>
+        <div class="cc-field cc-field--wide">
+          <label for="room-category">Preferred Room Category <span aria-hidden="true">*</span></label>
+          <select id="room-category" name="roomCategory" required>
+            <option value="General Ward">General Ward</option>
+            <option value="Shared Room">Shared Room</option>
+            <option value="Private Room" selected>Private Room</option>
+            <option value="Deluxe Suite">Deluxe Suite</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="cc-consent">
+        <input id="advisory-consent" name="consent" type="checkbox" required>
+        <label for="advisory-consent">I agree to the <a href="#advisory-terms">advisory terms</a> and consent to receiving a pre-audit financial clearance pass via email.</label>
+      </div>
+
+      <button class="cc-submit" id="submit-button" type="submit">Generate Cost-Lock Pass</button>
+      <p class="cc-status" id="form-status" role="status" aria-live="polite"></p>
+    </form>
+
+    <aside class="cc-notice" id="advisory-terms" aria-labelledby="notice-title">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.5v.1"/></svg>
+      <div>
+        <h2 id="notice-title">Important</h2>
+        <p>This estimate is independent guidance based on the information you provide. It is not an insurer or TPA pre-authorization guarantee.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="cc-footer">
+    <span>Claim Companion by Constrovet</span>
+    <span aria-hidden="true">|</span>
+    <a href="/pages/privacy.html">Privacy Policy</a>
+    <span aria-hidden="true">|</span>
+    <a href="#advisory-terms">Advisory Terms</a>
+  </footer>
+
+  <script src="script.js?v=20260818"></script>
+</body>
+</html>
