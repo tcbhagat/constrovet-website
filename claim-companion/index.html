@@ -1,114 +1,160 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claim Companion | Pre-Treatment Cost Estimate</title>
-  <meta name="description" content="Provide your policy and proposed treatment details to request an independent pre-treatment hospital cost estimate.">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#087f84">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+  <meta name="description" content="Prepare a conservative pre-treatment hospital cost estimate from your policy, prescription and hospital quotation.">
+  <meta name="robots" content="index,follow">
   <link rel="canonical" href="https://www.constrovet.com/claim-companion/">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Claim Companion">
-  <meta property="og:title" content="Claim Companion — Pre-Treatment Financial Clearance">
-  <meta property="og:description" content="Request an independent estimate of likely out-of-pocket hospital costs before treatment.">
-  <meta property="og:url" content="https://www.constrovet.com/claim-companion/">
-  <meta name="twitter:card" content="summary">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="/ATC-logo3.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260818">
+  <link rel="stylesheet" href="styles.css?v=20260819">
+  <title>Claim Companion | Your Cost-Lock Estimate</title>
 </head>
 <body>
-  <header class="cc-header">
-    <a class="cc-brand" href="/claim-companion/" aria-label="Claim Companion home">
-      <svg viewBox="0 0 48 52" aria-hidden="true">
-        <path d="M24 3 43 10v13c0 12-7.7 21.5-19 26C12.7 44.5 5 35 5 23V10L24 3Z"/>
-        <path d="m15.5 25 5.4 5.4L33 18.3"/>
-      </svg>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header">
+    <a class="brand" href="/claim-companion/" aria-label="Claim Companion home">
+      <svg viewBox="0 0 48 52" aria-hidden="true"><path d="M24 3 43 10v13c0 12-7.7 21.5-19 26C12.7 44.5 5 35 5 23V10L24 3Z"/><path d="m15.5 25 5.4 5.4L33 18.3"/></svg>
       <span>Claim Companion</span>
     </a>
-    <a class="cc-back" href="/" aria-label="Back to Constrovet home">
-      <span aria-hidden="true">←</span> Back to Constrovet
-    </a>
+    <nav class="header-actions" aria-label="Application">
+      <button class="install-button" id="install-button" type="button" hidden>Install app</button>
+      <a href="mailto:admin@constrovet.com?subject=Claim%20Companion%20support">Help</a>
+      <span class="secure-label"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Secure session</span>
+    </nav>
   </header>
 
-  <main class="cc-main">
-    <section class="cc-intro" aria-labelledby="cc-title">
-      <h1 id="cc-title">Know your likely hospital cost before treatment.</h1>
-      <p>Review your policy inputs and request a pre-treatment financial clearance estimate.</p>
+  <div class="progress-band">
+    <ol class="stepper" aria-label="Application progress">
+      <li class="is-current" data-step-marker="1"><span>1</span><strong>Email</strong></li>
+      <li data-step-marker="2"><span>2</span><strong>Documents</strong></li>
+      <li data-step-marker="3"><span>3</span><strong>Details</strong></li>
+      <li data-step-marker="4"><span>4</span><strong>Review</strong></li>
+      <li data-step-marker="5"><span>5</span><strong>Done</strong></li>
+    </ol>
+  </div>
+
+  <main id="main" class="app-main">
+    <noscript><p class="alert alert--error">JavaScript is required to prepare your estimate securely.</p></noscript>
+
+    <section class="step-panel is-active" data-step="1" aria-labelledby="email-title">
+      <div class="section-heading">
+        <p>Your Cost-Lock estimate</p>
+        <h1 id="email-title">Start with your email</h1>
+        <p>We will send a secure sign-in link before accepting medical or policy documents.</p>
+      </div>
+      <form id="email-form" class="task-panel" novalidate>
+        <div class="form-grid form-grid--two">
+          <div class="field">
+            <label for="patient-name">Patient or representative name</label>
+            <input id="patient-name" name="patientName" type="text" autocomplete="name" maxlength="100" required>
+          </div>
+          <div class="field">
+            <label for="patient-email">Email address</label>
+            <input id="patient-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+          </div>
+        </div>
+        <label class="check-row"><input id="registration-consent" type="checkbox" required><span>I agree to the <a href="terms.html">terms</a> and <a href="privacy.html">privacy notice</a>.</span></label>
+        <button class="primary-action" type="submit">Email me a secure link</button>
+        <p id="email-status" class="status" role="status" aria-live="polite"></p>
+      </form>
     </section>
 
-    <form class="cc-form" id="claim-form" novalidate>
-      <div class="cc-grid">
-        <div class="cc-field">
-          <label for="patient-name">Full Name <span aria-hidden="true">*</span></label>
-          <input id="patient-name" name="patientName" type="text" autocomplete="name" placeholder="Enter your full name" required>
-        </div>
-        <div class="cc-field">
-          <label for="email">Email Address <span aria-hidden="true">*</span></label>
-          <input id="email" name="email" type="email" autocomplete="email" placeholder="Enter your email address" required>
-        </div>
-        <div class="cc-field">
-          <label for="provider-name">Insurance Provider <span aria-hidden="true">*</span></label>
-          <input id="provider-name" name="providerName" type="text" autocomplete="organization" placeholder="e.g. Star Health, Niva Bupa" required>
-        </div>
-        <div class="cc-field">
-          <label for="policy-number">Policy Number <span class="cc-optional">(optional)</span></label>
-          <input id="policy-number" name="policyNumber" type="text" autocomplete="off" placeholder="Enter policy number">
-        </div>
-        <div class="cc-field">
-          <label for="sum-insured">Sum Insured (₹) <span aria-hidden="true">*</span></label>
-          <input id="sum-insured" name="sumInsured" type="number" min="1" inputmode="numeric" placeholder="Enter sum insured" required>
-        </div>
-        <div class="cc-field">
-          <label for="treatment-name">Treatment / Procedure Name <span aria-hidden="true">*</span></label>
-          <input id="treatment-name" name="treatmentName" type="text" placeholder="Enter treatment or procedure name" required>
-        </div>
-        <div class="cc-field">
-          <label for="estimated-cost">Estimated Hospital Bill (₹) <span aria-hidden="true">*</span></label>
-          <input id="estimated-cost" name="estimatedCost" type="number" min="1" inputmode="numeric" placeholder="Enter estimated hospital bill" required>
-        </div>
-        <div class="cc-field">
-          <label for="proposed-hospital">Proposed Hospital Name <span aria-hidden="true">*</span></label>
-          <input id="proposed-hospital" name="proposedHospital" type="text" autocomplete="organization" placeholder="Enter proposed hospital name" required>
-        </div>
-        <div class="cc-field cc-field--wide">
-          <label for="room-category">Preferred Room Category <span aria-hidden="true">*</span></label>
-          <select id="room-category" name="roomCategory" required>
-            <option value="General Ward">General Ward</option>
-            <option value="Shared Room">Shared Room</option>
-            <option value="Private Room" selected>Private Room</option>
-            <option value="Deluxe Suite">Deluxe Suite</option>
-          </select>
-        </div>
+    <section class="step-panel" data-step="2" aria-labelledby="documents-title" hidden>
+      <div class="section-heading section-heading--icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></svg>
+        <div><p>Your Cost-Lock estimate</p><h1 id="documents-title">Documents</h1><p>Upload the following documents to prepare your estimate.</p></div>
       </div>
+      <form id="documents-form" class="task-panel task-panel--open" novalidate>
+        <div id="upload-list" class="upload-list"></div>
+        <div class="device-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 20 5v6c0 5-3.2 9-8 11-4.8-2-8-6-8-11V5z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg><span>Documents are read on this device first.</span></div>
+        <button class="primary-action primary-action--right" type="submit">Continue securely</button>
+        <p id="documents-status" class="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
 
-      <div class="cc-consent">
-        <input id="advisory-consent" name="consent" type="checkbox" required>
-        <label for="advisory-consent">I agree to the <a href="#advisory-terms">advisory terms</a> and consent to receiving a pre-audit financial clearance pass via email.</label>
+    <section class="step-panel" data-step="3" aria-labelledby="details-title" hidden>
+      <div class="section-heading"><p>Your Cost-Lock estimate</p><h1 id="details-title">Confirm the details</h1><p>Check every value against your documents. Leave unknown optional amounts blank.</p></div>
+      <form id="details-form" class="task-panel" novalidate>
+        <h2>Treatment and hospital</h2>
+        <div class="form-grid form-grid--two">
+          <div class="field"><label for="procedure-name">Treatment or procedure</label><input id="procedure-name" name="procedureName" maxlength="160" required></div>
+          <div class="field"><label for="hospital-name">Proposed hospital</label><input id="hospital-name" name="hospitalName" maxlength="160" required></div>
+          <div class="field"><label for="treatment-date">Expected treatment date <span>(optional)</span></label><input id="treatment-date" name="treatmentDate" type="date"></div>
+          <div class="field"><label for="room-category">Preferred room</label><select id="room-category" name="roomCategory" required><option value="General ward">General ward</option><option value="Shared room">Shared room</option><option value="Private room" selected>Private room</option><option value="Deluxe room">Deluxe room</option></select></div>
+        </div>
+        <h2>Policy limits</h2>
+        <div class="form-grid form-grid--three">
+          <div class="field"><label for="sum-insured">Available sum insured (₹)</label><input id="sum-insured" name="sumInsured" type="number" min="0" step="1" inputmode="numeric" required></div>
+          <div class="field"><label for="room-limit">Room-rent limit/day (₹) <span>(optional)</span></label><input id="room-limit" name="roomLimit" type="number" min="0" step="1" inputmode="numeric"></div>
+          <div class="field"><label for="copay-percent">Co-pay (%)</label><input id="copay-percent" name="copayPercent" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="0" required></div>
+          <div class="field"><label for="deductible">Deductible (₹)</label><input id="deductible" name="deductible" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+          <div class="field field--wide"><label for="waiting-note">Waiting-period or exclusion note <span>(optional)</span></label><input id="waiting-note" name="waitingNote" maxlength="300"></div>
+        </div>
+        <h2>Hospital estimate</h2>
+        <div class="form-grid form-grid--three">
+          <div class="field"><label for="estimated-bill">Total estimated bill (₹)</label><input id="estimated-bill" name="estimatedBill" type="number" min="1" step="1" inputmode="numeric" required></div>
+          <div class="field"><label for="stay-days">Expected stay (days)</label><input id="stay-days" name="stayDays" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" required></div>
+          <div class="field"><label for="actual-room-rate">Selected room/day (₹) <span>(optional)</span></label><input id="actual-room-rate" name="actualRoomRate" type="number" min="0" step="1" inputmode="numeric"></div>
+          <div class="field"><label for="non-payables">Known non-payables (₹)</label><input id="non-payables" name="nonPayables" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+          <div class="field"><label for="proportionate-charges">Charges subject to room proportion (₹)</label><input id="proportionate-charges" name="proportionateCharges" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+        </div>
+        <h2>Your requirements</h2>
+        <div class="field"><label for="patient-preferences">Room, nursing care or other requested services</label><textarea id="patient-preferences" name="patientPreferences" rows="4" maxlength="1200" placeholder="Example: Private room, overnight attendant and post-surgery nursing support." required></textarea></div>
+        <div class="button-row"><button class="secondary-action" type="button" data-back="2">Back</button><button class="primary-action" type="submit">Review details</button></div>
+      </form>
+    </section>
+
+    <section class="step-panel" data-step="4" aria-labelledby="review-title" hidden>
+      <div class="section-heading section-heading--icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></svg><div><h1 id="review-title">Review your Cost-Lock details</h1></div></div>
+      <div class="alert alert--warning"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19z"/><path d="M12 9v5M12 17.5v.1"/></svg><span>Please confirm these values were read correctly.</span></div>
+      <form id="review-form" class="review-layout" novalidate>
+        <div id="review-summary" class="review-summary"></div>
+        <div class="review-consent">
+          <label class="check-row"><input id="accuracy-consent" type="checkbox" required><span>I confirm the information above is correct to the best of my knowledge.</span></label>
+          <label class="check-row"><input id="hospital-consent" type="checkbox" required><span>I authorize delivery of this Cost-Lock report to the hospital email entered below.</span></label>
+          <div class="field"><label for="hospital-email">Hospital administration email</label><input id="hospital-email" name="hospitalEmail" type="email" autocomplete="email" maxlength="254" required><small>The hospital must verify this address before receiving the report.</small></div>
+          <div class="button-row"><button class="secondary-action" type="button" data-back="3">Edit details</button><button class="primary-action" type="submit">Generate my estimate</button></div>
+          <p class="estimate-note">Estimate only. Insurer and hospital decisions may differ.</p>
+          <p id="review-status" class="status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="step-panel" data-step="5" aria-labelledby="done-title" hidden>
+      <div class="completion">
+        <svg viewBox="0 0 72 72" aria-hidden="true"><circle cx="36" cy="36" r="32"/><path d="m22 37 9 9 20-22"/></svg>
+        <h1 id="done-title">Your request is recorded</h1>
+        <p>The Cost-Lock PDF will be sent to your verified email. The hospital receives it only after verifying its address.</p>
+        <p class="reference" id="report-reference"></p>
+        <a class="secondary-action secondary-action--link" href="/claim-companion/">Start another estimate</a>
       </div>
-
-      <button class="cc-submit" id="submit-button" type="submit">Generate Cost-Lock Pass</button>
-      <p class="cc-status" id="form-status" role="status" aria-live="polite"></p>
-    </form>
-
-    <aside class="cc-notice" id="advisory-terms" aria-labelledby="notice-title">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.5v.1"/></svg>
-      <div>
-        <h2 id="notice-title">Important</h2>
-        <p>This estimate is independent guidance based on the information you provide. It is not an insurer or TPA pre-authorization guarantee.</p>
-      </div>
-    </aside>
+    </section>
   </main>
 
-  <footer class="cc-footer">
-    <span>Claim Companion by Constrovet</span>
-    <span aria-hidden="true">|</span>
-    <a href="/pages/privacy.html">Privacy Policy</a>
-    <span aria-hidden="true">|</span>
-    <a href="#advisory-terms">Advisory Terms</a>
+  <footer class="app-footer">
+    <nav aria-label="Legal"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="delete-data.html">Delete my data</a></nav>
+    <p>AInnoverse Tech Centre LLP</p>
   </footer>
 
-  <script src="script.js?v=20260818"></script>
+  <template id="upload-template">
+    <div class="upload-row">
+      <div class="upload-label"><strong></strong><span>(required)</span></div>
+      <label class="drop-zone"><input type="file" hidden required><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18H5a4 4 0 0 1-.4-8A7 7 0 0 1 18 8.3 5 5 0 0 1 19 18h-2"/><path d="m9 13 3-3 3 3M12 10v10"/></svg><span><strong>Upload image or PDF</strong><small>Drag and drop here or click to browse</small></span></label>
+      <div class="file-result" hidden><span class="file-icon">PDF</span><span><strong></strong><small></small></span><button type="button">Remove</button></div>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
+  <script src="config.js?v=20260819"></script>
+  <script type="module" src="app.js?v=20260819"></script>
 </body>
 </html>

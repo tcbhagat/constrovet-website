@@ -1,0 +1,9 @@
+{
+  "name": "constrovet-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check claim-companion/app.js && node --check claim-companion/api.js && node --check claim-companion/calculator.js && node --check claim-companion/extractor.js && node scripts/check-claim-companion.mjs"
+  }
+}

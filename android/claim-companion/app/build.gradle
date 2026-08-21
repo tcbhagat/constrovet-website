@@ -1,0 +1,41 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.constrovet.claimcompanion"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.constrovet.claimcompanion"
+        minSdk 23
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    def releaseKeystore = System.getenv("CC_KEYSTORE_PATH")
+    if (releaseKeystore) {
+        signingConfigs {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword System.getenv("CC_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CC_KEY_ALIAS")
+                keyPassword System.getenv("CC_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            if (releaseKeystore) signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.3"
+}

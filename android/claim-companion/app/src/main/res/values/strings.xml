@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Claim Companion</string>
+    <string name="launch_url">https://www.constrovet.com/claim-companion/</string>
+    <string name="asset_statements">[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://www.constrovet.com"}}]</string>
+</resources>
