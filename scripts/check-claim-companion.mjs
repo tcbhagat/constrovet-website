@@ -17,7 +17,10 @@ for (const icon of manifest.icons) {
 }
 
 const config = readFileSync("claim-companion/config.js", "utf8");
-if (/AKfy[a-zA-Z0-9_-]+/.test(config)) throw new Error("A deployment-specific Apps Script URL must not be committed before preview approval.");
+const endpoint = config.match(/apiUrl:\s*"([^"]*)"/)?.[1] || "";
+if (endpoint && !/^https:\/\/script\.google\.com\/macros\/s\/AKfy[a-zA-Z0-9_-]+\/exec$/.test(endpoint)) {
+  throw new Error("Claim Companion apiUrl must be empty or a valid HTTPS Apps Script /exec deployment URL.");
+}
 const source = required.filter((file) => file.endsWith(".js") || file.endsWith(".gs") || file.endsWith(".html")).map((file) => readFileSync(file, "utf8")).join("\n");
 if (/AIza[0-9A-Za-z_-]{20,}/.test(source)) throw new Error("Potential Google API key found.");
 if (/pre-authorization approved|cashless approved|expected insurer sanction/i.test(source)) throw new Error("Unsafe approval wording found.");
