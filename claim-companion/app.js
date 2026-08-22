@@ -107,7 +107,12 @@ function prefillDetails() {
   const policy = inferPolicyFields(state.extracted.policy || "");
   const estimate = inferEstimateFields(state.extracted.estimate || "");
   const prescription = inferPrescriptionFields(state.extracted.prescription || "");
-  const values = { ...policy, ...estimate, ...prescription };
+  const values = {};
+  for (const source of [policy, estimate, prescription]) {
+    for (const [key, value] of Object.entries(source)) {
+      if (value !== undefined && value !== null && value !== "" && value !== 0) values[key] = value;
+    }
+  }
   const mapping = {
     procedureName: "#procedure-name", hospitalName: "#hospital-name", hospitalEmail: "#hospital-email", roomCategory: "#room-category",
     sumInsured: "#sum-insured", roomLimit: "#room-limit", copayPercent: "#copay-percent", deductible: "#deductible",

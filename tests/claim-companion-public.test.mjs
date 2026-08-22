@@ -81,6 +81,7 @@ test("document values are auto-filled while patients add only preferences or mis
   assert.match(page, /Anything else\?/);
   assert.match(app, /compilePreferences/);
   assert.match(app, /needs-input/);
+  assert.match(app, /for \(const source of \[policy, estimate, prescription\]\)/);
 });
 
 test("unsafe approval claims and public AI calls are absent", () => {
