@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260819">
+  <link rel="stylesheet" href="styles.css?v=20260822">
   <title>Claim Companion | Your Cost-Lock Estimate</title>
 </head>
 <body>
@@ -82,33 +82,52 @@
     </section>
 
     <section class="step-panel" data-step="3" aria-labelledby="details-title" hidden>
-      <div class="section-heading"><p>Your Cost-Lock estimate</p><h1 id="details-title">Confirm the details</h1><p>Check every value against your documents. Leave unknown optional amounts blank.</p></div>
+      <div class="section-heading"><p>Your Cost-Lock estimate</p><h1 id="details-title">Add only what is missing</h1><p>We filled the details found in your documents. Choose your care preferences and review the values if needed.</p></div>
       <form id="details-form" class="task-panel" novalidate>
-        <h2>Treatment and hospital</h2>
-        <div class="form-grid form-grid--two">
-          <div class="field"><label for="procedure-name">Treatment or procedure</label><input id="procedure-name" name="procedureName" maxlength="160" required></div>
-          <div class="field"><label for="hospital-name">Proposed hospital</label><input id="hospital-name" name="hospitalName" maxlength="160" required></div>
-          <div class="field"><label for="treatment-date">Expected treatment date <span>(optional)</span></label><input id="treatment-date" name="treatmentDate" type="date"></div>
-          <div class="field"><label for="room-category">Preferred room</label><select id="room-category" name="roomCategory" required><option value="General ward">General ward</option><option value="Shared room">Shared room</option><option value="Private room" selected>Private room</option><option value="Deluxe room">Deluxe room</option></select></div>
+        <div class="extraction-summary" id="extraction-summary" role="status" aria-live="polite">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 20 5v6c0 5-3.2 9-8 11-4.8-2-8-6-8-11V5z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
+          <div><strong id="auto-fill-summary">Reading your documents...</strong><span>You can edit any value before generating the estimate.</span></div>
         </div>
-        <h2>Policy limits</h2>
-        <div class="form-grid form-grid--three">
-          <div class="field"><label for="sum-insured">Available sum insured (₹)</label><input id="sum-insured" name="sumInsured" type="number" min="0" step="1" inputmode="numeric" required></div>
-          <div class="field"><label for="room-limit">Room-rent limit/day (₹) <span>(optional)</span></label><input id="room-limit" name="roomLimit" type="number" min="0" step="1" inputmode="numeric"></div>
-          <div class="field"><label for="copay-percent">Co-pay (%)</label><input id="copay-percent" name="copayPercent" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="0" required></div>
-          <div class="field"><label for="deductible">Deductible (₹)</label><input id="deductible" name="deductible" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
-          <div class="field field--wide"><label for="waiting-note">Waiting-period or exclusion note <span>(optional)</span></label><input id="waiting-note" name="waitingNote" maxlength="300"></div>
+
+        <h2>Your preferences</h2>
+        <div class="form-grid form-grid--two preference-grid">
+          <div class="field"><label for="room-category">Preferred room</label><select id="room-category" name="roomCategory" required><option value="General ward">General ward</option><option value="Shared room">Shared room</option><option value="Private room" selected>Private room</option><option value="Deluxe room">Deluxe room</option><option value="Not sure">Not sure</option></select></div>
+          <div class="field"><label for="nursing-care">Nursing care</label><select id="nursing-care" name="nursingCare" required><option value="Standard hospital nursing" selected>Standard hospital nursing</option><option value="Private nurse requested">Private nurse requested</option><option value="Discuss with hospital">Discuss with hospital</option></select></div>
         </div>
-        <h2>Hospital estimate</h2>
-        <div class="form-grid form-grid--three">
-          <div class="field"><label for="estimated-bill">Total estimated bill (₹)</label><input id="estimated-bill" name="estimatedBill" type="number" min="1" step="1" inputmode="numeric" required></div>
-          <div class="field"><label for="stay-days">Expected stay (days)</label><input id="stay-days" name="stayDays" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" required></div>
-          <div class="field"><label for="actual-room-rate">Selected room/day (₹) <span>(optional)</span></label><input id="actual-room-rate" name="actualRoomRate" type="number" min="0" step="1" inputmode="numeric"></div>
-          <div class="field"><label for="non-payables">Known non-payables (₹)</label><input id="non-payables" name="nonPayables" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
-          <div class="field"><label for="proportionate-charges">Charges subject to room proportion (₹)</label><input id="proportionate-charges" name="proportionateCharges" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+        <div class="preference-options" aria-label="Additional care preferences">
+          <label class="preference-option"><input type="checkbox" name="attendantStay" value="Attendant stay or bed requested"><span>Attendant stay or bed</span></label>
+          <label class="preference-option"><input type="checkbox" name="dietarySupport" value="Special dietary support requested"><span>Special dietary support</span></label>
+          <label class="preference-option"><input type="checkbox" name="accessibilitySupport" value="Accessibility assistance requested"><span>Accessibility assistance</span></label>
         </div>
-        <h2>Your requirements</h2>
-        <div class="field"><label for="patient-preferences">Room, nursing care or other requested services</label><textarea id="patient-preferences" name="patientPreferences" rows="4" maxlength="1200" placeholder="Example: Private room, overnight attendant and post-surgery nursing support." required></textarea></div>
+        <div class="field additional-request"><label for="additional-requests">Anything else? <span>(optional)</span></label><textarea id="additional-requests" name="additionalRequests" rows="3" maxlength="900" placeholder="Example: Mobility assistance after surgery."></textarea></div>
+
+        <details class="document-values" id="document-values">
+          <summary>Review document values <span id="document-values-summary"></span></summary>
+          <p class="document-values-intro">These values were filled from the uploaded documents. Fields marked “Add this” could not be found.</p>
+          <h2>Treatment and hospital</h2>
+          <div class="form-grid form-grid--two">
+            <div class="field"><label for="procedure-name">Treatment or procedure</label><input id="procedure-name" name="procedureName" maxlength="160" required></div>
+            <div class="field"><label for="hospital-name">Proposed hospital</label><input id="hospital-name" name="hospitalName" maxlength="160" required></div>
+            <div class="field"><label for="treatment-date">Expected treatment date <span>(optional)</span></label><input id="treatment-date" name="treatmentDate" type="date"></div>
+          </div>
+          <h2>Policy limits</h2>
+          <div class="form-grid form-grid--three">
+            <div class="field"><label for="sum-insured">Available sum insured (₹)</label><input id="sum-insured" name="sumInsured" type="number" min="0" step="1" inputmode="numeric" required></div>
+            <div class="field"><label for="room-limit">Room-rent limit/day (₹) <span>(optional)</span></label><input id="room-limit" name="roomLimit" type="number" min="0" step="1" inputmode="numeric"></div>
+            <div class="field"><label for="copay-percent">Co-pay (%)</label><input id="copay-percent" name="copayPercent" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="0" required></div>
+            <div class="field"><label for="deductible">Deductible (₹)</label><input id="deductible" name="deductible" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+            <div class="field field--wide"><label for="waiting-note">Waiting-period or exclusion note <span>(optional)</span></label><input id="waiting-note" name="waitingNote" maxlength="300"></div>
+          </div>
+          <h2>Hospital estimate</h2>
+          <div class="form-grid form-grid--three">
+            <div class="field"><label for="estimated-bill">Total estimated bill (₹)</label><input id="estimated-bill" name="estimatedBill" type="number" min="1" step="1" inputmode="numeric" required></div>
+            <div class="field"><label for="stay-days">Expected stay (days)</label><input id="stay-days" name="stayDays" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" required></div>
+            <div class="field"><label for="actual-room-rate">Selected room/day (₹) <span>(optional)</span></label><input id="actual-room-rate" name="actualRoomRate" type="number" min="0" step="1" inputmode="numeric"></div>
+            <div class="field"><label for="non-payables">Known non-payables (₹)</label><input id="non-payables" name="nonPayables" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+            <div class="field"><label for="proportionate-charges">Charges subject to room proportion (₹)</label><input id="proportionate-charges" name="proportionateCharges" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+          </div>
+        </details>
+
         <div class="button-row"><button class="secondary-action" type="button" data-back="2">Back</button><button class="primary-action" type="submit">Review details</button></div>
       </form>
     </section>
@@ -154,7 +173,7 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-  <script src="config.js?v=20260819"></script>
-  <script type="module" src="app.js?v=20260819"></script>
+  <script src="config.js?v=20260822"></script>
+  <script type="module" src="app.js?v=20260822"></script>
 </body>
 </html>

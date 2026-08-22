@@ -73,6 +73,35 @@ function firstMoney(text, patterns) {
   return 0;
 }
 
+function inferHospitalName(text) {
+  const lines = String(text || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    if (/^(?:provisional\s+)?hospital\s+(?:cost\s+)?estimate|^hospital\s+(?:treatment|prescription|advice)/i.test(line)) continue;
+    const match = line.match(/([A-Za-z][A-Za-z0-9&.,'() -]{2,120}?(?:hospital|medical centre|medical center|clinic|nursing home))/i);
+    if (match && !/^(?:hospital|clinic|nursing home)$/i.test(match[1].trim())) return match[1].replace(/^(?:hospital|provider|facility)\s*[:\-]?\s*/i, "").trim().slice(0, 160);
+  }
+  return "";
+}
+
+function inferHospitalEmail(text) {
+  const match = String(text || "").match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  return match ? match[0].toLowerCase() : "";
+}
+
+function inferStayDays(text) {
+  const compact = String(text || "").replace(/\s+/g, " ");
+  return Number((compact.match(/(?:expected stay|length of stay|stay)[^\d]{0,30}(\d{1,3})\s*days?/i) || [])[1] || 0);
+}
+
+function inferRoomCategory(text) {
+  const compact = String(text || "").replace(/\s+/g, " ");
+  if (/deluxe\s+room/i.test(compact)) return "Deluxe room";
+  if (/(?:single\s+)?private\s+room/i.test(compact)) return "Private room";
+  if (/(?:shared|twin[- ]?sharing)\s+room/i.test(compact)) return "Shared room";
+  if (/general\s+ward/i.test(compact)) return "General ward";
+  return "";
+}
+
 export function inferPolicyFields(text) {
   const compact = String(text || "").replace(/\s+/g, " ");
   return {
@@ -93,7 +122,11 @@ export function inferEstimateFields(text) {
       /(?:estimated\s+)?non[- ]?payables?[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
       /non[- ]?medical[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
       /consumables[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i
-    ])
+    ]),
+    hospitalName: inferHospitalName(text),
+    hospitalEmail: inferHospitalEmail(text),
+    stayDays: inferStayDays(text),
+    roomCategory: inferRoomCategory(text)
   };
 }
 
@@ -106,7 +139,19 @@ export function inferPrescriptionFields(text) {
     if (index < 0) continue;
     const inline = lines[index].replace(label, "").trim();
     const procedureName = inline || lines[index + 1] || "";
-    if (procedureName) return { procedureName: procedureName.slice(0, 160) };
+    if (procedureName) return {
+      procedureName: procedureName.slice(0, 160),
+      hospitalName: inferHospitalName(text),
+      hospitalEmail: inferHospitalEmail(text),
+      stayDays: inferStayDays(text),
+      roomCategory: inferRoomCategory(text)
+    };
   }
-  return { procedureName: "" };
+  return {
+    procedureName: "",
+    hospitalName: inferHospitalName(text),
+    hospitalEmail: inferHospitalEmail(text),
+    stayDays: inferStayDays(text),
+    roomCategory: inferRoomCategory(text)
+  };
 }
