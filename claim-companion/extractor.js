@@ -89,12 +89,24 @@ export function inferEstimateFields(text) {
   return {
     estimatedBill: firstMoney(compact, [/(?:grand total|total estimated|estimated total|package amount|net amount|total amount)[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i]),
     actualRoomRate: firstMoney(compact, [/(?:room rent|room charges?|private room)[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?:\s*\/\s*day|\s*per day|\s*daily)/i]),
-    nonPayables: firstMoney(compact, [/(?:non[- ]?payable|non[- ]?medical|consumables)[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i])
+    nonPayables: firstMoney(compact, [
+      /(?:estimated\s+)?non[- ]?payables?[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
+      /non[- ]?medical[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
+      /consumables[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i
+    ])
   };
 }
 
 export function inferPrescriptionFields(text) {
   const lines = String(text || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  const procedureLine = lines.find((line) => /procedure|surgery|operation|advised|day care|diagnosis/i.test(line)) || "";
-  return { procedureName: procedureLine.replace(/^(procedure|surgery|operation|advised|diagnosis)\s*[:\-]?\s*/i, "").slice(0, 160) };
+  const priorities = [/recommended\s+procedure/i, /\bprocedure\b/i, /surgery|operation|advised|day care/i, /diagnosis/i];
+  const label = /^(recommended\s+procedure|procedure|surgery|operation|advised|provisional\s+diagnosis|diagnosis)\s*[:\-]?\s*/i;
+  for (const pattern of priorities) {
+    const index = lines.findIndex((line) => pattern.test(line));
+    if (index < 0) continue;
+    const inline = lines[index].replace(label, "").trim();
+    const procedureName = inline || lines[index + 1] || "";
+    if (procedureName) return { procedureName: procedureName.slice(0, 160) };
+  }
+  return { procedureName: "" };
 }
