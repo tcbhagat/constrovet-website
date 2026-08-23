@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { calculateCostLock, formatInr, validateCostLock } from "../claim-companion/calculator.js";
-import { inferEstimateFields, inferPolicyFields } from "../claim-companion/extractor.js";
+import { inferEstimateFields, inferPolicyFields, inferPrescriptionFields } from "../claim-companion/extractor.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("claim-companion/index.html");
@@ -63,6 +63,25 @@ test("local extractors find common Indian policy and quotation fields", () => {
   assert.equal(estimate.estimatedBill, 124567);
   assert.equal(estimate.actualRoomRate, 5000);
   assert.equal(estimate.nonPayables, 9965);
+  const fullEstimate = inferEstimateFields("Medicines and consumables INR 6,000. Grand Total INR 1,24,567. Estimated non-payables INR 9,965 included in total.");
+  assert.equal(fullEstimate.nonPayables, 9965);
+  const prescription = inferPrescriptionFields("Provisional diagnosis\nSymptomatic gallstone disease\nRecommended procedure\nLaparoscopic cholecystectomy");
+  assert.match(prescription.procedureName, /Laparoscopic cholecystectomy/i);
+  const hospital = inferPrescriptionFields("Hospital Treatment Advice\nGreen Valley Multispeciality Hospital\nExpected stay 2 days\nRoom requested Single private room\nRecommended procedure\nLaparoscopic cholecystectomy");
+  assert.equal(hospital.hospitalName, "Green Valley Multispeciality Hospital");
+  assert.equal(hospital.stayDays, 2);
+  assert.equal(hospital.roomCategory, "Private room");
+});
+
+test("document values are auto-filled while patients add only preferences or missing details", () => {
+  assert.match(page, /Add only what is missing/);
+  assert.match(page, /id="document-values"/);
+  assert.match(page, /id="nursing-care"/);
+  assert.match(page, /name="attendantStay"/);
+  assert.match(page, /Anything else\?/);
+  assert.match(app, /compilePreferences/);
+  assert.match(app, /needs-input/);
+  assert.match(app, /for \(const source of \[policy, estimate, prescription\]\)/);
 });
 
 test("unsafe approval claims and public AI calls are absent", () => {

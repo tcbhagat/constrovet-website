@@ -107,15 +107,44 @@ function prefillDetails() {
   const policy = inferPolicyFields(state.extracted.policy || "");
   const estimate = inferEstimateFields(state.extracted.estimate || "");
   const prescription = inferPrescriptionFields(state.extracted.prescription || "");
-  const values = { ...policy, ...estimate, ...prescription };
+  const values = {};
+  for (const source of [policy, estimate, prescription]) {
+    for (const [key, value] of Object.entries(source)) {
+      if (value !== undefined && value !== null && value !== "" && value !== 0) values[key] = value;
+    }
+  }
   const mapping = {
-    procedureName: "#procedure-name", sumInsured: "#sum-insured", roomLimit: "#room-limit", copayPercent: "#copay-percent",
-    deductible: "#deductible", waitingNote: "#waiting-note", estimatedBill: "#estimated-bill", actualRoomRate: "#actual-room-rate", nonPayables: "#non-payables"
+    procedureName: "#procedure-name", hospitalName: "#hospital-name", hospitalEmail: "#hospital-email", roomCategory: "#room-category",
+    sumInsured: "#sum-insured", roomLimit: "#room-limit", copayPercent: "#copay-percent", deductible: "#deductible",
+    waitingNote: "#waiting-note", estimatedBill: "#estimated-bill", stayDays: "#stay-days", actualRoomRate: "#actual-room-rate", nonPayables: "#non-payables"
   };
+  let autoFilled = 0;
   Object.entries(mapping).forEach(([key, selector]) => {
     const field = $(selector);
-    if (field && values[key] && !field.value) field.value = values[key];
+    const value = values[key];
+    if (!field || value === undefined || value === null || value === "" || value === 0) return;
+    field.value = value;
+    field.closest(".field")?.classList.add("is-extracted");
+    autoFilled += 1;
   });
+  const requiredDocumentFields = ["#procedure-name", "#hospital-name", "#sum-insured", "#estimated-bill"];
+  const missing = requiredDocumentFields.map((selector) => $(selector)).filter((field) => !field.value || (field.type === "number" && Number(field.value) <= 0));
+  missing.forEach((field) => field.closest(".field")?.classList.add("needs-input"));
+  const details = $("#document-values");
+  details.open = missing.length > 0;
+  $("#document-values-summary").textContent = missing.length ? `${autoFilled} found · ${missing.length} to add` : `${autoFilled} found`;
+  $("#auto-fill-summary").textContent = missing.length
+    ? `We filled ${autoFilled} values. Add ${missing.length} missing ${missing.length === 1 ? "detail" : "details"} below.`
+    : `We filled ${autoFilled} values. Add only your preferences below.`;
+}
+
+function compilePreferences(data) {
+  const preferences = [`Room: ${data.roomCategory}`, `Nursing: ${data.nursingCare}`];
+  for (const key of ["attendantStay", "dietarySupport", "accessibilitySupport"]) {
+    if (data[key]) preferences.push(data[key]);
+  }
+  if (data.additionalRequests?.trim()) preferences.push(data.additionalRequests.trim());
+  return preferences.join("; ");
 }
 
 function renderReview() {
@@ -187,6 +216,7 @@ $("#details-form").addEventListener("submit", (event) => {
   event.preventDefault();
   if (!event.currentTarget.reportValidity()) return;
   state.details = formObject(event.currentTarget);
+  state.details.patientPreferences = compilePreferences(state.details);
   const errors = validateCostLock(state.details);
   if (errors.length) {
     alert(errors.join("\n"));

@@ -94,6 +94,26 @@ a:hover { color: var(--navy); }
 .field textarea { min-height: 112px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus, .check-row input:focus-visible, button:focus-visible, a:focus-visible, .drop-zone:focus-within { outline: 3px solid rgba(8, 127, 132, .24); outline-offset: 2px; }
 .field input:user-invalid, .field select:user-invalid, .field textarea:user-invalid { border-color: var(--red); }
+.field.is-extracted label::after, .field.needs-input label::after { margin-left: 8px; font-size: 12px; font-weight: 700; }
+.field.is-extracted label::after { content: "Found"; color: var(--green); }
+.field.needs-input label::after { content: "Add this"; color: var(--amber); }
+.field.needs-input input { border-color: var(--amber-line); background: var(--amber-pale); }
+
+.extraction-summary { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 26px; padding: 16px 18px; border: 1px solid #9bcfd0; border-radius: 8px; background: var(--teal-pale); }
+.extraction-summary svg { width: 28px; height: 30px; flex: 0 0 auto; fill: none; stroke: var(--teal); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.extraction-summary strong, .extraction-summary span { display: block; }
+.extraction-summary span { margin-top: 2px; color: var(--navy-soft); font-size: 14px; }
+.preference-grid { margin-bottom: 16px; }
+.preference-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.preference-option { min-height: 52px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.preference-option:has(input:checked) { border-color: var(--teal); background: var(--teal-pale); }
+.preference-option input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--teal); }
+.additional-request { margin-top: 18px; }
+.document-values { margin-top: 28px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.document-values summary { padding: 17px 4px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--navy); cursor: pointer; font-weight: 700; list-style-position: inside; }
+.document-values summary span { color: var(--teal-dark); font-size: 14px; font-weight: 600; }
+.document-values[open] { padding-bottom: 24px; }
+.document-values-intro { margin: 0 0 20px; color: var(--navy-soft); font-size: 14px; }
 
 .check-row { display: flex; align-items: flex-start; gap: 12px; margin-top: 20px; color: var(--navy); font-size: 15px; }
 .check-row input { flex: 0 0 auto; width: 21px; height: 21px; margin: 1px 0 0; accent-color: var(--teal); }
@@ -197,6 +217,7 @@ a:hover { color: var(--navy); }
   .task-panel { padding: 22px 17px; }
   .task-panel--open { padding: 0; }
   .form-grid--two, .form-grid--three { grid-template-columns: 1fr; }
+  .preference-options { grid-template-columns: 1fr; }
   .field--wide { grid-column: auto; }
   .upload-row { grid-template-columns: 1fr; gap: 8px; }
   .upload-label { padding: 0; }
