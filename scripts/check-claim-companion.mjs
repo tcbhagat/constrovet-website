@@ -24,4 +24,5 @@ if (endpoint && !/^https:\/\/script\.google\.com\/macros\/s\/AKfy[a-zA-Z0-9_-]+\
 const source = required.filter((file) => file.endsWith(".js") || file.endsWith(".gs") || file.endsWith(".html")).map((file) => readFileSync(file, "utf8")).join("\n");
 if (/AIza[0-9A-Za-z_-]{20,}/.test(source)) throw new Error("Potential Google API key found.");
 if (/pre-authorization approved|cashless approved|expected insurer sanction/i.test(source)) throw new Error("Unsafe approval wording found.");
+if (/QUESTIONS TO CONFIRM|Ask the insurer or TPA to confirm|Ask the hospital to confirm|Request formal cashless pre-authorization/i.test(source)) throw new Error("Generic confirmation questions must not appear in generated reports.");
 console.log("Claim Companion static, PWA, wording and secret checks passed.");
