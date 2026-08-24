@@ -17,7 +17,7 @@ It deliberately does not call Gemini API or any unpaid AI service with patient d
 
 - Two completed reports per verified email per day.
 - Five registration emails per address per day.
-- Exactly three files, 8 MB each, 20 MB combined.
+- Three required files plus one optional cashless authorization or TPA response, 8 MB each and 20 MB combined.
 - Patient gets the PDF immediately after verified submission.
 - Hospital gets only a verification message first; the PDF follows only after verification.
 - Source files and PDFs are scheduled for deletion 30 days after delivery.
