@@ -62,9 +62,11 @@ function renderUploads() {
     const row = $(".upload-row", fragment);
     row.dataset.document = spec.key;
     $(".upload-label strong", row).textContent = spec.label;
+    $(".upload-label span", row).textContent = spec.required ? "(required)" : "(optional)";
     const input = $("input[type=file]", row);
     input.name = spec.key;
     input.accept = spec.accept;
+    input.required = spec.required;
     input.addEventListener("change", () => handleFileSelection(spec, row, input.files[0]));
     $(".file-result button", row).addEventListener("click", () => clearFile(spec, row, input));
     list.appendChild(fragment);
@@ -116,14 +118,15 @@ function prefillDetails() {
   const mapping = {
     procedureName: "#procedure-name", hospitalName: "#hospital-name", hospitalEmail: "#hospital-email", roomCategory: "#room-category",
     sumInsured: "#sum-insured", roomLimit: "#room-limit", copayPercent: "#copay-percent", deductible: "#deductible",
-    waitingNote: "#waiting-note", estimatedBill: "#estimated-bill", stayDays: "#stay-days", actualRoomRate: "#actual-room-rate", nonPayables: "#non-payables"
+    waitingNote: "#waiting-note", policyPeriod: "#policy-period", proportionateScalingApplies: "#proportionate-scaling",
+    estimatedBill: "#estimated-bill", stayDays: "#stay-days", actualRoomRate: "#actual-room-rate", nonPayables: "#non-payables"
   };
   let autoFilled = 0;
   Object.entries(mapping).forEach(([key, selector]) => {
     const field = $(selector);
     const value = values[key];
     if (!field || value === undefined || value === null || value === "" || value === 0) return;
-    field.value = value;
+    field.value = typeof value === "boolean" ? String(value) : value;
     field.closest(".field")?.classList.add("is-extracted");
     autoFilled += 1;
   });
@@ -152,10 +155,12 @@ function renderReview() {
   const calculation = calculateCostLock(details);
   state.calculation = calculation;
   const date = details.treatmentDate ? new Date(`${details.treatmentDate}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Not specified";
+  const range = (low, high) => Math.round(low) === Math.round(high) ? formatInr(low) : `${formatInr(low)} – ${formatInr(high)}`;
+  const availableBalance = calculation.availableBalanceKnown ? formatInr(calculation.availableBalance) : "Not present in uploaded documents";
   const blocks = [
     ["Treatment", [`<strong>${escapeHtml(details.procedureName)}</strong>`, `Hospital: ${escapeHtml(details.hospitalName)}`, `Preferred room: ${escapeHtml(details.roomCategory)}`], 3],
-    ["Policy limits", [`Available cover: ${formatInr(details.sumInsured)}`, `Room limit: ${details.roomLimit ? `${formatInr(details.roomLimit)}/day` : "Not specified"}`, `Co-pay: ${escapeHtml(details.copayPercent || 0)}%`], 3],
-    ["Hospital estimate", [`Estimated hospital bill: <strong>${formatInr(details.estimatedBill)}</strong>`, `Estimated insurer contribution: <strong>${formatInr(calculation.estimatedInsurerContribution)}</strong>`, `Estimated patient share: <strong>${formatInr(calculation.estimatedPatientShare)}</strong>`], 3],
+    ["Policy limits", [`Base sum insured: ${formatInr(details.sumInsured)}`, `Current available balance: ${escapeHtml(availableBalance)}`, `Room limit: ${details.roomLimit ? `${formatInr(details.roomLimit)}/day` : "Not found"}`, `Co-pay: ${details.copayPercent === "" ? "Not found" : `${escapeHtml(details.copayPercent)}%`}`], 3],
+    ["Hospital estimate", [`Estimated hospital bill: <strong>${formatInr(details.estimatedBill)}</strong>`, `Estimated insurer contribution: <strong>${range(calculation.insurerContributionLow, calculation.insurerContributionHigh)}</strong>`, `Estimated patient share: <strong>${range(calculation.patientShareLow, calculation.patientShareHigh)}</strong>`, calculation.hasEstimateRange ? "A range is shown because the documents do not identify every charge affected by room-linked proportional scaling." : "Calculated from the documented and confirmed values."], 3],
     ["Your preferences", [`Treatment date: ${escapeHtml(date)}`, escapeHtml(details.patientPreferences)], 3]
   ];
   $("#review-summary").innerHTML = blocks.map(([title, lines, target]) => `<section class="review-block"><h2>${title}</h2>${lines.map((line) => `<p>${line}</p>`).join("")}<button type="button" data-edit="${target}" aria-label="Edit ${title}">Edit</button></section>`).join("");
@@ -192,14 +197,14 @@ $("#email-form").addEventListener("submit", async (event) => {
 $("#documents-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const status = $("#documents-status");
-  const missing = documentSpecs.filter((spec) => !state.files[spec.key]);
+  const missing = documentSpecs.filter((spec) => spec.required && !state.files[spec.key]);
   if (missing.length) return setStatus(status, `Add ${missing.map((item) => item.label.toLowerCase()).join(", ")}.`, "error");
   const totalBytes = Object.values(state.files).reduce((total, file) => total + file.size, 0);
   if (totalBytes > config.maxTotalBytes) return setStatus(status, `Combined files must be smaller than ${Math.round(config.maxTotalBytes / 1024 / 1024)} MB.`, "error");
   const submit = $("button[type=submit]", event.currentTarget);
   submit.disabled = true;
   try {
-    for (const spec of documentSpecs) {
+    for (const spec of documentSpecs.filter((item) => state.files[item.key])) {
       setStatus(status, `Reading ${spec.label.toLowerCase()} on this device…`);
       state.extracted[spec.key] = await extractDocument(state.files[spec.key], (percent, message) => updateFileProgress(spec.key, percent, message));
     }
@@ -216,6 +221,7 @@ $("#details-form").addEventListener("submit", (event) => {
   event.preventDefault();
   if (!event.currentTarget.reportValidity()) return;
   state.details = formObject(event.currentTarget);
+  state.details.proportionateScalingApplies = state.details.proportionateScalingApplies === "true";
   state.details.patientPreferences = compilePreferences(state.details);
   const errors = validateCostLock(state.details);
   if (errors.length) {
@@ -236,7 +242,7 @@ $("#review-form").addEventListener("submit", async (event) => {
   setStatus(status, "Securing your documents and preparing the report…");
   try {
     const documents = [];
-    for (const spec of documentSpecs) documents.push({ role: spec.key, ...(await fileToData(state.files[spec.key])) });
+    for (const spec of documentSpecs.filter((item) => state.files[item.key])) documents.push({ role: spec.key, ...(await fileToData(state.files[spec.key])) });
     const reference = `CC-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0, 6)}`;
     const result = await submitCostLock({
       reference,
