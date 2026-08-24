@@ -73,6 +73,32 @@ test("local extractors find common Indian policy and quotation fields", () => {
   assert.equal(hospital.roomCategory, "Private room");
 });
 
+test("synthetic knee-replacement documents correlate without asking for supplied values", () => {
+  const policyText = "STAR HEALTH & ALLIED INSURANCE CO. LTD. Product Comprehensive Health Gold Policyholder Name RAJESH SHARMA Base Sum Insured INR 5,00,000 Policy Period 23/08/2025 to 22/08/2027 Eligible Room Rent Limit INR 2,500 per day (Proportional Scaling Applies) Co-payment Clause 25% Mandatory Zone Co-pay Pre-Existing Disease (PED) Clause Hypertension (36 Months Waiting)";
+  const adviceText = "APOLLO HOSPITAL, PUNE OUT-PATIENT CLINICAL EXAMINATION & ADVICE NOTE Patient Name RAJESH SHARMA Hospital & City: Apollo Hospital, Pune, Pune (Zone 1) Primary Diagnosis: Total Knee Arthroplasty (Unilateral) Surgical / Medical Advice: Total Knee Arthroplasty (Unilateral) Recommended Admission: In-Patient Hospitalization Expected Length of Stay: 4 Days DOCTOR'S CLINICAL EVALUATION & NOTES 48-year-old male. Advised unilateral TKR.";
+  const estimateText = "APOLLO HOSPITAL, PUNE PRE-ADMISSION FINANCIAL COST ESTIMATE Patient Name RAJESH SHARMA Advised Procedure: Total Knee Arthroplasty (Unilateral) Proposed Hospital: Apollo Hospital, Pune, Pune (Zone 1) Selected Room Category: Deluxe Suite Expected Length of Stay: 4 Days ITEMIZED FINANCIAL ESTIMATE BREAKDOWN Room Rent & Nursing Charges (4 Days @ INR 28,065/day) INR 112,260 Surgeon, Anaesthetist & Operation Theatre Fees INR 252,585 Medicines, Consumables & Diagnostic Investigations INR 151,551 Administrative Fees & PPE Kits (IRDAI Non-Payable List I) INR 44,904 TOTAL ESTIMATED HOSPITAL BILL INR 561,300";
+  const policy = inferPolicyFields(policyText);
+  const advice = inferPrescriptionFields(adviceText);
+  const estimate = inferEstimateFields(estimateText);
+  assert.deepEqual({ sumInsured: policy.sumInsured, roomLimit: policy.roomLimit, copayPercent: policy.copayPercent, policyPeriod: policy.policyPeriod, scaling: policy.proportionateScalingApplies }, { sumInsured: 500000, roomLimit: 2500, copayPercent: 25, policyPeriod: "23/08/2025 to 22/08/2027", scaling: true });
+  assert.match(policy.waitingNote, /Hypertension.*36 Months Waiting/i);
+  assert.deepEqual({ procedureName: advice.procedureName, stayDays: advice.stayDays }, { procedureName: "Total Knee Arthroplasty (Unilateral)", stayDays: 4 });
+  assert.match(advice.hospitalName, /Apollo Hospital/i);
+  assert.deepEqual({ estimatedBill: estimate.estimatedBill, actualRoomRate: estimate.actualRoomRate, nonPayables: estimate.nonPayables, stayDays: estimate.stayDays, roomCategory: estimate.roomCategory }, { estimatedBill: 561300, actualRoomRate: 28065, nonPayables: 44904, stayDays: 4, roomCategory: "Deluxe suite" });
+});
+
+test("unknown room-linked charges produce a transparent conservative range", () => {
+  const result = calculateCostLock({ estimatedBill: 561300, sumInsured: 500000, availableBalance: "", nonPayables: 44904, deductible: "", copayPercent: 25, stayDays: 4, roomLimit: 2500, actualRoomRate: 28065, proportionateCharges: "", proportionateScalingApplies: true });
+  assert.equal(result.directRoomDeduction, 102260);
+  assert.equal(result.hasEstimateRange, true);
+  assert.equal(result.insurerContributionLow, 34500);
+  assert.equal(result.insurerContributionHigh, 310602);
+  assert.equal(result.patientShareLow, 250698);
+  assert.equal(result.patientShareHigh, 526800);
+  assert.equal(result.known.availableBalance, false);
+  assert.equal(result.known.deductible, false);
+});
+
 test("document values are auto-filled while patients add only preferences or missing details", () => {
   assert.match(page, /Add only what is missing/);
   assert.match(page, /id="document-values"/);
@@ -82,6 +108,16 @@ test("document values are auto-filled while patients add only preferences or mis
   assert.match(app, /compilePreferences/);
   assert.match(app, /needs-input/);
   assert.match(app, /for \(const source of \[policy, estimate, prescription\]\)/);
+  assert.match(extractor, /Cashless authorization or TPA response/);
+  assert.match(page, /Current available balance/);
+});
+
+test("PDF report replaces generic questions with evidence status", () => {
+  assert.match(backend, /DOCUMENT EVIDENCE STATUS/);
+  assert.doesNotMatch(backend, /QUESTIONS TO CONFIRM/);
+  assert.doesNotMatch(backend, /Ask the insurer or TPA to confirm|Ask the hospital to confirm|Request formal cashless pre-authorization/i);
+  assert.match(backend, /Not present in uploaded documents/);
+  assert.match(backend, /hasUncertainProportionateDeduction/);
 });
 
 test("unsafe approval claims and public AI calls are absent", () => {
