@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { calculateCostLock, formatInr, validateCostLock } from "../claim-companion/calculator.js";
 import { classifyHospitalDocument, inferEstimateFields, inferPolicyFields, inferPrescriptionFields } from "../claim-companion/extractor.js";
 
@@ -10,12 +11,33 @@ const app = read("claim-companion/app.js");
 const extractor = read("claim-companion/extractor.js");
 const backend = read("claim-companion/apps-script/Code.gs");
 const manifest = JSON.parse(read("claim-companion/manifest.webmanifest"));
+const serviceWorker = read("claim-companion/service-worker.js");
+const sharedStyles = read("assets/css/style.css");
+const ciWorkflow = read(".github/workflows/claim-companion-ci.yml");
 
 test("public route exposes all three required documents and five steps", () => {
   assert.match(extractor, /Health insurance policy/);
   assert.match(extractor, /Hospital prescription or treatment advice/);
   assert.match(extractor, /Hospital estimate or package quotation/);
   for (const step of ["Email", "Documents", "Details", "Review", "Done"]) assert.match(page, new RegExp(`>${step}<`));
+});
+
+test("Claim Companion is discoverable from the homepage and shared navigation", () => {
+  const home = readFileSync("index.html", "utf8");
+  const nav = readFileSync("assets/nav.html", "utf8");
+  assert.match(home, /class="cv-health-banner"/);
+  assert.match(home, /class="cv-health-feature"/);
+  assert.match(home, /href="\/claim-companion\/"/);
+  assert.match(nav, /Hospital Cost Estimate/);
+  assert.match(nav, /href="\/claim-companion\/"/);
+});
+
+test("Claim Companion first step explains value and trust before document upload", () => {
+  const html = readFileSync("claim-companion/index.html", "utf8");
+  assert.match(html, /Know the likely hospital cost before admission/);
+  assert.match(html, /Secure document handling/);
+  assert.match(html, /Independent estimate/);
+  assert.match(html, /Delivered by email/);
 });
 
 test("registration, consent and hospital verification are mandatory", () => {
@@ -32,6 +54,53 @@ test("PWA is installable and scoped to Claim Companion", () => {
   assert.equal(manifest.icons.length, 2);
   assert.match(page, /manifest\.webmanifest/);
   assert.match(app, /serviceWorker\.register/);
+});
+
+test("production hardening protects responsive navigation and first-offline PWA use", () => {
+  const stylesheetVersion = page.match(/styles\.css\?v=(\d+)/)?.[1];
+  assert.ok(stylesheetVersion);
+  assert.match(sharedStyles, /@media \(max-width: 1180px\)[\s\S]*?\.cv-nav__links \{ display: none; \}/);
+  assert.match(serviceWorker, /claim-companion-v6/);
+  assert.match(serviceWorker, new RegExp(`styles\\.css\\?v=${stylesheetVersion}`));
+  assert.match(serviceWorker, /caches\.match\(event\.request, \{ ignoreSearch: true \}\)/);
+  assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
+  assert.match(serviceWorker, /return Response\.error\(\)/);
+  for (const path of ["index.html", "assets/nav.html", "assets/css/style.css"]) {
+    assert.match(ciWorkflow, new RegExp(`- "${path.replaceAll(".", "\\.")}"`));
+  }
+});
+
+test("offline service worker returns assets by type and limits HTML fallback to navigation", async () => {
+  const listeners = {};
+  const cachedResponses = new Map([
+    ["/claim-companion/", { kind: "html" }],
+    ["/claim-companion/styles.css?v=20260827", { kind: "css" }]
+  ]);
+  const cacheMatch = async (request, options = {}) => {
+    const raw = typeof request === "string" ? request : new URL(request.url).pathname + new URL(request.url).search;
+    if (!options.ignoreSearch) return cachedResponses.get(raw);
+    const pathname = raw.split("?")[0];
+    return [...cachedResponses].find(([key]) => key.split("?")[0] === pathname)?.[1];
+  };
+  runInNewContext(serviceWorker, {
+    self: { addEventListener: (type, handler) => { listeners[type] = handler; }, skipWaiting: async () => {}, clients: { claim: async () => {} } },
+    location: { origin: "https://www.constrovet.com" },
+    fetch: async () => { throw new Error("offline"); },
+    caches: { match: cacheMatch, open: async () => ({ addAll: async () => {}, put: async () => {} }), keys: async () => [], delete: async () => {} },
+    URL,
+    Response: { error: () => ({ kind: "error" }) }
+  });
+  const offlineFetch = async (path, mode) => {
+    let responsePromise;
+    listeners.fetch({
+      request: { method: "GET", mode, url: `https://www.constrovet.com${path}` },
+      respondWith: (promise) => { responsePromise = promise; }
+    });
+    return responsePromise;
+  };
+  assert.equal((await offlineFetch("/claim-companion/styles.css?v=20260827", "no-cors")).kind, "css");
+  assert.equal((await offlineFetch("/claim-companion/step/2", "navigate")).kind, "html");
+  assert.equal((await offlineFetch("/claim-companion/missing.js", "no-cors")).kind, "error");
 });
 
 test("reference example calculates insurer and patient shares consistently", () => {

@@ -133,11 +133,33 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .cv-nav__links a:hover { color: var(--brand-700); background: var(--brand-50); }
 .cv-nav__links a.active { color: var(--brand-700); font-weight: 600; }
+.cv-nav__links .cv-nav__health,
+.cv-nav__drawer .cv-nav__health {
+  color: #056a6f;
+  background: #eefafa;
+  border: 1px solid #9bcfd0;
+  font-weight: 700;
+}
+.cv-nav__links .cv-nav__health:hover,
+.cv-nav__drawer .cv-nav__health:hover,
+.cv-nav__links .cv-nav__health.active,
+.cv-nav__drawer .cv-nav__health.active {
+  color: #fff;
+  background: #087f84;
+  border-color: #087f84;
+}
 .cv-nav__links .cv-nav__cta,
 .cv-nav__drawer .cv-nav__cta {
   background: var(--accent-500);
   color: var(--white);
   font-weight: 700;
+}
+.cv-nav__drawer .cv-nav__health {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #9bcfd0;
+  border-radius: var(--radius-sm);
+  text-align: center;
 }
 .cv-nav__links .cv-nav__cta:hover,
 .cv-nav__drawer .cv-nav__cta:hover,
@@ -190,7 +212,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .cv-nav__drawer.open { display: flex; }
 
-@media (max-width: 1023px) {
+@media (max-width: 1180px) {
   .cv-nav__links { display: none; }
   .cv-nav__hamburger { display: flex; }
   .cv-nav { height: auto; }
@@ -363,6 +385,84 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 
 /* ── 6. PAGE-SPECIFIC ─────────────────────────────────────────── */
+
+/* Claim Companion discovery */
+.cv-health-banner {
+  position: relative;
+  z-index: 3;
+  background: #087f84;
+  color: #fff;
+}
+.cv-health-banner__inner {
+  max-width: var(--max-w);
+  min-height: 52px;
+  margin: 0 auto;
+  padding: 9px var(--px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+.cv-health-banner p { margin: 0; font-size: .95rem; }
+.cv-health-banner a {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: .9rem;
+  font-weight: 700;
+  transition: background .2s, color .2s;
+}
+.cv-health-banner a:hover { background: #fff; color: #056a6f; }
+.cv-health-banner a:focus-visible,
+.cv-nav__health:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
+
+.cv-health-feature {
+  padding: 34px var(--px);
+  background: linear-gradient(90deg, #eefafa 0%, #f8fcff 100%);
+  border-bottom: 1px solid #cfe5e7;
+}
+.cv-health-feature__inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+}
+.cv-health-feature__icon {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #fff;
+  color: #087f84;
+  box-shadow: 0 8px 24px rgba(7,27,74,.08);
+}
+.cv-health-feature__icon svg {
+  width: 38px;
+  height: 42px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.8;
+}
+.cv-health-feature__copy h2 {
+  margin: 0 0 6px;
+  color: var(--slate-900);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+}
+.cv-health-feature__copy p { max-width: 720px; margin: 0; color: var(--slate-700); }
+.cv-health-feature__copy .cv-health-feature__note { margin-top: 6px; color: var(--slate-500); font-size: .82rem; }
+.cv-health-feature__actions { display: grid; justify-items: center; gap: 8px; }
+.cv-btn--health { background: #087f84; color: #fff; box-shadow: 0 8px 20px rgba(8,127,132,.2); }
+.cv-btn--health:hover { background: #056a6f; color: #fff; transform: translateY(-1px); }
+.cv-health-feature__link { color: #056a6f; font-size: .88rem; font-weight: 700; }
+.cv-health-feature__link:hover { text-decoration: underline; }
 
 /* HOME hero */
 .home-hero {
@@ -2211,4 +2311,31 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
   .cv-intel-row {
     padding: 12px;
   }
+}
+
+@media (max-width: 760px) {
+  .cv-health-banner__inner {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  .cv-health-banner p { font-size: .9rem; line-height: 1.4; }
+  .cv-health-banner a { align-self: center; }
+  .cv-health-feature { padding: 28px var(--px); }
+  .cv-health-feature__inner {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+  .cv-health-feature__icon { width: 54px; height: 54px; border-radius: 14px; }
+  .cv-health-feature__icon svg { width: 30px; height: 34px; }
+  .cv-health-feature__copy h2 { font-size: 1.65rem; }
+  .cv-health-feature__actions {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .cv-health-feature__actions .cv-btn { width: 100%; justify-content: center; }
 }
