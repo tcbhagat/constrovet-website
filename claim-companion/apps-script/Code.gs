@@ -76,8 +76,11 @@ function verifyPatient_(token) {
 function submitCostLock_(payload) {
   const identity = requirePatient_(payload.authToken, payload.email);
   const email = identity.email;
-  enforceDailyLimit_("report", email, CC.MAX_REPORTS_PER_EMAIL_PER_DAY);
   const reference = validReference_(payload.reference);
+  const idempotencyKey = "submission:" + sha256_(email + ":" + reference);
+  const submissionCache = CacheService.getScriptCache();
+  const previous = submissionCache.get(idempotencyKey);
+  if (previous) return json_({ ok: true, reference: reference, duplicate: true });
   const hospitalEmail = validEmail_(payload.hospitalEmail);
   const details = validateDetails_(payload.details || {});
   const documents = validateDocuments_(payload.documents || []);
@@ -87,8 +90,15 @@ function submitCostLock_(payload) {
   if (MailApp.getRemainingDailyQuota() < 2) throw new Error("Email capacity is temporarily unavailable.");
 
   const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  if (!lock.tryLock(5000)) throw new Error("Another report is being accepted. Please wait a moment and try again.");
   try {
+    if (submissionCache.get(idempotencyKey)) return json_({ ok: true, reference: reference, duplicate: true });
+    submissionCache.put(idempotencyKey, "PROCESSING", 600);
+  } finally {
+    lock.releaseLock();
+  }
+  try {
+    enforceDailyLimit_("report", email, CC.MAX_REPORTS_PER_EMAIL_PER_DAY);
     const root = getRootFolder_();
     const caseFolder = root.createFolder(reference);
     const inputFolder = caseFolder.createFolder("inputs");
@@ -96,7 +106,7 @@ function submitCostLock_(payload) {
     const savedDocuments = documents.map(function (item) {
       const bytes = Utilities.base64Decode(item.base64);
       const file = inputFolder.createFile(Utilities.newBlob(bytes, item.mimeType, safeFileName_(item.name)));
-      return { role: item.role, fileId: file.getId(), name: file.getName() };
+      return { roles: item.roles, fileId: file.getId(), name: file.getName() };
     });
     const reportBlob = buildPdf_(reference, identity.name, email, hospitalEmail, details, calculation, savedDocuments);
     const reportFile = reportFolder.createFile(reportBlob.setName("Cost-Lock-" + reference + ".pdf"));
@@ -105,9 +115,11 @@ function submitCostLock_(payload) {
 
     sendPatientReport_(email, reference, reportFile.getBlob(), calculation);
     sendHospitalVerification_(hospitalEmail, reference, reportFile.getId());
+    submissionCache.put(idempotencyKey, "COMPLETED", 21600);
     return json_({ ok: true, reference: reference });
-  } finally {
-    lock.releaseLock();
+  } catch (error) {
+    submissionCache.remove(idempotencyKey);
+    throw error;
   }
 }
 
@@ -186,6 +198,8 @@ function calculate_(details) {
   const insurerHigh = Math.max(optimistic.insurer, conservative.insurer);
   const patientLow = Math.min(optimistic.patient, conservative.patient);
   const patientHigh = Math.max(optimistic.patient, conservative.patient);
+  const copayLow = Math.min(optimistic.copayApplied, conservative.copayApplied);
+  const copayHigh = Math.max(optimistic.copayApplied, conservative.copayApplied);
   return {
     totalBill: total, baseSumInsured: baseSumInsured, coverageCap: coverageCap, nonPayables: nonPayables,
     roomRatio: ratio, directRoomDeduction: roomDeduction,
@@ -193,6 +207,7 @@ function calculate_(details) {
     proportionalDeductionLow: optimistic.proportionalDeduction,
     proportionalDeductionHigh: conservative.proportionalDeduction,
     deductibleApplied: conservative.deductibleApplied, copayApplied: conservative.copayApplied,
+    copayAppliedLow: copayLow, copayAppliedHigh: copayHigh,
     policyAdmissible: conservative.admissible, estimatedInsurerContribution: insurerLow,
     estimatedPatientShare: patientHigh, insurerContributionLow: insurerLow,
     insurerContributionHigh: insurerHigh, patientShareLow: patientLow, patientShareHigh: patientHigh,
@@ -229,7 +244,7 @@ function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calcul
     ["Room-limit deduction", inr_(calculation.directRoomDeduction)],
     ["Proportionate deduction", calculation.hasEstimateRange ? inrRange_(calculation.proportionalDeductionLow, calculation.proportionalDeductionHigh) : (details.proportionateChargesKnown ? inr_(calculation.proportionalDeduction) : "Not found - excluded from calculation")],
     ["Deductible", details.deductibleKnown ? inr_(calculation.deductibleApplied) : "Not found - excluded from calculation"],
-    ["Co-pay", details.copayKnown ? inr_(calculation.copayApplied) : "Not found - excluded from calculation"],
+    ["Co-pay", details.copayKnown ? inrRange_(calculation.copayAppliedLow, calculation.copayAppliedHigh) : "Not found - excluded from calculation"],
     ["Estimated insurer contribution", inrRange_(calculation.insurerContributionLow, calculation.insurerContributionHigh)],
     ["Estimated patient share", inrRange_(calculation.patientShareLow, calculation.patientShareHigh)]
   ]);
@@ -238,8 +253,9 @@ function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calcul
   body.appendParagraph("DOCUMENTED POLICY AND BILL VALUES").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
   appendKeyValues_(body, [["Base sum insured", inr_(details.sumInsured)], ["Current available balance", details.availableBalanceKnown ? inr_(details.availableBalance) : "Not present in uploaded documents"], ["Policy period", details.policyPeriod || "Not found"], ["Room-rent limit", details.roomLimit ? inr_(details.roomLimit) + "/day" : "Not found"], ["Selected room rate", details.actualRoomRate ? inr_(details.actualRoomRate) + "/day" : "Not found"], ["Expected stay", details.stayDays + " day(s)"], ["Co-pay", details.copayKnown ? details.copayPercent + "%" : "Not found"], ["Deductible", details.deductibleKnown ? inr_(details.deductible) : "Not found"], ["Waiting/exclusion note", details.waitingNote || "Not found"], ["Care requirements", details.patientPreferences]]);
   body.appendParagraph("SOURCE DOCUMENTS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
-  documents.forEach(function (item) { body.appendListItem(item.role + ": " + item.name); });
-  const hasPreauthorization = documents.some(function (item) { return item.role === "preauthorization"; });
+  documents.forEach(function (item) { body.appendListItem(item.roles.join(" + ") + ": " + item.name); });
+  const hasPreauthorization = documents.some(function (item) { return item.roles.indexOf("preauthorization") >= 0; });
+  body.appendPageBreak();
   body.appendParagraph("DOCUMENT EVIDENCE STATUS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
   appendKeyValues_(body, [["Policy terms", "Extracted from the uploaded policy and confirmed before submission"], ["Treatment and stay", "Supplied in the medical advice and hospital estimate"], ["Hospital estimate", "Itemized estimate supplied"], ["Remaining insurance balance", details.availableBalanceKnown ? "Supplied by the patient or representative" : "Not present in uploaded documents"], ["Cashless authorization", hasPreauthorization ? "Uploaded for reference - not independently verified" : "Not submitted"], ["Estimate confidence", calculation.hasUncertainProportionateDeduction ? "Conditional - a range is shown because affected room-linked charges are not fully identified" : "Document-based with the limitations listed below"]]);
   body.appendParagraph("IMPORTANT NOTICE").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
@@ -352,23 +368,38 @@ function validateDetails_(input) {
 }
 
 function validateDocuments_(documents) {
-  if (!Array.isArray(documents) || documents.length < 3 || documents.length > 4) throw new Error("Three required documents and up to one optional authorization document are accepted.");
+  if (!Array.isArray(documents) || documents.length < 2 || documents.length > 4) throw new Error("A policy and hospital evidence are required; authorization is optional.");
   const required = ["policy", "prescription", "estimate"];
   const accepted = required.concat(["preauthorization"]);
   let total = 0;
   const cleaned = documents.map(function (item) {
-    const role = cleanText_(item.role, 30);
+    const roles = Array.isArray(item.roles) ? item.roles.map(function (role) { return cleanText_(role, 30); }) : [cleanText_(item.role, 30)];
     const size = Number(item.size) || 0;
     const mimeType = cleanText_(item.mimeType, 80);
-    if (accepted.indexOf(role) < 0 || !item.base64 || size <= 0 || size > CC.MAX_FILE_BYTES) throw new Error("A document is invalid or too large.");
+    if (!roles.length || roles.some(function (role) { return accepted.indexOf(role) < 0; }) || new Set(roles).size !== roles.length || !item.base64 || size <= 0 || size > CC.MAX_FILE_BYTES) throw new Error("A document is invalid or too large.");
     if (["application/pdf", "image/jpeg", "image/png", "image/webp"].indexOf(mimeType) < 0) throw new Error("Unsupported document type.");
-    if (role === "policy" && mimeType !== "application/pdf") throw new Error("Policy must be a PDF.");
-    total += size;
-    return { role: role, name: cleanText_(item.name, 180), mimeType: mimeType, size: size, base64: String(item.base64) };
+    if (roles.indexOf("policy") >= 0 && mimeType !== "application/pdf") throw new Error("Policy must be a PDF.");
+    const bytes = Utilities.base64Decode(String(item.base64));
+    if (bytes.length !== size) throw new Error("A document size check failed.");
+    const computedHash = sha256Bytes_(bytes);
+    const claimedHash = cleanText_(item.hash, 64).toLowerCase();
+    if (claimedHash && claimedHash !== computedHash) throw new Error("A document integrity check failed.");
+    return { roles: roles, name: cleanText_(item.name, 180), mimeType: mimeType, size: size, base64: String(item.base64), hash: computedHash };
   });
-  const roles = cleaned.map(function (item) { return item.role; });
-  if (new Set(roles).size !== roles.length || required.some(function (role) { return roles.indexOf(role) < 0; }) || total > CC.MAX_TOTAL_BYTES) throw new Error("Document set is incomplete, duplicated or too large.");
-  return cleaned;
+  const unique = [];
+  const byHash = {};
+  cleaned.forEach(function (item) {
+    if (!byHash[item.hash]) { byHash[item.hash] = item; unique.push(item); }
+    else item.roles.forEach(function (role) { if (byHash[item.hash].roles.indexOf(role) < 0) byHash[item.hash].roles.push(role); });
+  });
+  total = unique.reduce(function (sum, item) { return sum + item.size; }, 0);
+  const suppliedRoles = unique.reduce(function (all, item) { return all.concat(item.roles); }, []);
+  if (required.some(function (role) { return suppliedRoles.indexOf(role) < 0; }) || total > CC.MAX_TOTAL_BYTES) throw new Error("Document evidence is incomplete or too large.");
+  return unique;
+}
+
+function sha256Bytes_(bytes) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes).map(function (byte) { return (byte + 256).toString(16).slice(-2); }).join("");
 }
 
 function enforceDailyLimit_(type, email, limit) {
