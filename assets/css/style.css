@@ -212,7 +212,7 @@ button { cursor: pointer; font: inherit; border: none; background: none; }
 }
 .cv-nav__drawer.open { display: flex; }
 
-@media (max-width: 1023px) {
+@media (max-width: 1180px) {
   .cv-nav__links { display: none; }
   .cv-nav__hamburger { display: flex; }
   .cv-nav { height: auto; }
