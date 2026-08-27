@@ -1,5 +1,5 @@
 import { calculateCostLock, formatInr, validateCostLock } from "./calculator.js";
-import { documentSpecs, extractDocument, fileToData, inferEstimateFields, inferPolicyFields, inferPrescriptionFields, validateDocument } from "./extractor.js";
+import { classifyHospitalDocument, documentSpecs, extractDocument, fileToData, fingerprintFile, inferEstimateFields, inferPolicyFields, inferPrescriptionFields, validateDocument } from "./extractor.js";
 import { requestMagicLink, submitCostLock } from "./api.js";
 
 const config = window.CLAIM_COMPANION_CONFIG;
@@ -9,6 +9,9 @@ const state = {
   email: "",
   authToken: "",
   files: {},
+  fileHashes: {},
+  documentRoles: {},
+  submissionReference: "",
   extracted: {},
   details: {},
   calculation: null
@@ -62,7 +65,7 @@ function renderUploads() {
     const row = $(".upload-row", fragment);
     row.dataset.document = spec.key;
     $(".upload-label strong", row).textContent = spec.label;
-    $(".upload-label span", row).textContent = spec.required ? "(required)" : "(optional)";
+    $(".upload-label span", row).textContent = spec.required ? "(required)" : spec.requirementLabel ? `(${spec.requirementLabel})` : "(optional)";
     const input = $("input[type=file]", row);
     input.name = spec.key;
     input.accept = spec.accept;
@@ -73,12 +76,19 @@ function renderUploads() {
   });
 }
 
-function handleFileSelection(spec, row, file) {
+async function handleFileSelection(spec, row, file) {
   const error = validateDocument(file, spec, config);
   const status = $("#documents-status");
   if (error) {
     clearFile(spec, row, $("input[type=file]", row));
     setStatus(status, `${spec.label}: ${error}`, "error");
+    return;
+  }
+  try {
+    state.fileHashes[spec.key] = await fingerprintFile(file);
+  } catch {
+    clearFile(spec, row, $("input[type=file]", row));
+    setStatus(status, "This file could not be read. Try opening it on your device or choose another copy.", "error");
     return;
   }
   state.files[spec.key] = file;
@@ -88,12 +98,15 @@ function handleFileSelection(spec, row, file) {
   $(".file-icon", result).textContent = file.type === "application/pdf" ? "PDF" : "IMG";
   $("span:nth-child(2) strong", result).textContent = file.name;
   $("span:nth-child(2) small", result).textContent = `${Math.max(1, Math.round(file.size / 1024))} KB • Ready to read`;
-  setStatus(status, "", "");
+  const duplicateRole = Object.keys(state.fileHashes).find((key) => key !== spec.key && state.fileHashes[key] === state.fileHashes[spec.key]);
+  setStatus(status, duplicateRole ? "Same file detected. It will be read, uploaded and stored only once." : "", duplicateRole ? "success" : "");
 }
 
 function clearFile(spec, row, input) {
   delete state.files[spec.key];
   delete state.extracted[spec.key];
+  delete state.fileHashes[spec.key];
+  delete state.documentRoles[spec.key];
   input.value = "";
   $(".drop-zone", row).hidden = false;
   $(".file-result", row).hidden = true;
@@ -199,15 +212,33 @@ $("#documents-form").addEventListener("submit", async (event) => {
   const status = $("#documents-status");
   const missing = documentSpecs.filter((spec) => spec.required && !state.files[spec.key]);
   if (missing.length) return setStatus(status, `Add ${missing.map((item) => item.label.toLowerCase()).join(", ")}.`, "error");
-  const totalBytes = Object.values(state.files).reduce((total, file) => total + file.size, 0);
+  if (!state.files.prescription && !state.files.estimate) return setStatus(status, "Add at least one hospital advice, prescription, estimate or package document.", "error");
+  const uniqueFiles = Object.keys(state.files).filter((key, index, keys) => keys.findIndex((candidate) => state.fileHashes[candidate] === state.fileHashes[key]) === index);
+  const totalBytes = uniqueFiles.reduce((total, key) => total + state.files[key].size, 0);
   if (totalBytes > config.maxTotalBytes) return setStatus(status, `Combined files must be smaller than ${Math.round(config.maxTotalBytes / 1024 / 1024)} MB.`, "error");
   const submit = $("button[type=submit]", event.currentTarget);
   submit.disabled = true;
   try {
+    const extractionByHash = new Map();
     for (const spec of documentSpecs.filter((item) => state.files[item.key])) {
       setStatus(status, `Reading ${spec.label.toLowerCase()} on this device…`);
-      state.extracted[spec.key] = await extractDocument(state.files[spec.key], (percent, message) => updateFileProgress(spec.key, percent, message));
+      const hash = state.fileHashes[spec.key];
+      if (!extractionByHash.has(hash)) extractionByHash.set(hash, await extractDocument(state.files[spec.key], (percent, message) => updateFileProgress(spec.key, percent, message)));
+      state.extracted[spec.key] = extractionByHash.get(hash);
+      updateFileProgress(spec.key, 100, extractionByHash.has(hash) ? "Ready" : "Ready");
     }
+    const hospitalRoles = new Set();
+    for (const key of ["prescription", "estimate"].filter((item) => state.extracted[item])) {
+      const classification = classifyHospitalDocument(state.extracted[key]);
+      state.documentRoles[key] = classification.roles;
+      classification.roles.forEach((role) => hospitalRoles.add(role));
+    }
+    if (!hospitalRoles.has("prescription") || !hospitalRoles.has("estimate")) {
+      const absent = !hospitalRoles.has("prescription") ? "treatment advice" : "hospital estimate";
+      return setStatus(status, `The uploaded hospital document does not contain a readable ${absent}. Add a clearer or separate document.`, "error");
+    }
+    const hasCombinedHospitalFile = ["prescription", "estimate"].some((key) => (state.documentRoles[key] || []).length === 2);
+    setStatus(status, hasCombinedHospitalFile ? "Combined hospital document detected and accepted once." : "Documents read successfully.", "success");
     prefillDetails();
     showStep(3);
   } catch (error) {
@@ -241,9 +272,17 @@ $("#review-form").addEventListener("submit", async (event) => {
   submit.disabled = true;
   setStatus(status, "Securing your documents and preparing the report…");
   try {
+    const grouped = new Map();
+    for (const spec of documentSpecs.filter((item) => state.files[item.key])) {
+      const hash = state.fileHashes[spec.key];
+      const roles = spec.key === "policy" || spec.key === "preauthorization" ? [spec.key] : (state.documentRoles[spec.key] || [spec.key]);
+      if (!grouped.has(hash)) grouped.set(hash, { file: state.files[spec.key], hash, roles: new Set() });
+      roles.forEach((role) => grouped.get(hash).roles.add(role));
+    }
     const documents = [];
-    for (const spec of documentSpecs.filter((item) => state.files[item.key])) documents.push({ role: spec.key, ...(await fileToData(state.files[spec.key])) });
-    const reference = `CC-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0, 6)}`;
+    for (const item of grouped.values()) documents.push({ ...(await fileToData(item.file)), hash: item.hash, roles: Array.from(item.roles) });
+    const reference = state.submissionReference || `CC-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36).toUpperCase().slice(0, 6)}`;
+    state.submissionReference = reference;
     const result = await submitCostLock({
       reference,
       name: state.name,
