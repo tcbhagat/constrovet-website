@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { calculateCostLock, formatInr, validateCostLock } from "../claim-companion/calculator.js";
-import { inferEstimateFields, inferPolicyFields, inferPrescriptionFields } from "../claim-companion/extractor.js";
+import { classifyHospitalDocument, inferEstimateFields, inferPolicyFields, inferPrescriptionFields } from "../claim-companion/extractor.js";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const page = read("claim-companion/index.html");
@@ -95,6 +95,8 @@ test("unknown room-linked charges produce a transparent conservative range", () 
   assert.equal(result.insurerContributionHigh, 310602);
   assert.equal(result.patientShareLow, 250698);
   assert.equal(result.patientShareHigh, 526800);
+  assert.equal(result.copayAppliedLow, 11500);
+  assert.equal(result.copayAppliedHigh, 103534);
   assert.equal(result.known.availableBalance, false);
   assert.equal(result.known.deductible, false);
 });
@@ -118,6 +120,8 @@ test("PDF report replaces generic questions with evidence status", () => {
   assert.doesNotMatch(backend, /Ask the insurer or TPA to confirm|Ask the hospital to confirm|Request formal cashless pre-authorization/i);
   assert.match(backend, /Not present in uploaded documents/);
   assert.match(backend, /hasUncertainProportionateDeduction/);
+  assert.match(backend, /inrRange_\(calculation\.copayAppliedLow, calculation\.copayAppliedHigh\)/);
+  assert.match(backend, /appendPageBreak\(\);\s*body\.appendParagraph\("DOCUMENT EVIDENCE STATUS"\)/);
 });
 
 test("unsafe approval claims and public AI calls are absent", () => {
@@ -129,4 +133,27 @@ test("unsafe approval claims and public AI calls are absent", () => {
 
 test("legal and deletion routes exist in the application", () => {
   for (const route of ["privacy.html", "terms.html", "delete-data.html"]) assert.match(page, new RegExp(route.replace(".", "\\.")));
+});
+
+test("one combined hospital document satisfies advice and estimate roles", () => {
+  const combined = classifyHospitalDocument("Apollo Hospital Recommended procedure: Total Knee Arthroplasty Grand Total INR 561,300");
+  assert.deepEqual(combined.roles, ["prescription", "estimate"]);
+  assert.match(app, /Same file detected\. It will be read, uploaded and stored only once/);
+  assert.match(app, /grouped = new Map/);
+  assert.match(page, /upload it only once/);
+});
+
+test("backend deduplicates physical files and repeated submissions", () => {
+  assert.match(backend, /sha256Bytes_/);
+  assert.match(backend, /byHash\[item\.hash\]/);
+  assert.match(backend, /idempotencyKey/);
+  assert.match(backend, /tryLock\(5000\)/);
+  assert.match(backend, /roles\.indexOf\("preauthorization"\)/);
+});
+
+test("slow processing no longer leaves the patient on an endless spinner", () => {
+  const api = read("claim-companion/api.js");
+  assert.match(api, /Promise\.race/);
+  assert.match(api, /45000/);
+  assert.match(app, /submissionReference/);
 });
