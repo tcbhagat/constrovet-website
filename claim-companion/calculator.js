@@ -57,6 +57,8 @@ export function calculateCostLock(input) {
   const insurerContributionHigh = Math.max(optimistic.estimatedInsurerContribution, conservative.estimatedInsurerContribution);
   const patientShareLow = Math.min(optimistic.estimatedPatientShare, conservative.estimatedPatientShare);
   const patientShareHigh = Math.max(optimistic.estimatedPatientShare, conservative.estimatedPatientShare);
+  const copayAppliedLow = Math.min(optimistic.copayApplied, conservative.copayApplied);
+  const copayAppliedHigh = Math.max(optimistic.copayApplied, conservative.copayApplied);
 
   return {
     totalBill,
@@ -73,6 +75,8 @@ export function calculateCostLock(input) {
     proportionalDeductionHigh: conservative.proportionalDeduction,
     deductibleApplied: conservative.deductibleApplied,
     copayApplied: conservative.copayApplied,
+    copayAppliedLow,
+    copayAppliedHigh,
     policyAdmissible: conservative.policyAdmissible,
     estimatedInsurerContribution: insurerContributionLow,
     estimatedPatientShare: patientShareHigh,

@@ -5,10 +5,15 @@ const PDF_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pd
 
 export const documentSpecs = [
   { key: "policy", label: "Health insurance policy", accept: ".pdf,application/pdf", required: true },
-  { key: "prescription", label: "Hospital prescription or treatment advice", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: true },
-  { key: "estimate", label: "Hospital estimate or package quotation", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: true },
+  { key: "prescription", label: "Hospital prescription or treatment advice", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: false, requirementLabel: "one or combined" },
+  { key: "estimate", label: "Hospital estimate or package quotation", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: false, requirementLabel: "one or combined" },
   { key: "preauthorization", label: "Cashless authorization or TPA response", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: false }
 ];
+
+export async function fingerprintFile(file) {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 export function validateDocument(file, spec, config) {
   if (!file) return "Select a file.";
@@ -172,4 +177,13 @@ export function inferPrescriptionFields(text) {
     stayDays: inferStayDays(text),
     roomCategory: inferRoomCategory(text)
   };
+}
+
+export function classifyHospitalDocument(text) {
+  const prescription = inferPrescriptionFields(text);
+  const estimate = inferEstimateFields(text);
+  const roles = [];
+  if (prescription.procedureName) roles.push("prescription");
+  if (estimate.estimatedBill) roles.push("estimate");
+  return { roles, prescription, estimate };
 }
