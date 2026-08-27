@@ -269,6 +269,7 @@ $("#review-form").addEventListener("submit", async (event) => {
   if (!form.reportValidity()) return;
   const submit = $("button[type=submit]", form);
   const status = $("#review-status");
+  let keepDisabled = false;
   submit.disabled = true;
   setStatus(status, "Securing your documents and preparing the report…");
   try {
@@ -299,8 +300,9 @@ $("#review-form").addEventListener("submit", async (event) => {
     showStep(5);
   } catch (error) {
     setStatus(status, error.message || "The request could not be submitted. Try again.", "error");
+    keepDisabled = Boolean(error.pending);
   } finally {
-    submit.disabled = false;
+    submit.disabled = keepDisabled;
   }
 });
 

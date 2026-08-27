@@ -1,4 +1,4 @@
-const CACHE = "claim-companion-v4";
+const CACHE = "claim-companion-v5";
 const SHELL = [
   "/claim-companion/",
   "/claim-companion/index.html",
