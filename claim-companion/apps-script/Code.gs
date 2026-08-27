@@ -6,6 +6,7 @@ const CC = Object.freeze({
   MAX_FILE_BYTES: 8 * 1024 * 1024,
   MAX_TOTAL_BYTES: 20 * 1024 * 1024,
   MAX_REPORTS_PER_EMAIL_PER_DAY: 2,
+  MAX_ADMIN_REPORTS_PER_DAY: 10,
   MAX_REGISTRATION_EMAILS_PER_DAY: 5,
   PATIENT_TOKEN_SECONDS: 30 * 60,
   HOSPITAL_TOKEN_MILLIS: 48 * 60 * 60 * 1000,
@@ -18,6 +19,7 @@ function doGet(e) {
   try {
     if (params.action === "verify-patient") return verifyPatient_(params.token || "");
     if (params.action === "verify-hospital") return verifyHospital_(params.token || "");
+    if (params.action === "submission-status") return submissionStatus_(params);
     return HtmlService.createHtmlOutput("<p>Claim Companion secure processor is available.</p>");
   } catch (error) {
     return resultPage_("Verification unavailable", safeMessage_(error));
@@ -25,15 +27,29 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  let payload = {};
   try {
-    const payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    payload = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (payload.website) throw new Error("Request rejected.");
     if (payload.action === "REQUEST_MAGIC_LINK") return requestMagicLink_(payload);
-    if (payload.action === "SUBMIT_COST_LOCK") return submitCostLock_(payload);
+    if (payload.action === "SUBMIT_COST_LOCK") {
+      setSubmissionStatus_(payload.reference, payload.statusKey, "PROCESSING", "Your report is being prepared.");
+      return submitCostLock_(payload);
+    }
     throw new Error("Unsupported request.");
   } catch (error) {
+    if (payload.action === "SUBMIT_COST_LOCK") trySetSubmissionStatus_(payload.reference, payload.statusKey, "FAILED", safeMessage_(error));
     return json_({ ok: false, error: safeMessage_(error) });
   }
+}
+
+function submissionStatus_(params) {
+  const reference = validReference_(params.reference);
+  const key = validStatusKey_(params.statusKey);
+  const callback = validCallback_(params.callback);
+  const raw = CacheService.getScriptCache().get(submissionStatusCacheKey_(reference, key));
+  const result = raw ? JSON.parse(raw) : { status: "NOT_FOUND", message: "Submission status is not available yet." };
+  return javascript_(callback, result);
 }
 
 function requestMagicLink_(payload) {
@@ -77,10 +93,14 @@ function submitCostLock_(payload) {
   const identity = requirePatient_(payload.authToken, payload.email);
   const email = identity.email;
   const reference = validReference_(payload.reference);
+  const statusKey = validStatusKey_(payload.statusKey);
   const idempotencyKey = "submission:" + sha256_(email + ":" + reference);
   const submissionCache = CacheService.getScriptCache();
   const previous = submissionCache.get(idempotencyKey);
-  if (previous) return json_({ ok: true, reference: reference, duplicate: true });
+  if (previous) {
+    setSubmissionStatus_(reference, statusKey, previous, previous === "COMPLETED" ? "Report completed." : "Report processing is already underway.");
+    return json_({ ok: true, reference: reference, duplicate: true });
+  }
   const hospitalEmail = validEmail_(payload.hospitalEmail);
   const details = validateDetails_(payload.details || {});
   const documents = validateDocuments_(payload.documents || []);
@@ -92,13 +112,16 @@ function submitCostLock_(payload) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) throw new Error("Another report is being accepted. Please wait a moment and try again.");
   try {
-    if (submissionCache.get(idempotencyKey)) return json_({ ok: true, reference: reference, duplicate: true });
+    if (submissionCache.get(idempotencyKey)) {
+      setSubmissionStatus_(reference, statusKey, "PROCESSING", "Report processing is already underway.");
+      return json_({ ok: true, reference: reference, duplicate: true });
+    }
     submissionCache.put(idempotencyKey, "PROCESSING", 600);
   } finally {
     lock.releaseLock();
   }
   try {
-    enforceDailyLimit_("report", email, CC.MAX_REPORTS_PER_EMAIL_PER_DAY);
+    enforceDailyLimit_("report", email, email === CC.SUPPORT_EMAIL ? CC.MAX_ADMIN_REPORTS_PER_DAY : CC.MAX_REPORTS_PER_EMAIL_PER_DAY);
     const root = getRootFolder_();
     const caseFolder = root.createFolder(reference);
     const inputFolder = caseFolder.createFolder("inputs");
@@ -116,11 +139,40 @@ function submitCostLock_(payload) {
     sendPatientReport_(email, reference, reportFile.getBlob(), calculation);
     sendHospitalVerification_(hospitalEmail, reference, reportFile.getId());
     submissionCache.put(idempotencyKey, "COMPLETED", 21600);
+    setSubmissionStatus_(reference, statusKey, "COMPLETED", "Report created and emailed.");
     return json_({ ok: true, reference: reference });
   } catch (error) {
     submissionCache.remove(idempotencyKey);
     throw error;
   }
+}
+
+function validStatusKey_(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (!/^[a-f0-9]{32,64}$/.test(key)) throw new Error("Invalid submission status key.");
+  return key;
+}
+
+function validCallback_(value) {
+  const callback = String(value || "").trim();
+  if (!/^ccStatus[a-f0-9]{1,16}$/i.test(callback)) throw new Error("Invalid status callback.");
+  return callback;
+}
+
+function submissionStatusCacheKey_(reference, statusKey) {
+  return "report-status:" + sha256_(reference + ":" + statusKey);
+}
+
+function setSubmissionStatus_(reference, statusKey, status, message) {
+  const safeReference = validReference_(reference);
+  const safeKey = validStatusKey_(statusKey);
+  const allowed = ["PROCESSING", "COMPLETED", "FAILED"];
+  if (allowed.indexOf(status) < 0) throw new Error("Invalid submission status.");
+  CacheService.getScriptCache().put(submissionStatusCacheKey_(safeReference, safeKey), JSON.stringify({ status: status, message: cleanText_(message, 240), reference: safeReference }), 900);
+}
+
+function trySetSubmissionStatus_(reference, statusKey, status, message) {
+  try { setSubmissionStatus_(reference, statusKey, status, message); } catch (ignored) {}
 }
 
 function requirePatient_(token, claimedEmail) {
@@ -423,6 +475,7 @@ function sha256_(value) { return Utilities.computeDigest(Utilities.DigestAlgorit
 function inr_(value) { return "₹" + Math.round(Number(value) || 0).toLocaleString("en-IN"); }
 function inrRange_(low, high) { return Math.round(Number(low) || 0) === Math.round(Number(high) || 0) ? inr_(low) : inr_(low) + " to " + inr_(high); }
 function json_(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
+function javascript_(callback, data) { return ContentService.createTextOutput(callback + "(" + JSON.stringify(data) + ");").setMimeType(ContentService.MimeType.JAVASCRIPT); }
 function safeMessage_(error) { return cleanText_(error && error.message ? error.message : String(error), 240) || "Request failed."; }
 function emailShell_(title, copy, link, label) { return '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#071b4a"><h1 style="font-size:24px">' + title + '</h1><p>' + copy + '</p><p><a style="display:inline-block;padding:13px 20px;background:#087f84;color:#fff;text-decoration:none;border-radius:6px" href="' + link + '">' + label + '</a></p><p style="color:#64748b;font-size:13px">Claim Companion by AInnoverse Tech Centre LLP</p></div>'; }
 function redirectPage_(url) { const escaped = String(url).replace(/&/g, "&amp;").replace(/"/g, "&quot;"); return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=' + escaped + '"><p><a href="' + escaped + '">Continue to Claim Companion</a></p>'); }
