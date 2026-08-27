@@ -18,6 +18,24 @@ test("public route exposes all three required documents and five steps", () => {
   for (const step of ["Email", "Documents", "Details", "Review", "Done"]) assert.match(page, new RegExp(`>${step}<`));
 });
 
+test("Claim Companion is discoverable from the homepage and shared navigation", () => {
+  const home = readFileSync("index.html", "utf8");
+  const nav = readFileSync("assets/nav.html", "utf8");
+  assert.match(home, /class="cv-health-banner"/);
+  assert.match(home, /class="cv-health-feature"/);
+  assert.match(home, /href="\/claim-companion\/"/);
+  assert.match(nav, /Hospital Cost Estimate/);
+  assert.match(nav, /href="\/claim-companion\/"/);
+});
+
+test("Claim Companion first step explains value and trust before document upload", () => {
+  const html = readFileSync("claim-companion/index.html", "utf8");
+  assert.match(html, /Know the likely hospital cost before admission/);
+  assert.match(html, /Secure document handling/);
+  assert.match(html, /Independent estimate/);
+  assert.match(html, /Delivered by email/);
+});
+
 test("registration, consent and hospital verification are mandatory", () => {
   for (const id of ["registration-consent", "accuracy-consent", "hospital-consent", "hospital-email"]) assert.match(page, new RegExp(`id="${id}"[^>]*required|required[^>]*id="${id}"`));
   assert.match(app, /REQUEST_MAGIC_LINK|requestMagicLink/);
