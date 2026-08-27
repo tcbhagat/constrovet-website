@@ -157,3 +157,39 @@ test("slow processing no longer leaves the patient on an endless spinner", () =>
   assert.match(api, /45000/);
   assert.match(app, /submissionReference/);
 });
+
+test("submission completion is confirmed through a secure status channel", () => {
+  const api = read("claim-companion/api.js");
+  assert.match(api, /submission-status/);
+  assert.match(api, /waitForSubmission/);
+  assert.match(api, /status === "COMPLETED"/);
+  assert.match(api, /status === "FAILED"/);
+  assert.match(backend, /submissionStatus_/);
+  assert.match(backend, /validStatusKey_/);
+  assert.match(backend, /setSubmissionStatus_.*"FAILED"/s);
+  assert.match(app, /keepDisabled = Boolean\(error\.pending\)/);
+  assert.match(backend, /MAX_ADMIN_REPORTS_PER_DAY: 10/);
+});
+
+test("submission API returns completion and propagates backend failure", async () => {
+  let response = { status: "COMPLETED" };
+  globalThis.window = { CLAIM_COMPANION_CONFIG: { apiUrl: "https://example.test/exec", demoMode: false } };
+  globalThis.fetch = async () => ({});
+  globalThis.document = {
+    createElement: () => ({ remove() {} }),
+    head: {
+      appendChild(script) {
+        const callback = new URL(script.src).searchParams.get("callback");
+        setTimeout(() => window[callback](response), 0);
+      }
+    }
+  };
+  const { submitCostLock } = await import("../claim-companion/api.js");
+  const completed = await submitCostLock({ reference: "CC-20260827-STATUS" });
+  assert.deepEqual(completed, { ok: true, reference: "CC-20260827-STATUS" });
+  response = { status: "FAILED", message: "Daily limit reached for this email address." };
+  await assert.rejects(() => submitCostLock({ reference: "CC-20260827-LIMIT" }), /Daily limit reached for this email address/);
+  delete globalThis.window;
+  delete globalThis.fetch;
+  delete globalThis.document;
+});
