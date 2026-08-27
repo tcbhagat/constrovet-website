@@ -95,6 +95,8 @@ test("unknown room-linked charges produce a transparent conservative range", () 
   assert.equal(result.insurerContributionHigh, 310602);
   assert.equal(result.patientShareLow, 250698);
   assert.equal(result.patientShareHigh, 526800);
+  assert.equal(result.copayAppliedLow, 11500);
+  assert.equal(result.copayAppliedHigh, 103534);
   assert.equal(result.known.availableBalance, false);
   assert.equal(result.known.deductible, false);
 });
@@ -118,6 +120,8 @@ test("PDF report replaces generic questions with evidence status", () => {
   assert.doesNotMatch(backend, /Ask the insurer or TPA to confirm|Ask the hospital to confirm|Request formal cashless pre-authorization/i);
   assert.match(backend, /Not present in uploaded documents/);
   assert.match(backend, /hasUncertainProportionateDeduction/);
+  assert.match(backend, /inrRange_\(calculation\.copayAppliedLow, calculation\.copayAppliedHigh\)/);
+  assert.match(backend, /appendPageBreak\(\);\s*body\.appendParagraph\("DOCUMENT EVIDENCE STATUS"\)/);
 });
 
 test("unsafe approval claims and public AI calls are absent", () => {
