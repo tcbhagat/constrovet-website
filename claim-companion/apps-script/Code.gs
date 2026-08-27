@@ -198,6 +198,8 @@ function calculate_(details) {
   const insurerHigh = Math.max(optimistic.insurer, conservative.insurer);
   const patientLow = Math.min(optimistic.patient, conservative.patient);
   const patientHigh = Math.max(optimistic.patient, conservative.patient);
+  const copayLow = Math.min(optimistic.copayApplied, conservative.copayApplied);
+  const copayHigh = Math.max(optimistic.copayApplied, conservative.copayApplied);
   return {
     totalBill: total, baseSumInsured: baseSumInsured, coverageCap: coverageCap, nonPayables: nonPayables,
     roomRatio: ratio, directRoomDeduction: roomDeduction,
@@ -205,6 +207,7 @@ function calculate_(details) {
     proportionalDeductionLow: optimistic.proportionalDeduction,
     proportionalDeductionHigh: conservative.proportionalDeduction,
     deductibleApplied: conservative.deductibleApplied, copayApplied: conservative.copayApplied,
+    copayAppliedLow: copayLow, copayAppliedHigh: copayHigh,
     policyAdmissible: conservative.admissible, estimatedInsurerContribution: insurerLow,
     estimatedPatientShare: patientHigh, insurerContributionLow: insurerLow,
     insurerContributionHigh: insurerHigh, patientShareLow: patientLow, patientShareHigh: patientHigh,
@@ -241,7 +244,7 @@ function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calcul
     ["Room-limit deduction", inr_(calculation.directRoomDeduction)],
     ["Proportionate deduction", calculation.hasEstimateRange ? inrRange_(calculation.proportionalDeductionLow, calculation.proportionalDeductionHigh) : (details.proportionateChargesKnown ? inr_(calculation.proportionalDeduction) : "Not found - excluded from calculation")],
     ["Deductible", details.deductibleKnown ? inr_(calculation.deductibleApplied) : "Not found - excluded from calculation"],
-    ["Co-pay", details.copayKnown ? inr_(calculation.copayApplied) : "Not found - excluded from calculation"],
+    ["Co-pay", details.copayKnown ? inrRange_(calculation.copayAppliedLow, calculation.copayAppliedHigh) : "Not found - excluded from calculation"],
     ["Estimated insurer contribution", inrRange_(calculation.insurerContributionLow, calculation.insurerContributionHigh)],
     ["Estimated patient share", inrRange_(calculation.patientShareLow, calculation.patientShareHigh)]
   ]);
@@ -252,6 +255,7 @@ function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calcul
   body.appendParagraph("SOURCE DOCUMENTS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
   documents.forEach(function (item) { body.appendListItem(item.roles.join(" + ") + ": " + item.name); });
   const hasPreauthorization = documents.some(function (item) { return item.roles.indexOf("preauthorization") >= 0; });
+  body.appendPageBreak();
   body.appendParagraph("DOCUMENT EVIDENCE STATUS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
   appendKeyValues_(body, [["Policy terms", "Extracted from the uploaded policy and confirmed before submission"], ["Treatment and stay", "Supplied in the medical advice and hospital estimate"], ["Hospital estimate", "Itemized estimate supplied"], ["Remaining insurance balance", details.availableBalanceKnown ? "Supplied by the patient or representative" : "Not present in uploaded documents"], ["Cashless authorization", hasPreauthorization ? "Uploaded for reference - not independently verified" : "Not submitted"], ["Estimate confidence", calculation.hasUncertainProportionateDeduction ? "Conditional - a range is shown because affected room-linked charges are not fully identified" : "Document-based with the limitations listed below"]]);
   body.appendParagraph("IMPORTANT NOTICE").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
