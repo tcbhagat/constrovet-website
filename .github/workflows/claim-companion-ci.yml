@@ -3,6 +3,9 @@ name: Claim Companion CI
 on:
   pull_request:
     paths:
+      - "index.html"
+      - "assets/nav.html"
+      - "assets/css/style.css"
       - "claim-companion/**"
       - "android/claim-companion/**"
       - "tests/claim-companion-public.test.mjs"
@@ -12,6 +15,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "index.html"
+      - "assets/nav.html"
+      - "assets/css/style.css"
       - "claim-companion/**"
       - "android/claim-companion/**"
       - "tests/claim-companion-public.test.mjs"
