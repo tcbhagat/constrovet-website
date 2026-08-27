@@ -163,7 +163,8 @@ function verifyHospital_(token) {
 
 function calculate_(details) {
   const total = positive_(details.estimatedBill);
-  const sumInsured = positive_(details.sumInsured);
+  const baseSumInsured = positive_(details.sumInsured);
+  const coverageCap = details.availableBalanceKnown ? Math.max(0, Number(details.availableBalance) || 0) : baseSumInsured;
   const nonPayables = Math.min(total, positive_(details.nonPayables));
   const deductible = positive_(details.deductible);
   const copay = Math.min(100, positive_(details.copayPercent));
@@ -175,14 +176,39 @@ function calculate_(details) {
   const selectedRoomCost = Math.min(total, actualRoom * days);
   const allowedRoomCost = roomLimit && actualRoom ? Math.min(selectedRoomCost, roomLimit * days) : selectedRoomCost;
   const roomDeduction = Math.max(0, selectedRoomCost - allowedRoomCost);
-  const proportionalDeduction = Math.max(0, proportionateCharges * (1 - ratio));
+  const documentedProportionalDeduction = Math.max(0, proportionateCharges * (1 - ratio));
+  const uncertainScaling = ratio < 1 && details.proportionateScalingApplies && !details.proportionateChargesKnown;
+  const potentiallyScaledCharges = Math.max(0, total - nonPayables - selectedRoomCost);
+  const maximumProportionalDeduction = uncertainScaling ? potentiallyScaledCharges * (1 - ratio) : documentedProportionalDeduction;
+  const optimistic = calculateScenario_(total, nonPayables, roomDeduction, documentedProportionalDeduction, deductible, copay, coverageCap);
+  const conservative = calculateScenario_(total, nonPayables, roomDeduction, maximumProportionalDeduction, deductible, copay, coverageCap);
+  const insurerLow = Math.min(optimistic.insurer, conservative.insurer);
+  const insurerHigh = Math.max(optimistic.insurer, conservative.insurer);
+  const patientLow = Math.min(optimistic.patient, conservative.patient);
+  const patientHigh = Math.max(optimistic.patient, conservative.patient);
+  return {
+    totalBill: total, baseSumInsured: baseSumInsured, coverageCap: coverageCap, nonPayables: nonPayables,
+    roomRatio: ratio, directRoomDeduction: roomDeduction,
+    proportionalDeduction: conservative.proportionalDeduction,
+    proportionalDeductionLow: optimistic.proportionalDeduction,
+    proportionalDeductionHigh: conservative.proportionalDeduction,
+    deductibleApplied: conservative.deductibleApplied, copayApplied: conservative.copayApplied,
+    policyAdmissible: conservative.admissible, estimatedInsurerContribution: insurerLow,
+    estimatedPatientShare: patientHigh, insurerContributionLow: insurerLow,
+    insurerContributionHigh: insurerHigh, patientShareLow: patientLow, patientShareHigh: patientHigh,
+    hasEstimateRange: Math.round(insurerLow) !== Math.round(insurerHigh),
+    hasUncertainProportionateDeduction: uncertainScaling
+  };
+}
+
+function calculateScenario_(total, nonPayables, roomDeduction, proportionalDeduction, deductible, copay, coverageCap) {
   const beforeDeductible = Math.max(0, total - nonPayables - roomDeduction - proportionalDeduction);
   const deductibleApplied = Math.min(beforeDeductible, deductible);
   const afterDeductible = Math.max(0, beforeDeductible - deductibleApplied);
   const copayApplied = afterDeductible * copay / 100;
   const admissible = Math.max(0, afterDeductible - copayApplied);
-  const insurer = Math.min(sumInsured || admissible, admissible);
-  return { totalBill: total, nonPayables: nonPayables, roomRatio: ratio, directRoomDeduction: roomDeduction, proportionalDeduction: proportionalDeduction, deductibleApplied: deductibleApplied, copayApplied: copayApplied, policyAdmissible: admissible, estimatedInsurerContribution: insurer, estimatedPatientShare: Math.max(0, total - insurer) };
+  const insurer = Math.min(coverageCap, admissible);
+  return { proportionalDeduction: proportionalDeduction, deductibleApplied: deductibleApplied, copayApplied: copayApplied, admissible: admissible, insurer: insurer, patient: Math.max(0, total - insurer) };
 }
 
 function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calculation, documents) {
@@ -199,24 +225,25 @@ function buildPdf_(reference, name, patientEmail, hospitalEmail, details, calcul
   const table = body.appendTable([
     ["Calculation item", "Estimated amount"],
     ["Hospital estimate", inr_(calculation.totalBill)],
-    ["Known non-payables", inr_(calculation.nonPayables)],
+    ["Known non-payables", details.nonPayablesKnown ? inr_(calculation.nonPayables) : "Not found - excluded from calculation"],
     ["Room-limit deduction", inr_(calculation.directRoomDeduction)],
-    ["Proportionate deduction", inr_(calculation.proportionalDeduction)],
-    ["Deductible", inr_(calculation.deductibleApplied)],
-    ["Co-pay", inr_(calculation.copayApplied)],
-    ["Estimated insurer contribution", inr_(calculation.estimatedInsurerContribution)],
-    ["Estimated patient share", inr_(calculation.estimatedPatientShare)]
+    ["Proportionate deduction", calculation.hasEstimateRange ? inrRange_(calculation.proportionalDeductionLow, calculation.proportionalDeductionHigh) : (details.proportionateChargesKnown ? inr_(calculation.proportionalDeduction) : "Not found - excluded from calculation")],
+    ["Deductible", details.deductibleKnown ? inr_(calculation.deductibleApplied) : "Not found - excluded from calculation"],
+    ["Co-pay", details.copayKnown ? inr_(calculation.copayApplied) : "Not found - excluded from calculation"],
+    ["Estimated insurer contribution", inrRange_(calculation.insurerContributionLow, calculation.insurerContributionHigh)],
+    ["Estimated patient share", inrRange_(calculation.patientShareLow, calculation.patientShareHigh)]
   ]);
   table.getRow(0).getCell(0).editAsText().setBold(true).setForegroundColor("#173d82");
   table.getRow(0).getCell(1).editAsText().setBold(true).setForegroundColor("#173d82");
-  body.appendParagraph("USER-CONFIRMED POLICY AND BILL VALUES").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
-  appendKeyValues_(body, [["Available sum insured", inr_(details.sumInsured)], ["Room-rent limit", details.roomLimit ? inr_(details.roomLimit) + "/day" : "Not supplied"], ["Selected room rate", details.actualRoomRate ? inr_(details.actualRoomRate) + "/day" : "Not supplied"], ["Expected stay", details.stayDays + " day(s)"], ["Co-pay", details.copayPercent + "%"], ["Waiting/exclusion note", details.waitingNote || "Not supplied"], ["Care requirements", details.patientPreferences]]);
+  body.appendParagraph("DOCUMENTED POLICY AND BILL VALUES").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
+  appendKeyValues_(body, [["Base sum insured", inr_(details.sumInsured)], ["Current available balance", details.availableBalanceKnown ? inr_(details.availableBalance) : "Not present in uploaded documents"], ["Policy period", details.policyPeriod || "Not found"], ["Room-rent limit", details.roomLimit ? inr_(details.roomLimit) + "/day" : "Not found"], ["Selected room rate", details.actualRoomRate ? inr_(details.actualRoomRate) + "/day" : "Not found"], ["Expected stay", details.stayDays + " day(s)"], ["Co-pay", details.copayKnown ? details.copayPercent + "%" : "Not found"], ["Deductible", details.deductibleKnown ? inr_(details.deductible) : "Not found"], ["Waiting/exclusion note", details.waitingNote || "Not found"], ["Care requirements", details.patientPreferences]]);
   body.appendParagraph("SOURCE DOCUMENTS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
   documents.forEach(function (item) { body.appendListItem(item.role + ": " + item.name); });
-  body.appendParagraph("QUESTIONS TO CONFIRM").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
-  ["Ask the insurer or TPA to confirm eligibility, waiting periods, exclusions and available sum insured.", "Ask the hospital to confirm package tariff, selected room rate, consumables and items outside the package.", "Request formal cashless pre-authorization directly from the insurer or TPA."].forEach(function (item) { body.appendListItem(item); });
+  const hasPreauthorization = documents.some(function (item) { return item.role === "preauthorization"; });
+  body.appendParagraph("DOCUMENT EVIDENCE STATUS").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
+  appendKeyValues_(body, [["Policy terms", "Extracted from the uploaded policy and confirmed before submission"], ["Treatment and stay", "Supplied in the medical advice and hospital estimate"], ["Hospital estimate", "Itemized estimate supplied"], ["Remaining insurance balance", details.availableBalanceKnown ? "Supplied by the patient or representative" : "Not present in uploaded documents"], ["Cashless authorization", hasPreauthorization ? "Uploaded for reference - not independently verified" : "Not submitted"], ["Estimate confidence", calculation.hasUncertainProportionateDeduction ? "Conditional - a range is shown because affected room-linked charges are not fully identified" : "Document-based with the limitations listed below"]]);
   body.appendParagraph("IMPORTANT NOTICE").setHeading(DocumentApp.ParagraphHeading.HEADING1).setForegroundColor("#173d82");
-  body.appendParagraph("This automated document is an independent, non-binding estimate based on uploaded documents and user-confirmed values. It is not a cashless pre-authorization, insurer sanction, TPA decision, hospital quotation, policy endorsement, medical advice or financial guarantee. Final coverage and amounts may differ.").setForegroundColor("#475569");
+  body.appendParagraph("Independent estimate based on uploaded documents and confirmed values. Remaining insurance balance, final admissibility and cashless authorization are not established unless supported by an insurer or TPA document. This is not an approval, sanction, medical advice or financial guarantee.").setForegroundColor("#475569");
   body.appendParagraph("Hospital delivery authorized for: " + hospitalEmail).setForegroundColor("#475569");
   doc.saveAndClose();
   const source = DriveApp.getFileById(doc.getId());
@@ -231,11 +258,13 @@ function appendKeyValues_(body, rows) {
 }
 
 function sendPatientReport_(email, reference, attachment, calculation) {
+  const insurerRange = inrRange_(calculation.insurerContributionLow, calculation.insurerContributionHigh);
+  const patientRange = inrRange_(calculation.patientShareLow, calculation.patientShareHigh);
   MailApp.sendEmail({
     to: email,
     subject: "Your Cost-Lock estimate " + reference,
-    body: "Your independent Cost-Lock estimate is attached. Estimated insurer contribution: " + inr_(calculation.estimatedInsurerContribution) + ". Estimated patient share: " + inr_(calculation.estimatedPatientShare) + ". This is not an approval or guarantee.",
-    htmlBody: "<p>Your independent Cost-Lock estimate is attached.</p><p><strong>Estimated insurer contribution:</strong> " + inr_(calculation.estimatedInsurerContribution) + "<br><strong>Estimated patient share:</strong> " + inr_(calculation.estimatedPatientShare) + "</p><p>This is not an approval or guarantee.</p>",
+    body: "Your independent Cost-Lock estimate is attached. Estimated insurer contribution: " + insurerRange + ". Estimated patient share: " + patientRange + ". This is not an approval or guarantee.",
+    htmlBody: "<p>Your independent Cost-Lock estimate is attached.</p><p><strong>Estimated insurer contribution:</strong> " + insurerRange + "<br><strong>Estimated patient share:</strong> " + patientRange + "</p><p>This is not an approval or guarantee.</p>",
     attachments: [attachment],
     name: "Claim Companion",
     replyTo: CC.SUPPORT_EMAIL
@@ -314,8 +343,8 @@ function purgeOldAuditRows_(sheet) {
 
 function validateDetails_(input) {
   const details = {
-    procedureName: cleanText_(input.procedureName, 160), hospitalName: cleanText_(input.hospitalName, 160), treatmentDate: cleanText_(input.treatmentDate, 20), roomCategory: cleanText_(input.roomCategory, 80), patientPreferences: cleanText_(input.patientPreferences, 1200), waitingNote: cleanText_(input.waitingNote, 300),
-    sumInsured: positive_(input.sumInsured), roomLimit: positive_(input.roomLimit), copayPercent: Math.min(100, positive_(input.copayPercent)), deductible: positive_(input.deductible), estimatedBill: positive_(input.estimatedBill), stayDays: positive_(input.stayDays), actualRoomRate: positive_(input.actualRoomRate), nonPayables: positive_(input.nonPayables), proportionateCharges: positive_(input.proportionateCharges)
+    procedureName: cleanText_(input.procedureName, 160), hospitalName: cleanText_(input.hospitalName, 160), treatmentDate: cleanText_(input.treatmentDate, 20), roomCategory: cleanText_(input.roomCategory, 80), patientPreferences: cleanText_(input.patientPreferences, 1200), waitingNote: cleanText_(input.waitingNote, 300), policyPeriod: cleanText_(input.policyPeriod, 80),
+    sumInsured: positive_(input.sumInsured), availableBalance: nonNegative_(input.availableBalance), availableBalanceKnown: hasNonNegative_(input.availableBalance), roomLimit: positive_(input.roomLimit), copayPercent: Math.min(100, nonNegative_(input.copayPercent)), copayKnown: hasNonNegative_(input.copayPercent), deductible: nonNegative_(input.deductible), deductibleKnown: hasNonNegative_(input.deductible), estimatedBill: positive_(input.estimatedBill), stayDays: positive_(input.stayDays), actualRoomRate: positive_(input.actualRoomRate), nonPayables: nonNegative_(input.nonPayables), nonPayablesKnown: hasNonNegative_(input.nonPayables), proportionateCharges: nonNegative_(input.proportionateCharges), proportionateChargesKnown: hasNonNegative_(input.proportionateCharges), proportionateScalingApplies: input.proportionateScalingApplies === true || String(input.proportionateScalingApplies).toLowerCase() === "true"
   };
   if (!details.procedureName || !details.hospitalName || !details.roomCategory || !details.patientPreferences || !details.sumInsured || !details.estimatedBill) throw new Error("Required report details are missing.");
   if (details.nonPayables > details.estimatedBill || details.proportionateCharges > details.estimatedBill) throw new Error("A deduction exceeds the hospital estimate.");
@@ -323,20 +352,22 @@ function validateDetails_(input) {
 }
 
 function validateDocuments_(documents) {
-  if (!Array.isArray(documents) || documents.length !== 3) throw new Error("Exactly three documents are required.");
+  if (!Array.isArray(documents) || documents.length < 3 || documents.length > 4) throw new Error("Three required documents and up to one optional authorization document are accepted.");
   const required = ["policy", "prescription", "estimate"];
+  const accepted = required.concat(["preauthorization"]);
   let total = 0;
   const cleaned = documents.map(function (item) {
     const role = cleanText_(item.role, 30);
     const size = Number(item.size) || 0;
     const mimeType = cleanText_(item.mimeType, 80);
-    if (required.indexOf(role) < 0 || !item.base64 || size <= 0 || size > CC.MAX_FILE_BYTES) throw new Error("A document is invalid or too large.");
+    if (accepted.indexOf(role) < 0 || !item.base64 || size <= 0 || size > CC.MAX_FILE_BYTES) throw new Error("A document is invalid or too large.");
     if (["application/pdf", "image/jpeg", "image/png", "image/webp"].indexOf(mimeType) < 0) throw new Error("Unsupported document type.");
     if (role === "policy" && mimeType !== "application/pdf") throw new Error("Policy must be a PDF.");
     total += size;
     return { role: role, name: cleanText_(item.name, 180), mimeType: mimeType, size: size, base64: String(item.base64) };
   });
-  if (new Set(cleaned.map(function (item) { return item.role; })).size !== 3 || total > CC.MAX_TOTAL_BYTES) throw new Error("Document set is incomplete or too large.");
+  const roles = cleaned.map(function (item) { return item.role; });
+  if (new Set(roles).size !== roles.length || required.some(function (role) { return roles.indexOf(role) < 0; }) || total > CC.MAX_TOTAL_BYTES) throw new Error("Document set is incomplete, duplicated or too large.");
   return cleaned;
 }
 
@@ -353,10 +384,13 @@ function validEmail_(value) { const email = String(value || "").trim().toLowerCa
 function validReference_(value) { const reference = String(value || "").trim(); if (!/^CC-\d{8}-[A-Z0-9]{4,8}$/.test(reference)) throw new Error("Invalid report reference."); return reference; }
 function cleanText_(value, max) { return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max); }
 function positive_(value) { const number = Number(value); return Number.isFinite(number) && number > 0 ? number : 0; }
+function nonNegative_(value) { const number = Number(value); return Number.isFinite(number) && number >= 0 ? number : 0; }
+function hasNonNegative_(value) { return value !== undefined && value !== null && String(value).trim() !== "" && Number.isFinite(Number(value)) && Number(value) >= 0; }
 function safeFileName_(value) { return cleanText_(value, 180).replace(/[\\/:*?"<>|]/g, "-") || "document"; }
 function randomToken_() { return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + Date.now() + Math.random())).replace(/=+$/, ""); }
 function sha256_(value) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value)).map(function (byte) { const n = byte < 0 ? byte + 256 : byte; return ("0" + n.toString(16)).slice(-2); }).join(""); }
 function inr_(value) { return "₹" + Math.round(Number(value) || 0).toLocaleString("en-IN"); }
+function inrRange_(low, high) { return Math.round(Number(low) || 0) === Math.round(Number(high) || 0) ? inr_(low) : inr_(low) + " to " + inr_(high); }
 function json_(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
 function safeMessage_(error) { return cleanText_(error && error.message ? error.message : String(error), 240) || "Request failed."; }
 function emailShell_(title, copy, link, label) { return '<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#071b4a"><h1 style="font-size:24px">' + title + '</h1><p>' + copy + '</p><p><a style="display:inline-block;padding:13px 20px;background:#087f84;color:#fff;text-decoration:none;border-radius:6px" href="' + link + '">' + label + '</a></p><p style="color:#64748b;font-size:13px">Claim Companion by AInnoverse Tech Centre LLP</p></div>'; }

@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260822">
+  <link rel="stylesheet" href="styles.css?v=20260824">
   <title>Claim Companion | Your Cost-Lock Estimate</title>
 </head>
 <body>
@@ -91,7 +91,7 @@
 
         <h2>Your preferences</h2>
         <div class="form-grid form-grid--two preference-grid">
-          <div class="field"><label for="room-category">Preferred room</label><select id="room-category" name="roomCategory" required><option value="General ward">General ward</option><option value="Shared room">Shared room</option><option value="Private room" selected>Private room</option><option value="Deluxe room">Deluxe room</option><option value="Not sure">Not sure</option></select></div>
+          <div class="field"><label for="room-category">Preferred room</label><select id="room-category" name="roomCategory" required><option value="General ward">General ward</option><option value="Shared room">Shared room</option><option value="Private room" selected>Private room</option><option value="Deluxe room">Deluxe room</option><option value="Deluxe suite">Deluxe suite</option><option value="Not sure">Not sure</option></select></div>
           <div class="field"><label for="nursing-care">Nursing care</label><select id="nursing-care" name="nursingCare" required><option value="Standard hospital nursing" selected>Standard hospital nursing</option><option value="Private nurse requested">Private nurse requested</option><option value="Discuss with hospital">Discuss with hospital</option></select></div>
         </div>
         <div class="preference-options" aria-label="Additional care preferences">
@@ -112,19 +112,22 @@
           </div>
           <h2>Policy limits</h2>
           <div class="form-grid form-grid--three">
-            <div class="field"><label for="sum-insured">Available sum insured (₹)</label><input id="sum-insured" name="sumInsured" type="number" min="0" step="1" inputmode="numeric" required></div>
+            <div class="field"><label for="sum-insured">Base sum insured (₹)</label><input id="sum-insured" name="sumInsured" type="number" min="0" step="1" inputmode="numeric" required></div>
+            <div class="field"><label for="available-balance">Current available balance (₹) <span>(optional)</span></label><input id="available-balance" name="availableBalance" type="number" min="0" step="1" inputmode="numeric"><small>Leave blank unless shown in a current insurer document or app.</small></div>
             <div class="field"><label for="room-limit">Room-rent limit/day (₹) <span>(optional)</span></label><input id="room-limit" name="roomLimit" type="number" min="0" step="1" inputmode="numeric"></div>
-            <div class="field"><label for="copay-percent">Co-pay (%)</label><input id="copay-percent" name="copayPercent" type="number" min="0" max="100" step="0.01" inputmode="decimal" value="0" required></div>
-            <div class="field"><label for="deductible">Deductible (₹)</label><input id="deductible" name="deductible" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+            <div class="field"><label for="copay-percent">Co-pay (%) <span>(optional)</span></label><input id="copay-percent" name="copayPercent" type="number" min="0" max="100" step="0.01" inputmode="decimal"></div>
+            <div class="field"><label for="deductible">Deductible (₹) <span>(optional)</span></label><input id="deductible" name="deductible" type="number" min="0" step="1" inputmode="numeric"></div>
             <div class="field field--wide"><label for="waiting-note">Waiting-period or exclusion note <span>(optional)</span></label><input id="waiting-note" name="waitingNote" maxlength="300"></div>
+            <div class="field"><label for="policy-period">Policy period <span>(optional)</span></label><input id="policy-period" name="policyPeriod" maxlength="80"></div>
+            <div class="field"><label for="proportionate-scaling">Room-linked proportional scaling</label><select id="proportionate-scaling" name="proportionateScalingApplies"><option value="">Not found</option><option value="true">Applies</option><option value="false">Does not apply</option></select></div>
           </div>
           <h2>Hospital estimate</h2>
           <div class="form-grid form-grid--three">
             <div class="field"><label for="estimated-bill">Total estimated bill (₹)</label><input id="estimated-bill" name="estimatedBill" type="number" min="1" step="1" inputmode="numeric" required></div>
             <div class="field"><label for="stay-days">Expected stay (days)</label><input id="stay-days" name="stayDays" type="number" min="0" max="365" step="1" inputmode="numeric" value="1" required></div>
             <div class="field"><label for="actual-room-rate">Selected room/day (₹) <span>(optional)</span></label><input id="actual-room-rate" name="actualRoomRate" type="number" min="0" step="1" inputmode="numeric"></div>
-            <div class="field"><label for="non-payables">Known non-payables (₹)</label><input id="non-payables" name="nonPayables" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
-            <div class="field"><label for="proportionate-charges">Charges subject to room proportion (₹)</label><input id="proportionate-charges" name="proportionateCharges" type="number" min="0" step="1" inputmode="numeric" value="0" required></div>
+            <div class="field"><label for="non-payables">Known non-payables (₹) <span>(optional)</span></label><input id="non-payables" name="nonPayables" type="number" min="0" step="1" inputmode="numeric"></div>
+            <div class="field"><label for="proportionate-charges">Charges confirmed subject to room proportion (₹) <span>(optional)</span></label><input id="proportionate-charges" name="proportionateCharges" type="number" min="0" step="1" inputmode="numeric"><small>Leave blank when the documents do not identify these charges.</small></div>
           </div>
         </details>
 
@@ -166,14 +169,14 @@
 
   <template id="upload-template">
     <div class="upload-row">
-      <div class="upload-label"><strong></strong><span>(required)</span></div>
+      <div class="upload-label"><strong></strong><span></span></div>
       <label class="drop-zone"><input type="file" hidden required><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18H5a4 4 0 0 1-.4-8A7 7 0 0 1 18 8.3 5 5 0 0 1 19 18h-2"/><path d="m9 13 3-3 3 3M12 10v10"/></svg><span><strong>Upload image or PDF</strong><small>Drag and drop here or click to browse</small></span></label>
       <div class="file-result" hidden><span class="file-icon">PDF</span><span><strong></strong><small></small></span><button type="button">Remove</button></div>
     </div>
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
-  <script src="config.js?v=20260822"></script>
-  <script type="module" src="app.js?v=20260822"></script>
+  <script src="config.js?v=20260824"></script>
+  <script type="module" src="app.js?v=20260824"></script>
 </body>
 </html>

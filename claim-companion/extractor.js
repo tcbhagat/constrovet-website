@@ -4,9 +4,10 @@ const PDF_JS_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mi
 const PDF_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
 
 export const documentSpecs = [
-  { key: "policy", label: "Health insurance policy", accept: ".pdf,application/pdf" },
-  { key: "prescription", label: "Hospital prescription or treatment advice", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" },
-  { key: "estimate", label: "Hospital estimate or package quotation", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" }
+  { key: "policy", label: "Health insurance policy", accept: ".pdf,application/pdf", required: true },
+  { key: "prescription", label: "Hospital prescription or treatment advice", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: true },
+  { key: "estimate", label: "Hospital estimate or package quotation", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: true },
+  { key: "preauthorization", label: "Cashless authorization or TPA response", accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp", required: false }
 ];
 
 export function validateDocument(file, spec, config) {
@@ -74,6 +75,9 @@ function firstMoney(text, patterns) {
 }
 
 function inferHospitalName(text) {
+  const compact = String(text || "").replace(/\s+/g, " ").trim();
+  const labelled = compact.match(/(?:hospital\s*&\s*city|proposed hospital|hospital name)\s*[:\-]?\s*([A-Za-z][A-Za-z0-9&.,'() -]{2,120}?)(?=\s+(?:primary diagnosis|selected room|expected length|recommended admission|advised procedure|patient name|attending doctor|surgical\s*\/\s*medical advice|itemized|doctor['’]s|$))/i);
+  if (labelled) return labelled[1].trim().slice(0, 160);
   const lines = String(text || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
   for (const line of lines) {
     if (/^(?:provisional\s+)?hospital\s+(?:cost\s+)?estimate|^hospital\s+(?:treatment|prescription|advice)/i.test(line)) continue;
@@ -95,6 +99,7 @@ function inferStayDays(text) {
 
 function inferRoomCategory(text) {
   const compact = String(text || "").replace(/\s+/g, " ");
+  if (/deluxe\s+suite/i.test(compact)) return "Deluxe suite";
   if (/deluxe\s+room/i.test(compact)) return "Deluxe room";
   if (/(?:single\s+)?private\s+room/i.test(compact)) return "Private room";
   if (/(?:shared|twin[- ]?sharing)\s+room/i.test(compact)) return "Shared room";
@@ -104,12 +109,16 @@ function inferRoomCategory(text) {
 
 export function inferPolicyFields(text) {
   const compact = String(text || "").replace(/\s+/g, " ");
+  const waiting = compact.match(/(?:pre[- ]?existing disease|ped|waiting period|specific waiting)[^.;]{0,100}?(?:\d{1,3}\s*(?:months?|years?)\s*waiting|waiting\s*(?:period)?\s*(?:of)?\s*\d{1,3}\s*(?:months?|years?))\)?/i);
+  const policyPeriod = compact.match(/policy\s+period\s*[:\-]?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}\s*(?:to|-|until)\s*\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4})/i);
   return {
     sumInsured: firstMoney(compact, [/(?:sum insured|sum assured|coverage amount)[^₹\d]{0,40}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i]),
     roomLimit: firstMoney(compact, [/(?:room rent|room limit|room category)[^₹\d]{0,60}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?:\s*\/\s*day|\s*per day|\s*daily)/i]),
     copayPercent: Number((compact.match(/(?:co[- ]?pay(?:ment)?)[^%\d]{0,35}(\d{1,3}(?:\.\d+)?)\s*%/i) || [])[1] || 0),
     deductible: firstMoney(compact, [/(?:deductible|policy excess)[^₹\d]{0,40}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i]),
-    waitingNote: (compact.match(/((?:waiting period|specific waiting)[^.]{0,180})/i) || [])[1] || ""
+    waitingNote: waiting ? waiting[0].trim() : "",
+    policyPeriod: policyPeriod ? policyPeriod[1].trim() : "",
+    proportionateScalingApplies: /proportion(?:al|ate)\s+scal(?:e|ing)\s+appl/i.test(compact)
   };
 }
 
@@ -117,7 +126,7 @@ export function inferEstimateFields(text) {
   const compact = String(text || "").replace(/\s+/g, " ");
   return {
     estimatedBill: firstMoney(compact, [/(?:grand total|total estimated|estimated total|package amount|net amount|total amount)[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i]),
-    actualRoomRate: firstMoney(compact, [/(?:room rent|room charges?|private room)[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)(?:\s*\/\s*day|\s*per day|\s*daily)/i]),
+    actualRoomRate: firstMoney(compact, [/(?:room rent|room charges?|private room)[^₹\n]{0,100}?(?:@\s*)?(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d+)?)(?:\s*\/\s*day|\s*per day|\s*daily)/i]),
     nonPayables: firstMoney(compact, [
       /(?:estimated\s+)?non[- ]?payables?[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
       /non[- ]?medical[^₹\d]{0,35}(?:₹|rs\.?|inr)?\s*([\d,]+(?:\.\d+)?)/i,
@@ -132,8 +141,17 @@ export function inferEstimateFields(text) {
 
 export function inferPrescriptionFields(text) {
   const lines = String(text || "").split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  const priorities = [/recommended\s+procedure/i, /\bprocedure\b/i, /surgery|operation|advised|day care/i, /diagnosis/i];
-  const label = /^(recommended\s+procedure|procedure|surgery|operation|advised|provisional\s+diagnosis|diagnosis)\s*[:\-]?\s*/i;
+  const compact = lines.join(" ").replace(/\s+/g, " ");
+  const labelledProcedure = compact.match(/(?:surgical\s*\/\s*medical\s+advice|recommended\s+procedure|advised\s+procedure)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9&.,'()\/ -]{2,160}?)(?=\s+(?:recommended admission|expected length|primary diagnosis|hospital\s*&\s*city|proposed hospital|patient name|attending doctor|doctor['’]s|itemized|$))/i);
+  if (labelledProcedure) return {
+    procedureName: labelledProcedure[1].trim().slice(0, 160),
+    hospitalName: inferHospitalName(text),
+    hospitalEmail: inferHospitalEmail(text),
+    stayDays: inferStayDays(text),
+    roomCategory: inferRoomCategory(text)
+  };
+  const priorities = [/surgical\s*\/\s*medical\s+advice/i, /recommended\s+procedure/i, /advised\s+procedure/i, /\bprocedure\b/i, /surgery|operation|advised|day care/i, /diagnosis/i];
+  const label = /^(surgical\s*\/\s*medical\s+advice|recommended\s+procedure|advised\s+procedure|procedure|surgery|operation|advised|provisional\s+diagnosis|primary\s+diagnosis|diagnosis)\s*[:\-]?\s*/i;
   for (const pattern of priorities) {
     const index = lines.findIndex((line) => pattern.test(line));
     if (index < 0) continue;
