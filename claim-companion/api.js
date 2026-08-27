@@ -7,13 +7,15 @@ async function post(payload) {
     return { ok: true, demo: true, reference: `CC-DEMO-${Date.now().toString().slice(-8)}` };
   }
   if (!current.apiUrl) throw new Error("The secure service is not configured yet.");
-  await fetch(current.apiUrl, {
+  const request = fetch(current.apiUrl, {
     method: "POST",
     mode: "no-cors",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
     body: JSON.stringify(payload)
   });
-  return { ok: true, accepted: true };
+  const timeout = new Promise((resolve) => setTimeout(() => resolve("pending"), 45000));
+  const outcome = await Promise.race([request.then(() => "accepted"), timeout]);
+  return { ok: true, accepted: true, processing: outcome === "pending" };
 }
 
 export async function requestMagicLink({ name, email }) {
