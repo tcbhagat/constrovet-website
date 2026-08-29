@@ -5,11 +5,18 @@ on:
     paths:
       - "index.html"
       - "assets/nav.html"
+      - "assets/footer.html"
       - "assets/css/style.css"
+      - "pages/contact.html"
+      - "pages/challanse.html"
+      - "ssm-core-demo/index.html"
+      - "sitemap.xml"
       - "claim-companion/**"
       - "android/claim-companion/**"
       - "tests/claim-companion-public.test.mjs"
+      - "tests/construction-public-scope.test.mjs"
       - "scripts/check-claim-companion.mjs"
+      - "scripts/verify-production-deploy.sh"
       - "package.json"
       - ".github/workflows/claim-companion-*.yml"
   push:
@@ -17,11 +24,18 @@ on:
     paths:
       - "index.html"
       - "assets/nav.html"
+      - "assets/footer.html"
       - "assets/css/style.css"
+      - "pages/contact.html"
+      - "pages/challanse.html"
+      - "ssm-core-demo/index.html"
+      - "sitemap.xml"
       - "claim-companion/**"
       - "android/claim-companion/**"
       - "tests/claim-companion-public.test.mjs"
+      - "tests/construction-public-scope.test.mjs"
       - "scripts/check-claim-companion.mjs"
+      - "scripts/verify-production-deploy.sh"
       - "package.json"
 
 permissions:

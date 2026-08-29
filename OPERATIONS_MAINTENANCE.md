@@ -19,7 +19,6 @@ This manual covers the public Constrovet website and its zero-budget operating m
 | `https://www.constrovet.com/` | Public website and trust surface | Static GitHub Pages deployment from `main`. |
 | `/app/` | Browser Analyse launcher | Runs first-pass review in the browser. Do not require uploads for this path. |
 | `/boardroom/` | Boardroom intake | Routes qualified analysis requests into the Workspace automation path. |
-| `/ssm-core-demo/` | SSM beta/demo surface | Public shell and synthetic demo flow only; private services stay local or approval-gated. |
 | `/sitemap.xml` | Search discovery | Must list only intended public routes. |
 | `/robots.txt` | Crawler policy | Must not reveal private systems or internal paths. |
 | `/llms.txt` | AI crawler context | Must describe public-safe capabilities only. |
@@ -37,7 +36,7 @@ This manual covers the public Constrovet website and its zero-budget operating m
 | Active | Workspace Apps Script, Drive, and MailApp | Use only configured Workspace properties and role-owned storage. |
 | Active | Public SEO files | Keep sitemap, robots, and `llms.txt` aligned with live routes. |
 | Optional / approval-gated | Gemini or Workspace AI review | Only for approved evidence-bound review; deterministic citations remain authoritative. |
-| Optional / approval-gated | SSM private demo sessions | Use synthetic data and approved demo windows only. |
+| Preserved / unlinked | Claim Companion, ChallanSe, and SSM/CA demo routes | Source remains for rollback or future separation. Do not link, promote, index, or include these routes in Constrovet construction discovery. |
 | Optional / approval-gated | Branded app subdomains or public APIs | Do not activate from documentation alone. |
 | Retired / disabled | Cloud Run, GCP paid backend, GCS, Cloud SQL, Firestore, paid monitoring | Do not revive without explicit release approval. |
 | Retired / disabled | Public tunnels and hosted autonomous agents | Do not use for client sharing or production operations. |
@@ -63,7 +62,6 @@ This manual covers the public Constrovet website and its zero-budget operating m
   curl -I -L https://www.constrovet.com/
   curl -I -L https://www.constrovet.com/app/
   curl -I -L https://www.constrovet.com/boardroom/
-  curl -I -L https://www.constrovet.com/ssm-core-demo/
   ```
 
 - Open the Browser Analyse path and run a synthetic or public-safe sample only.
@@ -83,7 +81,7 @@ This manual covers the public Constrovet website and its zero-budget operating m
   ```
 
 - Review the latest GitHub Pages deployment result.
-- Run a public route smoke test for `/`, `/app/`, `/boardroom/`, and `/ssm-core-demo/`.
+- Run a public route smoke test for `/`, `/app/`, and `/boardroom/`.
 - Run one Boardroom test with synthetic files and confirm the output remains evidence-bound.
 - Review Workspace quotas for Apps Script, Drive, and MailApp.
 - Scan changed files for accidental secrets, private URLs, local paths, raw evidence, or client data.
@@ -179,7 +177,7 @@ Use `git revert` for rollback. Do not rewrite public history during an incident 
 2. Use `git revert` against the bad commit.
 3. Push the revert to `main`.
 4. Wait for GitHub Pages deployment.
-5. Verify `/`, `/app/`, `/boardroom/`, `/ssm-core-demo/`, `/sitemap.xml`, `/robots.txt`, and `/llms.txt`.
+5. Verify `/`, `/app/`, `/boardroom/`, `/sitemap.xml`, `/robots.txt`, and `/llms.txt`.
 
 ### Budget-Risk Detection
 
@@ -188,12 +186,12 @@ Use `git revert` for rollback. Do not rewrite public history during an incident 
 3. Require release approver sign-off before enabling it.
 4. Prefer the static site, Workspace automation, and local Mission Control path.
 
-### SSM Demo Not Ready
+### Unlinked Product Appears In Construction Discovery
 
-1. Confirm the public SSM demo route loads.
-2. Keep all demo data synthetic.
-3. Keep the retired demo marked as an archived public shell; no private SSM service is expected.
-4. Do not expose local service URLs, tunnels, or private test artifacts on the public site.
+1. Check the homepage, shared navigation, shared footer, contact form, sitemap, and public verification script.
+2. Remove links and promotional copy for Claim Companion, ChallanSe, CA Beta, or SSM Core.
+3. Keep preserved routes marked `noindex,nofollow` until they are moved to a separately approved product domain or deleted through an explicit retirement decision.
+4. Do not delete preserved source code during an incident; use the Git history and a separately reviewed retirement change.
 
 ## Public Safety Scan
 
