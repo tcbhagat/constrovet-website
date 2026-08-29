@@ -4,7 +4,7 @@
 
 function eev2RunFullRegressionGate() {
   const suites = [
-    { id: "EEV2-001", name: "Structured cost, delay and progress routing", fn: "eev2RunStructuredRoutingRegression" },
+    { id: "EEV2-001", name: "Structured cost extraction", fn: "eev2RunRegressionAndLog" },
     { id: "EEV2-001G", name: "Executive exposure reporting", fn: "eev2RunExecutiveExposureRegression" },
     { id: "EEV2-002A", name: "Structured delay extraction", fn: "eev2RunDelayRegression" },
     { id: "EEV2-002B", name: "EOT intelligence", fn: "eev2RunEotRegression" },
@@ -12,7 +12,8 @@ function eev2RunFullRegressionGate() {
     { id: "EEV2-002D", name: "Cross-document reconciliation", fn: "eev2RunScheduleReconciliationRegression" },
     { id: "EEV2-002E", name: "Executive schedule reporting", fn: "eev2RunExecutiveScheduleReportingRegression" },
     { id: "EEV2-002E-RENDER", name: "Schedule report rendering", fn: "eev2RunScheduleReportRenderingRegression" },
-    { id: "EEV2-002E-LIVE-BRIDGE", name: "Live schedule bridge", fn: "eev2RunLiveScheduleBridgeRegression" }
+    { id: "EEV2-002E-LIVE-BRIDGE", name: "Live schedule bridge", fn: "eev2RunLiveScheduleBridgeRegression" },
+    { id: "EEV2-002F-ROUTING", name: "Structured cost, delay and progress routing", fn: "eev2RunStructuredRoutingRegression" }
   ];
 
   const results = [];
@@ -92,6 +93,7 @@ function eev2RunFullRegressionGate() {
 
 function eev2ResolveRegressionFunction(name) {
   const registry = {
+    eev2RunRegressionAndLog: typeof eev2RunRegressionAndLog === "function" ? eev2RunRegressionAndLog : null,
     eev2RunStructuredRoutingRegression: typeof eev2RunStructuredRoutingRegression === "function" ? eev2RunStructuredRoutingRegression : null,
     eev2RunExecutiveExposureRegression: typeof eev2RunExecutiveExposureRegression === "function" ? eev2RunExecutiveExposureRegression : null,
     eev2RunDelayRegression: typeof eev2RunDelayRegression === "function" ? eev2RunDelayRegression : null,
