@@ -2,7 +2,7 @@
 // Deterministic structured progress extraction.
 // Safety rule: preserve source-reported variance and show recalculated variance separately.
 
-const EEV2_PROGRESS_ENGINE_VERSION = "2.0.0-dev.2";
+const EEV2_PROGRESS_ENGINE_VERSION = "2.0.0-dev.3";
 
 function eev2ClassifyProgressDocument(file, text) {
   const source = String(text || "").replace(/\s+/g, " ").toLowerCase();
@@ -122,31 +122,54 @@ function eev2ProgressActivityRowRegex(labelPattern) {
   );
 }
 
+function eev2ProgressSimpleActivityRowRegex(labelPattern) {
+  return new RegExp(
+    `${labelPattern}\\s+(\\d+(?:\\.\\d+)?)\\s*%?\\s+(\\d+(?:\\.\\d+)?)\\s*%?`,
+    "i"
+  );
+}
+
 function eev2ProgressExtractActivities(text) {
   const source = eev2ProgressNormalizeText(text);
   const specs = [
-    { activity: "Internal Plastering", re: eev2ProgressActivityRowRegex("Internal\\s+Plastering") },
-    { activity: "Flooring Lower", re: eev2ProgressActivityRowRegex("Flooring\\s*-?\\s*Lower(?:\\s+Floors)?") },
-    { activity: "Flooring Upper", re: eev2ProgressActivityRowRegex("Flooring\\s*-?\\s*Upper(?:\\s+Floors)?") },
-    { activity: "Doors", re: eev2ProgressActivityRowRegex("Doors(?:,?\\s+Windows\\s*&\\s*Glazing)?") },
-    { activity: "MEP Final Fix", re: eev2ProgressActivityRowRegex("MEP\\s+Final\\s+Fix(?:\\s*&\\s*Testing)?") },
-    { activity: "Painting", re: eev2ProgressActivityRowRegex("Painting(?:\\s*-?\\s*Interior)?") }
+    { activity: "Internal Plastering", label: "Internal\\s+Plastering" },
+    { activity: "Flooring Lower", label: "Flooring\\s*-?\\s*Lower(?:\\s+Floors)?" },
+    { activity: "Flooring Upper", label: "Flooring\\s*-?\\s*Upper(?:\\s+Floors)?" },
+    { activity: "Doors", label: "Doors(?:,?\\s+Windows\\s*&\\s*Glazing)?" },
+    { activity: "MEP Final Fix", label: "MEP\\s+Final\\s+Fix(?:\\s*&\\s*Testing)?" },
+    { activity: "Painting", label: "Painting(?:\\s*-?\\s*Interior)?" }
   ];
 
   const rows = [];
   specs.forEach((spec) => {
-    const m = spec.re.exec(source);
-    if (!m) return;
-    const planned = Number(m[3]);
-    const actual = Number(m[4]);
+    const detailed = eev2ProgressActivityRowRegex(spec.label).exec(source);
+    if (detailed) {
+      const planned = Number(detailed[3]);
+      const actual = Number(detailed[4]);
+      rows.push({
+        activity: spec.activity,
+        planned_start_week: Number(detailed[1]),
+        planned_end_week: Number(detailed[2]),
+        planned_pct: planned,
+        actual_pct: actual,
+        variance_pct_points: Number((actual - planned).toFixed(1)),
+        quoted_evidence: detailed[0]
+      });
+      return;
+    }
+
+    const simple = eev2ProgressSimpleActivityRowRegex(spec.label).exec(source);
+    if (!simple) return;
+    const planned = Number(simple[1]);
+    const actual = Number(simple[2]);
     rows.push({
       activity: spec.activity,
-      planned_start_week: Number(m[1]),
-      planned_end_week: Number(m[2]),
+      planned_start_week: null,
+      planned_end_week: null,
       planned_pct: planned,
       actual_pct: actual,
       variance_pct_points: Number((actual - planned).toFixed(1)),
-      quoted_evidence: m[0]
+      quoted_evidence: simple[0]
     });
   });
   return rows;
