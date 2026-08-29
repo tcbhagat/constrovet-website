@@ -17,24 +17,22 @@ status_for() {
   curl -sS -L -o /dev/null -w "%{http_code}" "$1"
 }
 
-for path in "/" "/demo" "/app/" "/boardroom/" "/claim-companion/" "/pages/challanse.html" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
+for path in "/" "/demo" "/app/" "/boardroom/" "/llms.txt" "/sitemap.xml" "/robots.txt"; do
   status="$(status_for "${LIVE_URL}${path}")"
   [[ "$status" == "200" ]] || fail "${LIVE_URL}${path} returned HTTP ${status}"
 done
 
-claim_companion_html="$(curl -sS -L "${LIVE_URL}/claim-companion/")"
-grep -Fq "Know your likely hospital cost before treatment." <<<"$claim_companion_html" || fail "${LIVE_URL}/claim-companion/ does not contain the approved headline"
-grep -Fq "AKfycbztIOGwyzfkpUXawfjPv0GezE1DeCGiHxD8t3EoRtpCxB6thN2IT39rJKR8P6-n-mIRqg" "claim-companion/script.js" || fail "Claim Companion script does not contain the approved Apps Script endpoint"
-
 home_html="$(curl -sS -L "${LIVE_URL}/")"
-grep -Fq 'href="/claim-companion/"' <<<"$home_html" || fail "${LIVE_URL}/ does not link to Claim Companion"
+nav_html="$(curl -sS -L "${LIVE_URL}/assets/nav.html")"
+sitemap_xml="$(curl -sS -L "${LIVE_URL}/sitemap.xml")"
+public_discovery="${home_html}${nav_html}${sitemap_xml}"
+
+if grep -Eqi "claim-companion|Claim Companion|Hospital Cost Estimate|ChallanSe|ssm-core-demo|CA Beta|CA statutory cockpit" <<<"$public_discovery"; then
+  fail "Public construction discovery still links an unbundled product"
+fi
 
 company_html="$(curl -sS -L "${LIVE_URL}/pages/company.html")"
 grep -Fq "$EXPECTED_LABEL" <<<"$company_html" || fail "${LIVE_URL}/pages/company.html does not contain '$EXPECTED_LABEL'"
-
-challanse_html="$(curl -sS -L "${LIVE_URL}/pages/challanse.html")"
-grep -Fq "Capture receipts." <<<"$challanse_html" || fail "${LIVE_URL}/pages/challanse.html does not contain the current minimalist hero"
-grep -Fq "challanse.css?v=20260714" <<<"$challanse_html" || fail "${LIVE_URL}/pages/challanse.html does not reference the versioned page stylesheet"
 
 if curl -sS -L "${LIVE_URL}" "${LIVE_URL}/demo" "${LIVE_URL}/app/" "${LIVE_URL}/boardroom/" | grep -E "app\\.constrovet\\.com|prod-constrovet|run\\.app" >/dev/null; then
   fail "Public entry pages still include legacy app.constrovet.com or raw Cloud Run links"
@@ -42,4 +40,4 @@ fi
 
 echo "OK: GitHub Pages production routes verified"
 echo "site: ${LIVE_URL}"
-echo "routes: / /demo /app/ /boardroom/ /claim-companion/ /pages/challanse.html /llms.txt /sitemap.xml /robots.txt"
+echo "routes: / /demo /app/ /boardroom/ /llms.txt /sitemap.xml /robots.txt"

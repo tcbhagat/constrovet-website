@@ -22,14 +22,12 @@ test("public route exposes all three required documents and five steps", () => {
   for (const step of ["Email", "Documents", "Details", "Review", "Done"]) assert.match(page, new RegExp(`>${step}<`));
 });
 
-test("Claim Companion is discoverable from the homepage and shared navigation", () => {
+test("Claim Companion remains functional but isolated from the construction offer", () => {
   const home = readFileSync("index.html", "utf8");
   const nav = readFileSync("assets/nav.html", "utf8");
-  assert.match(home, /class="cv-health-banner"/);
-  assert.match(home, /class="cv-health-feature"/);
-  assert.match(home, /href="\/claim-companion\/"/);
-  assert.match(nav, /Hospital Cost Estimate/);
-  assert.match(nav, /href="\/claim-companion\/"/);
+  assert.doesNotMatch(home, /Claim Companion|hospital cost|claim-companion/i);
+  assert.doesNotMatch(nav, /Hospital Cost Estimate|claim-companion/i);
+  assert.match(page, /<meta name="robots" content="noindex,nofollow">/);
 });
 
 test("Claim Companion first step explains value and trust before document upload", () => {
