@@ -1893,17 +1893,22 @@ function buildBoardroomExecutiveBrief(findings, documentsNotProcessed) {
   const recoverableLeakage = leakage.filter(boardroomHasQuantifiedCostExposure);
   const totalLeakage = recoverableLeakage.reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
   const scheduleOnly = leakage.filter(boardroomHasScheduleImpactOnly);
+  const exposureHeadline = eev2ExecutiveExposureHeadline(findings);
+  const exposureSummary = eev2BuildExecutiveExposureSummary(findings);
   const critical = findings.filter((item) => item.severity === "CRITICAL").length;
   const high = findings.filter((item) => item.severity === "HIGH").length;
   return {
-    headline: totalLeakage > 0
+    headline: exposureHeadline || (totalLeakage > 0
       ? `Cited quantified recoverable leakage totals INR ${formatInr(totalLeakage)} across ${recoverableLeakage.length} finding(s).`
       : leakage.length
         ? `No quantified recoverable leakage was extracted; ${leakage.length} leakage/watchlist signal(s) need evidence follow-up${scheduleOnly.length ? `, including ${scheduleOnly.length} cited schedule-impact item(s)` : ""}.`
-      : "No cited cost, schedule, ESG, or leakage evidence was extracted.",
-    decision_focus: ranked[0] ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}` : "Resubmit structured source evidence before executive action.",
+        : "No cited cost, schedule, ESG, or leakage evidence was extracted."),
+    decision_focus: exposureSummary.exposure_item_count
+      ? "Validate quantified cost exposure and establish causation/recoverability before any recovery classification."
+      : (ranked[0] ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}` : "Resubmit structured source evidence before executive action."),
     critical_or_high_count: critical + high,
     total_cited_leakage_inr: totalLeakage,
+    quantified_cost_exposure: exposureSummary,
     documents_with_no_signal: documentsNotProcessed.length,
     caveat: "Actions remain decision-support only and must be reviewed against cited evidence before commercial, legal, or recovery steps."
   };
@@ -1912,11 +1917,14 @@ function buildBoardroomExecutiveBrief(findings, documentsNotProcessed) {
 function buildBoardroomTopExecutiveActions(findings) {
   const ranked = boardroomRankFindings(findings);
   const actions = [];
+  const exposureAction = eev2BuildExposureValidationAction(findings);
+  if (exposureAction) actions.push({ ...exposureAction, action: exposureAction.recommendation });
   ranked
     .filter((item) => boardroomActionability(item) === ACTION_RECOVERABLE)
     .slice(0, 3)
     .forEach((item) => actions.push(boardroomFindingAction(item, findings)));
-  const followups = ranked.filter((item) => boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP);
+  const exposureIndexes = new Set((exposureAction && exposureAction.source_finding_indexes) || []);
+  const followups = ranked.filter((item) => boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP && !exposureIndexes.has(findings.indexOf(item) + 1));
   if (followups.length) actions.push(boardroomAggregateAction(
     "Complete evidence before executive escalation",
     `Keep ${followups.length} watchlist signal(s) as evidence follow-up until comparable Budget/Actual, invoice/payment, delay-day, or BOQ support is submitted.`,
@@ -1950,6 +1958,7 @@ function buildExecutiveDecisionPack(options) {
   return {
     headline,
     money_at_stake_inr: moneyAtStake,
+    quantified_cost_exposure: eev2BuildExecutiveExposureSummary(findings),
     decision_required: boardroomBoardDecisionRequired({
       findings,
       top_5_actions: buildBoardroomTopExecutiveActions(findings),
@@ -2127,6 +2136,10 @@ function buildBoardroomExecutiveActionPlan(findings) {
   const followups = ranked.filter((item) => boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP);
   const monitoring = ranked.filter((item) => boardroomActionability(item) === ACTION_MONITORING_CONTEXT);
   const plan = { "7_days": [], "30_days": [], "90_days": [] };
+  const exposureValidationAction = eev2BuildExposureValidationAction(findings);
+  const exposureDecisionAction = eev2BuildExposureDecisionAction(findings);
+  if (exposureValidationAction) plan["7_days"].push(exposureValidationAction);
+  if (exposureDecisionAction) plan["30_days"].push(exposureDecisionAction);
 
   if (quantified.length) {
     plan["7_days"].push(boardroomAction(
@@ -3273,6 +3286,7 @@ function applyDeterministicVerification(browserReport, force) {
     : buildBoardroomNoFindingBrief(status, documentsNotProcessed);
   browserReport.top_5_actions = buildBoardroomTopExecutiveActions(browserReport.findings);
   browserReport.recoverable_cost_exposure = buildBoardroomRecoverableCostExposure(browserReport.findings);
+  browserReport.quantified_cost_exposure = eev2BuildExecutiveExposureSummary(browserReport.findings);
   browserReport.immediate_control_failures = buildBoardroomImmediateControlFailures(browserReport.findings);
   browserReport.missing_evidence_blocking_recovery = browserReport.findings.length
     ? buildBoardroomMissingEvidence(browserReport.findings, documentsNotProcessed)
@@ -3398,6 +3412,7 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     "",
     browserReport.executive_brief && browserReport.executive_brief.headline ? browserReport.executive_brief.headline : "No executive headline was produced by browser analysis.",
     `Total quantified recoverable leakage: INR ${formatInr(totalLeakage)}`,
+    ...eev2ExposureTextLines(findings),
     `Critical/high findings: ${(browserReport.executive_brief || {}).critical_or_high_count || 0}`,
     `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
     `Gemini verification status: ${verifierResult.verification_status || "UNKNOWN"}`,
@@ -4061,6 +4076,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
     <h2 style="font-size:18px;margin:18px 0 8px">Executive Summary</h2>
     <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
     ${renderExecutiveKpisEmailHtml(browserReport, leakageTotal)}
+    ${eev2ExposureHtml(findings)}
     <h2 style="font-size:18px;margin:18px 0 8px">Board Decision Required</h2>
     <p style="margin:0 0 8px">${escapeHtml(decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport))}</p>
     <p style="margin:0 0 12px;color:#66737d">INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || leakageTotal)} | Evidence: ${escapeHtml(decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}</p>
@@ -4096,7 +4112,8 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     `Cited findings: ${findings.length}`,
     `Critical/high findings: ${(browserReport.executive_brief || {}).critical_or_high_count || 0}`,
     `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
-    `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`,
+    `Verification status: ${((browserReport.deterministic_verifier_result || {}).verification_status || "UNKNOWN")} — deterministic Workspace verifier; Gemini used: ${((report.gemini_verifier_result || {}).model_audit_trail || {}).gemini_used ? "YES" : "NO"}`,
+    ...eev2ExposureTextLines(findings),
     "",
     "Board Decision Required",
     decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport),
@@ -4385,6 +4402,8 @@ function boardroomNoAnalysisHeadline(status) {
 function boardroomBoardDecisionRequired(browserReport) {
   const findings = browserReport.findings || [];
   if (!findings.length) return "Do not take recovery or control action from this run. First resubmit structured evidence with cited budget, actual, delay, leakage, or ESG fields.";
+  const exposureAction = eev2BuildExposureValidationAction(findings);
+  if (exposureAction) return `Approve exposure validation only: ${exposureAction.recommendation}`;
   const actions = browserReport.top_5_actions || [];
   const quantified = actions.find((action) => action.actionability === ACTION_RECOVERABLE && !/schedule impact/i.test(action.title || ""));
   if (quantified) return `Approve quantified-exposure validation only: ${quantified.action || quantified.recommendation}`;
