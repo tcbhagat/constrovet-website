@@ -231,6 +231,7 @@ function handleBoardroomFormSubmit(e) {
     rejected_file_count: rejected.length
   }));
   const browserReport = buildBoardroomOutput(documents, rejected);
+  eev2AttachLiveSchedulePosition(browserReport);
   const verifierResult = deepAnalysisEnabled
     ? runGeminiVerifier(browserReport)
     : fallbackVerifier(browserReport);
@@ -431,6 +432,7 @@ function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail
   });
 
   const browserReport = buildBoardroomOutput(documents, rejectedCorrections);
+  eev2AttachLiveSchedulePosition(browserReport);
   const verifierResult = fallbackVerifier(browserReport);
   const recipient = isValidEmail(recipientEmail) ? String(recipientEmail).trim() : (existingReport.email || "");
   const payload = {
@@ -1464,7 +1466,20 @@ function boardroomHasConstructionFileNameHint(name) {
 
 function extractBoardroomFindings(file, pageOrSheet, text, page) {
   const findings = [];
-  if (page.headers && page.row) {
+
+  const structured =
+    eev2RouteStructuredBoardroomFindings(
+      file,
+      pageOrSheet,
+      text
+    );
+
+  if (structured && structured.handled) {
+    findings.push(...(structured.findings || []));
+    return findings;
+  }
+
+  if (page && page.headers && page.row) {
     const rowFinding = boardroomCsvBudgetActualFinding(file, pageOrSheet, text, page.headers, page.row);
     if (rowFinding) findings.push(rowFinding);
   }
@@ -1618,7 +1633,7 @@ function runDeterministicVerifier(findings) {
     if (budget > 0 && actual > 0) {
       const recalculated = actual - budget;
       normalized.calculation.difference = recalculated;
-      if (actual > budget && normalized.financial_category === "LEAKAGE_AND_OVERRUN") normalized.amount_inr = recalculated;
+      if (actual > budget && normalized.financial_category === "LEAKAGE_AND_OVERRUN" && normalized.recoverability_guardrail !== "NOT_ESTABLISHED") normalized.amount_inr = recalculated;
       if (originalDifference !== recalculated || (actual > budget && originalAmount !== normalized.amount_inr)) {
         corrected.push({
           source_finding_index: index + 1,
@@ -1677,40 +1692,158 @@ function normalizeFindingForVerification(finding) {
       difference: Number(calculation.difference || 0),
       formula: "Actual - Budget"
     },
-    confidence: ["HIGH", "MEDIUM", "LOW"].indexOf((finding || {}).confidence) >= 0 ? finding.confidence : "LOW"
+    confidence: ["HIGH", "MEDIUM", "LOW"].indexOf((finding || {}).confidence) >= 0 ? finding.confidence : "LOW",
+    exposure_amount_inr: Math.max(0, Number((finding || {}).exposure_amount_inr || 0)),
+    eev2_semantic_classification: String((finding || {}).eev2_semantic_classification || ""),
+    recoverability_guardrail: String((finding || {}).recoverability_guardrail || "")
   };
   return normalized;
 }
+function boardroomIsEev2UnestablishedExposure(finding) {
+  const semantic = String(
+    (finding || {}).eev2_semantic_classification || ""
+  ).toUpperCase();
 
+  const guardrail = String(
+    (finding || {}).recoverability_guardrail || ""
+  ).toUpperCase();
+
+  return (
+    guardrail === "NOT_ESTABLISHED" &&
+    [
+      "COST_EXPOSURE",
+      "FORECAST_OVERRUN",
+      "COST_VARIANCE"
+    ].indexOf(semantic) >= 0
+  );
+}
 function verifyBoardroomFinding(finding) {
   const issues = [];
-  const category = finding.financial_category;
-  const citation = (finding.citations || [])[0] || {};
-  const span = String(citation.quoted_span || "");
-  const evidenceText = `${finding.statement || ""} ${span}`.toLowerCase();
-  const budget = Number((finding.calculation || {}).budget || 0);
-  const actual = Number((finding.calculation || {}).actual || 0);
-  const allowed = ["BASELINE_BUDGET", "LEAKAGE_AND_OVERRUN", "ESG_METRIC"];
 
-  if (allowed.indexOf(category) < 0) issues.push("financial_category must be BASELINE_BUDGET, LEAKAGE_AND_OVERRUN, or ESG_METRIC.");
-  if (!citation.file || !citation.page_or_sheet || !span) issues.push("finding is missing required citation file, page/sheet, or quoted span.");
-  if (!finding.statement) issues.push("finding is missing a statement.");
-  if (finding.amount_inr < 0 || finding.days < 0) issues.push("amount_inr and days must not be negative.");
-  if (budget > 0 && actual > 0 && actual > budget && category !== "LEAKAGE_AND_OVERRUN") {
-    issues.push("Actual greater than Budget must be a separate LEAKAGE_AND_OVERRUN finding.");
+  const category = String(
+    (finding || {}).financial_category || ""
+  );
+
+  const citation =
+    ((finding || {}).citations || [])[0] || {};
+
+  const span = String(
+    citation.quoted_span || ""
+  );
+
+  const evidenceText =
+    `${finding.statement || ""} ${span}`.toLowerCase();
+
+  const calculation =
+    (finding || {}).calculation || {};
+
+  const budget = Number(calculation.budget || 0);
+  const actual = Number(calculation.actual || 0);
+
+  const semantic = String(
+    (finding || {}).eev2_semantic_classification || ""
+  ).toUpperCase();
+
+  const guardrail = String(
+    (finding || {}).recoverability_guardrail || ""
+  ).toUpperCase();
+
+  const isEev2UnestablishedExposure =
+    guardrail === "NOT_ESTABLISHED" &&
+    (
+      semantic === "COST_EXPOSURE" ||
+      semantic === "FORECAST_OVERRUN" ||
+      semantic === "COST_VARIANCE"
+    );
+
+  const allowed = [
+    "BASELINE_BUDGET",
+    "LEAKAGE_AND_OVERRUN",
+    "ESG_METRIC"
+  ];
+
+  if (allowed.indexOf(category) < 0) {
+    issues.push(
+      "financial_category must be BASELINE_BUDGET, LEAKAGE_AND_OVERRUN, or ESG_METRIC."
+    );
   }
-  if (category === "BASELINE_BUDGET" && !boardroomBaselineRe().test(evidenceText)) {
-    issues.push("BASELINE_BUDGET finding lacks cited baseline, BOQ, planned, contract, or budget evidence.");
+
+  if (
+    !citation.file ||
+    !citation.page_or_sheet ||
+    !span
+  ) {
+    issues.push(
+      "finding is missing required citation file, page/sheet, or quoted span."
+    );
   }
-  if (category === "LEAKAGE_AND_OVERRUN" && finding.amount_inr <= 0 && finding.days <= 0 && !boardroomLeakageRe().test(evidenceText)) {
-    issues.push("LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal.");
+
+  if (!finding.statement) {
+    issues.push(
+      "finding is missing a statement."
+    );
   }
-  if (category === "ESG_METRIC" && !boardroomEsgRe().test(evidenceText)) {
-    issues.push("ESG_METRIC finding lacks cited ESG metric evidence.");
+
+  if (
+    Number(finding.amount_inr || 0) < 0 ||
+    Number(finding.days || 0) < 0
+  ) {
+    issues.push(
+      "amount_inr and days must not be negative."
+    );
   }
-  if (category === "ESG_METRIC" && boardroomLeakageRe().test(evidenceText) && !boardroomEsgRe().test(evidenceText)) {
-    issues.push("ESG evidence cannot be used as leakage without separate cost evidence.");
+
+  if (
+    budget > 0 &&
+    actual > 0 &&
+    actual > budget &&
+    category !== "LEAKAGE_AND_OVERRUN"
+  ) {
+    issues.push(
+      "Actual greater than Budget must be a separate LEAKAGE_AND_OVERRUN finding."
+    );
   }
+
+  if (
+    category === "BASELINE_BUDGET" &&
+    !boardroomBaselineRe().test(evidenceText)
+  ) {
+    issues.push(
+      "BASELINE_BUDGET finding lacks cited baseline, BOQ, planned, contract, or budget evidence."
+    );
+  }
+
+  if (
+    category === "LEAKAGE_AND_OVERRUN" &&
+    Number(finding.amount_inr || 0) <= 0 &&
+    Number(finding.days || 0) <= 0 &&
+    !boardroomLeakageRe().test(evidenceText) &&
+    !isEev2UnestablishedExposure
+  ) {
+    issues.push(
+      "LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal."
+    );
+  }
+
+  if (
+    category === "ESG_METRIC" &&
+    !boardroomEsgRe().test(evidenceText)
+  ) {
+    issues.push(
+      "ESG_METRIC finding lacks cited ESG metric evidence."
+    );
+  }
+
+  if (
+    category === "ESG_METRIC" &&
+    boardroomLeakageRe().test(evidenceText) &&
+    !boardroomEsgRe().test(evidenceText)
+  ) {
+    issues.push(
+      "ESG evidence cannot be used as leakage without separate cost evidence."
+    );
+  }
+
   return issues;
 }
 
@@ -1745,11 +1878,13 @@ function scoreBoardroomFindings(findings) {
 function boardroomActionability(item) {
   if (!item || item.financial_category === "BASELINE_BUDGET" || item.financial_category === "ESG_METRIC") return ACTION_MONITORING_CONTEXT;
   if (item.financial_category !== "LEAKAGE_AND_OVERRUN") return ACTION_EVIDENCE_FOLLOWUP;
+  if (item.recoverability_guardrail === "NOT_ESTABLISHED") return ACTION_EVIDENCE_FOLLOWUP;
   if (boardroomHasQuantifiedCostExposure(item) || Number(item.days || 0) > 0) return ACTION_RECOVERABLE;
   return ACTION_EVIDENCE_FOLLOWUP;
 }
 
 function boardroomHasQuantifiedCostExposure(item) {
+  if (!item || item.recoverability_guardrail === "NOT_ESTABLISHED") return false;
   const calculation = item.calculation || {};
   return Number(item.amount_inr || 0) > 0 || (Number(calculation.budget || 0) > 0 && Number(calculation.actual || 0) > Number(calculation.budget || 0));
 }
@@ -1784,6 +1919,7 @@ function boardroomSeverity(score) {
 
 function boardroomRecoverability(item) {
   if (item.financial_category !== "LEAKAGE_AND_OVERRUN") return "LOW";
+  if (item.recoverability_guardrail === "NOT_ESTABLISHED") return "UNKNOWN";
   if (item.amount_inr > 0 && item.confidence === "HIGH") return "HIGH";
   if (item.amount_inr > 0 || item.days > 0) return "MEDIUM";
   return "UNKNOWN";
@@ -1878,80 +2014,272 @@ function boardroomConfidenceRank(confidence) {
 
 function buildBoardroomExecutiveBrief(findings, documentsNotProcessed) {
   const ranked = boardroomRankFindings(findings);
-  const leakage = findings.filter((item) => item.financial_category === "LEAKAGE_AND_OVERRUN");
-  const recoverableLeakage = leakage.filter(boardroomHasQuantifiedCostExposure);
-  const totalLeakage = recoverableLeakage.reduce((sum, item) => sum + Number(item.amount_inr || 0), 0);
-  const scheduleOnly = leakage.filter(boardroomHasScheduleImpactOnly);
-  const critical = findings.filter((item) => item.severity === "CRITICAL").length;
-  const high = findings.filter((item) => item.severity === "HIGH").length;
+  const leakage = findings.filter(
+    (item) => item.financial_category === "LEAKAGE_AND_OVERRUN"
+  );
+
+  const recoverableLeakage = leakage.filter(
+    boardroomHasQuantifiedCostExposure
+  );
+
+  const totalLeakage = recoverableLeakage.reduce(
+    (sum, item) => sum + Number(item.amount_inr || 0),
+    0
+  );
+
+  const scheduleOnly = leakage.filter(
+    boardroomHasScheduleImpactOnly
+  );
+
+  const exposureHeadline =
+    eev2ExecutiveExposureHeadline(findings);
+
+  const exposureSummary =
+    eev2BuildExecutiveExposureSummary(findings);
+
+  const critical = findings.filter(
+    (item) => item.severity === "CRITICAL"
+  ).length;
+
+  const high = findings.filter(
+    (item) => item.severity === "HIGH"
+  ).length;
+
   return {
-    headline: totalLeakage > 0
-      ? `Cited quantified recoverable leakage totals INR ${formatInr(totalLeakage)} across ${recoverableLeakage.length} finding(s).`
-      : leakage.length
-        ? `No quantified recoverable leakage was extracted; ${leakage.length} leakage/watchlist signal(s) need evidence follow-up${scheduleOnly.length ? `, including ${scheduleOnly.length} cited schedule-impact item(s)` : ""}.`
-      : "No cited cost, schedule, ESG, or leakage evidence was extracted.",
-    decision_focus: ranked[0] ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}` : "Resubmit structured source evidence before executive action.",
+    headline:
+      exposureHeadline ||
+      (
+        totalLeakage > 0
+          ? `Cited quantified recoverable leakage totals INR ${formatInr(totalLeakage)} across ${recoverableLeakage.length} finding(s).`
+          : leakage.length
+            ? `No quantified recoverable leakage was extracted; ${leakage.length} leakage/watchlist signal(s) need evidence follow-up${scheduleOnly.length ? `, including ${scheduleOnly.length} cited schedule-impact item(s)` : ""}.`
+            : "No cited cost, schedule, ESG, or leakage evidence was extracted."
+      ),
+
+    decision_focus:
+      exposureSummary.exposure_item_count
+        ? "Validate quantified cost exposure and establish causation/recoverability before any recovery classification."
+        : (
+            ranked[0]
+              ? `Start with Finding ${findings.indexOf(ranked[0]) + 1}: ${ranked[0].statement}`
+              : "Resubmit structured source evidence before executive action."
+          ),
+
     critical_or_high_count: critical + high,
+
     total_cited_leakage_inr: totalLeakage,
-    documents_with_no_signal: documentsNotProcessed.length,
-    caveat: "Actions remain decision-support only and must be reviewed against cited evidence before commercial, legal, or recovery steps."
+
+    quantified_cost_exposure: exposureSummary,
+
+    documents_with_no_signal:
+      (documentsNotProcessed || []).length,
+
+    caveat:
+      "Actions remain decision-support only and must be reviewed against cited evidence before commercial, legal, or recovery steps."
   };
 }
 
 function buildBoardroomTopExecutiveActions(findings) {
   const ranked = boardroomRankFindings(findings);
   const actions = [];
+
+  const exposureAction =
+    eev2BuildExposureValidationAction(findings);
+
+  if (exposureAction) {
+    actions.push({
+      ...exposureAction,
+      action: exposureAction.recommendation
+    });
+  }
+
   ranked
-    .filter((item) => boardroomActionability(item) === ACTION_RECOVERABLE)
+    .filter(
+      (item) =>
+        boardroomActionability(item) === ACTION_RECOVERABLE
+    )
     .slice(0, 3)
-    .forEach((item) => actions.push(boardroomFindingAction(item, findings)));
-  const followups = ranked.filter((item) => boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP);
-  if (followups.length) actions.push(boardroomAggregateAction(
-    "Complete evidence before executive escalation",
-    `Keep ${followups.length} watchlist signal(s) as evidence follow-up until comparable Budget/Actual, invoice/payment, delay-day, or BOQ support is submitted.`,
-    followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-    ACTION_EVIDENCE_FOLLOWUP,
-    "LOW"
-  ));
-  const monitoring = ranked.filter((item) => boardroomActionability(item) === ACTION_MONITORING_CONTEXT);
-  if (monitoring.length) actions.push(boardroomAggregateAction(
-    "Track baseline and ESG context separately",
-    "Keep baseline and ESG items in the monitoring pack; do not count them as leakage without separate cost evidence.",
-    monitoring.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-    ACTION_MONITORING_CONTEXT,
-    "LOW"
-  ));
-  return dedupeExecutiveActions(actions).slice(0, 5).map((action, index) => ({ ...action, rank: index + 1 }));
+    .forEach((item) => {
+      actions.push(
+        boardroomFindingAction(item, findings)
+      );
+    });
+
+  const exposureIndexes = new Set(
+    (exposureAction &&
+      exposureAction.source_finding_indexes) ||
+      []
+  );
+
+  const followups = ranked.filter((item) => {
+    const index = findings.indexOf(item) + 1;
+
+    return (
+      boardroomActionability(item) ===
+        ACTION_EVIDENCE_FOLLOWUP &&
+      !exposureIndexes.has(index)
+    );
+  });
+
+  if (followups.length) {
+    actions.push(
+      boardroomAggregateAction(
+        "Complete evidence before executive escalation",
+        `Keep ${followups.length} watchlist signal(s) as evidence follow-up until comparable Budget/Actual, invoice/payment, delay-day, or BOQ support is submitted.`,
+        followups
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        ACTION_EVIDENCE_FOLLOWUP,
+        "LOW"
+      )
+    );
+  }
+
+  const monitoring = ranked.filter(
+    (item) =>
+      boardroomActionability(item) ===
+      ACTION_MONITORING_CONTEXT
+  );
+
+  if (monitoring.length) {
+    actions.push(
+      boardroomAggregateAction(
+        "Track baseline and ESG context separately",
+        "Keep baseline and ESG items in the monitoring pack; do not count them as leakage without separate cost evidence.",
+        monitoring
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        ACTION_MONITORING_CONTEXT,
+        "LOW"
+      )
+    );
+  }
+
+  return dedupeExecutiveActions(actions)
+    .slice(0, 5)
+    .map((action, index) => ({
+      ...action,
+      rank: index + 1
+    }));
 }
 
 function buildExecutiveDecisionPack(options) {
-  const findings = (options && options.findings) || [];
-  const actionPlan = (options && options.executiveActionPlan) || {};
-  const missingEvidence = actionableMissingEvidenceItems((options && options.missingEvidence) || []);
-  const status = (options && options.reportQualityStatus) || "";
-  const topActions = collectExecutiveActionCards(actionPlan).slice(0, 5);
-  const moneyAtStake = boardroomQuantifiedLeakageTotal(findings);
-  const headline = ((options && options.executiveBrief) || {}).headline || (
-    findings.length
-      ? `Cited project evidence produced ${findings.length} finding(s).`
-      : boardroomNoAnalysisHeadline(status || REPORT_EVIDENCE_INTAKE_EXCEPTION)
-  );
+  const findings =
+    (options && options.findings) || [];
+
+  const actionPlan =
+    (options &&
+      options.executiveActionPlan) ||
+    {};
+
+  const missingEvidence =
+    actionableMissingEvidenceItems(
+      (options &&
+        options.missingEvidence) ||
+        []
+    );
+
+  const status =
+    (options &&
+      options.reportQualityStatus) ||
+    "";
+
+  const topActions =
+    collectExecutiveActionCards(
+      actionPlan
+    ).slice(0, 5);
+
+  const moneyAtStake =
+    boardroomQuantifiedLeakageTotal(
+      findings
+    );
+
+  const headline =
+    ((options &&
+      options.executiveBrief) ||
+      {}).headline ||
+    (
+      findings.length
+        ? `Cited project evidence produced ${findings.length} finding(s).`
+        : boardroomNoAnalysisHeadline(
+            status ||
+              REPORT_EVIDENCE_INTAKE_EXCEPTION
+          )
+    );
+
+  const sourceFindingIndexes =
+    uniqueNumbers(
+      topActions.reduce(
+        (all, action) =>
+          all.concat(
+            action.source_finding_indexes ||
+              []
+          ),
+        []
+      )
+    );
+
   return {
     headline,
-    money_at_stake_inr: moneyAtStake,
-    decision_required: boardroomBoardDecisionRequired({
-      findings,
-      top_5_actions: buildBoardroomTopExecutiveActions(findings),
-      report_quality_status: status
-    }),
+
+    money_at_stake_inr:
+      moneyAtStake,
+
+    quantified_cost_exposure:
+      eev2BuildExecutiveExposureSummary(
+        findings
+      ),
+
+    decision_required:
+      boardroomBoardDecisionRequired({
+        findings,
+        top_5_actions:
+          buildBoardroomTopExecutiveActions(
+            findings
+          ),
+        report_quality_status: status
+      }),
+
     top_actions: topActions,
-    owner_role: topActions.length ? topActions[0].owner_role : "",
-    due_horizon: topActions.length ? topActions[0].due_horizon : "",
-    evidence_status: boardroomDecisionPackEvidenceStatus(findings, missingEvidence),
-    source_finding_indexes: uniqueNumbers(topActions.reduce((all, action) => all.concat(action.source_finding_indexes || []), [])),
-    citations: boardroomActionCitationsFromIndexes(findings, uniqueNumbers(topActions.reduce((all, action) => all.concat(action.source_finding_indexes || []), []))),
-    blocked_by_missing_evidence: Boolean((missingEvidence || []).length),
-    missing_evidence: missingEvidence || []
+
+    owner_role:
+      topActions.length
+        ? topActions[0].owner_role
+        : "",
+
+    due_horizon:
+      topActions.length
+        ? topActions[0].due_horizon
+        : "",
+
+    evidence_status:
+      boardroomDecisionPackEvidenceStatus(
+        findings,
+        missingEvidence
+      ),
+
+    source_finding_indexes:
+      sourceFindingIndexes,
+
+    citations:
+      boardroomActionCitationsFromIndexes(
+        findings,
+        sourceFindingIndexes
+      ),
+
+    blocked_by_missing_evidence:
+      Boolean(
+        (missingEvidence || []).length
+      ),
+
+    missing_evidence:
+      missingEvidence || []
   };
 }
 
@@ -2108,94 +2436,224 @@ function buildBoardroomMissingEvidence(findings, documentsNotProcessed) {
 }
 
 function buildBoardroomExecutiveActionPlan(findings) {
-  if (!findings.length) return buildBoardroomIntakeRemediationPlan();
+  if (!findings.length) {
+    return buildBoardroomIntakeRemediationPlan();
+  }
+
   const ranked = boardroomRankFindings(findings);
-  const recoverable = ranked.filter((item) => boardroomActionability(item) === ACTION_RECOVERABLE);
-  const quantified = recoverable.filter(boardroomHasQuantifiedCostExposure);
-  const scheduleOnly = recoverable.filter(boardroomHasScheduleImpactOnly);
-  const followups = ranked.filter((item) => boardroomActionability(item) === ACTION_EVIDENCE_FOLLOWUP);
-  const monitoring = ranked.filter((item) => boardroomActionability(item) === ACTION_MONITORING_CONTEXT);
-  const plan = { "7_days": [], "30_days": [], "90_days": [] };
+
+  const recoverable = ranked.filter(
+    (item) =>
+      boardroomActionability(item) ===
+      ACTION_RECOVERABLE
+  );
+
+  const quantified = recoverable.filter(
+    boardroomHasQuantifiedCostExposure
+  );
+
+  const scheduleOnly = recoverable.filter(
+    boardroomHasScheduleImpactOnly
+  );
+
+  const followups = ranked.filter(
+    (item) =>
+      boardroomActionability(item) ===
+      ACTION_EVIDENCE_FOLLOWUP
+  );
+
+  const monitoring = ranked.filter(
+    (item) =>
+      boardroomActionability(item) ===
+      ACTION_MONITORING_CONTEXT
+  );
+
+  const plan = {
+    "7_days": [],
+    "30_days": [],
+    "90_days": []
+  };
+
+  const exposureValidationAction =
+    eev2BuildExposureValidationAction(findings);
+
+  const exposureDecisionAction =
+    eev2BuildExposureDecisionAction(findings);
+
+  if (exposureValidationAction) {
+    plan["7_days"].push(
+      exposureValidationAction
+    );
+  }
+
+  if (exposureDecisionAction) {
+    plan["30_days"].push(
+      exposureDecisionAction
+    );
+  }
 
   if (quantified.length) {
-    plan["7_days"].push(boardroomAction(
-      "Validate quantified exposure",
-      `Approve validation of INR ${formatInr(quantified[0].amount_inr)} cited exposure against invoices, approvals, BOQ lines, and payment records before assigning recovery work.`,
-      quantified.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      quantified[0].confidence,
-      findings
-    ));
-    plan["30_days"].push(boardroomAction(
-      "Decide recovery or avoidance route",
-      "Proceed only on quantified findings whose cited amount, approval trail, and responsibility can be verified from source records.",
-      quantified.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM",
-      findings
-    ));
-    plan["90_days"].push(boardroomAction(
-      "Prevent recurrence of verified exposure",
-      "Convert verified quantified exposure into monthly variance checks and closeout evidence requirements.",
-      quantified.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM",
-      findings
-    ));
+    plan["7_days"].push(
+      boardroomAction(
+        "Validate quantified exposure",
+        `Approve validation of INR ${formatInr(quantified[0].amount_inr)} cited exposure against invoices, approvals, BOQ lines, and payment records before assigning recovery work.`,
+        quantified
+          .slice(0, 3)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        quantified[0].confidence,
+        findings
+      )
+    );
+
+    plan["30_days"].push(
+      boardroomAction(
+        "Decide recovery or avoidance route",
+        "Proceed only on quantified findings whose cited amount, approval trail, and responsibility can be verified from source records.",
+        quantified
+          .slice(0, 3)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "MEDIUM",
+        findings
+      )
+    );
+
+    plan["90_days"].push(
+      boardroomAction(
+        "Prevent recurrence of verified exposure",
+        "Convert verified quantified exposure into monthly variance checks and closeout evidence requirements.",
+        quantified
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "MEDIUM",
+        findings
+      )
+    );
   }
 
   if (scheduleOnly.length) {
-    plan["7_days"].push(boardroomAction(
-      "Validate cited schedule impact",
-      `Confirm ${scheduleOnly[0].days} cited delay day(s), affected activity, and current critical-path status before cost escalation.`,
-      scheduleOnly.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      scheduleOnly[0].confidence,
-      findings
-    ));
-    plan["30_days"].push(boardroomAction(
-      "Update schedule forecast",
-      "Reflect cited delay-day evidence in the next schedule review and collect cost support separately if a cost claim is expected.",
-      scheduleOnly.slice(0, 3).map((item) => findings.indexOf(item) + 1),
-      "MEDIUM",
-      findings
-    ));
+    plan["7_days"].push(
+      boardroomAction(
+        "Validate cited schedule impact",
+        `Confirm ${scheduleOnly[0].days} cited delay day(s), affected activity, and current critical-path status before cost escalation.`,
+        scheduleOnly
+          .slice(0, 3)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        scheduleOnly[0].confidence,
+        findings
+      )
+    );
+
+    plan["30_days"].push(
+      boardroomAction(
+        "Update schedule forecast",
+        "Reflect cited delay-day evidence in the next schedule review and collect cost support separately if a cost claim is expected.",
+        scheduleOnly
+          .slice(0, 3)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "MEDIUM",
+        findings
+      )
+    );
   }
 
-  if (followups.length || (!quantified.length && !scheduleOnly.length)) {
-    plan["7_days"].push(boardroomAction(
-      "Collect missing commercial support",
-      "Request invoice/payment/BOQ support, comparable Budget/Actual values, BOQ line labels, and delay-day support for watchlist findings.",
-      followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW",
-      findings
-    ));
-    plan["30_days"].push(boardroomAction(
-      "Rerun after corrected evidence",
-      "Submit corrected evidence against the same job ID and rerun the review before executive escalation.",
-      followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW",
-      findings
-    ));
-    plan["90_days"].push(boardroomAction(
-      "Standardize intake only if gaps recur",
-      "If repeated evidence gaps continue, standardize the intake template for Budget, Actual, invoice, schedule, and ESG fields.",
-      followups.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW",
-      findings
-    ));
+  if (
+    followups.length ||
+    (!quantified.length &&
+      !scheduleOnly.length)
+  ) {
+    plan["7_days"].push(
+      boardroomAction(
+        "Collect missing commercial support",
+        "Request invoice/payment/BOQ support, comparable Budget/Actual values, BOQ line labels, and delay-day support for watchlist findings.",
+        followups
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "LOW",
+        findings
+      )
+    );
+
+    plan["30_days"].push(
+      boardroomAction(
+        "Rerun after corrected evidence",
+        "Submit corrected evidence against the same job ID and rerun the review before executive escalation.",
+        followups
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "LOW",
+        findings
+      )
+    );
+
+    plan["90_days"].push(
+      boardroomAction(
+        "Standardize intake only if gaps recur",
+        "If repeated evidence gaps continue, standardize the intake template for Budget, Actual, invoice, schedule, and ESG fields.",
+        followups
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "LOW",
+        findings
+      )
+    );
   }
 
   if (monitoring.length) {
-    plan["90_days"].push(boardroomAction(
-      "Track context outside leakage",
-      "Monitor only: keep baseline and ESG items in dashboards unless separate cost evidence supports a leakage finding.",
-      monitoring.slice(0, 5).map((item) => findings.indexOf(item) + 1),
-      "LOW",
-      findings
-    ));
+    plan["90_days"].push(
+      boardroomAction(
+        "Track context outside leakage",
+        "Monitor only: keep baseline and ESG items in dashboards unless separate cost evidence supports a leakage finding.",
+        monitoring
+          .slice(0, 5)
+          .map(
+            (item) =>
+              findings.indexOf(item) + 1
+          ),
+        "LOW",
+        findings
+      )
+    );
   }
 
   return {
-    "7_days": dedupeBoardroomPlanActions(plan["7_days"]),
-    "30_days": dedupeBoardroomPlanActions(plan["30_days"]),
-    "90_days": dedupeBoardroomPlanActions(plan["90_days"])
+    "7_days":
+      dedupeBoardroomPlanActions(
+        plan["7_days"]
+      ),
+
+    "30_days":
+      dedupeBoardroomPlanActions(
+        plan["30_days"]
+      ),
+
+    "90_days":
+      dedupeBoardroomPlanActions(
+        plan["90_days"]
+      )
   };
 }
 
@@ -4050,6 +4508,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
     <h2 style="font-size:18px;margin:18px 0 8px">Executive Summary</h2>
     <p style="margin:0 0 8px">${escapeHtml(headline)}</p>
     ${renderExecutiveKpisEmailHtml(browserReport, leakageTotal)}
+    ${eev2ScheduleEmailHtml(browserReport)}
     <h2 style="font-size:18px;margin:18px 0 8px">Board Decision Required</h2>
     <p style="margin:0 0 8px">${escapeHtml(decisionPack.decision_required || boardroomBoardDecisionRequired(browserReport))}</p>
     <p style="margin:0 0 12px;color:#66737d">INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || leakageTotal)} | Evidence: ${escapeHtml(decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}</p>
@@ -4085,6 +4544,8 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     `Cited findings: ${findings.length}`,
     `Critical/high findings: ${(browserReport.executive_brief || {}).critical_or_high_count || 0}`,
     `Documents with no signal: ${browserReport.documents_with_no_signal || 0}`,
+    "",
+...eev2ScheduleEmailTextLines(browserReport),
     `Gemini status: ${(report.gemini_verifier_result || {}).verification_status || "NOT_RUN"}`,
     "",
     "Board Decision Required",

@@ -10,6 +10,35 @@ automation. The form trigger copies accepted upload files from the Forms respons
 folder into a controlled project folder, runs deterministic evidence extraction
 where possible, writes report artifacts, sends email, and appends an audit row.
 
+## Constrovet Evidence Harness v1
+
+The repository contains the versioned EEV2 modules exported from the Apps Script
+TEST project and a local, zero-cost acceptance harness. The harness executes nine
+deterministic suites covering structured routing, cost exposure, delay, EOT,
+progress, cross-document reconciliation, executive schedule reporting, report
+rendering, and the live schedule bridge.
+
+Run locally or in GitHub Actions:
+
+```text
+npm run test:harness
+```
+
+The runner blocks and records any attempt to call Drive, MailApp, UrlFetchApp,
+PropertiesService, ScriptApp, or FormApp. A passing local result authorizes only
+controlled validation in the Apps Script TEST project. It never authorizes a
+production deployment.
+
+In the Apps Script TEST project, run:
+
+```javascript
+eev2RunEvidenceHarnessV1()
+```
+
+Proceed to the GOOD/BAD/NORMAL reference-document validation only when the
+returned `ok` value is `true`, all suites pass, and the release decision is
+`READY_FOR_CONTROLLED_TEST_PROJECT_VALIDATION`.
+
 ## Deploy
 
 1. Open `script.google.com` as `admin@constrovet.com`.

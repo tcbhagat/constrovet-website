@@ -1,0 +1,32 @@
+name: Constrovet Evidence Harness CI
+
+on:
+  pull_request:
+    paths:
+      - "apps-script/**"
+      - "scripts/run-eev2-harness.mjs"
+      - "tests/eev2-evidence-harness.test.mjs"
+      - "package.json"
+      - ".github/workflows/eev2-harness-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps-script/**"
+      - "scripts/run-eev2-harness.mjs"
+      - "tests/eev2-evidence-harness.test.mjs"
+      - "package.json"
+      - ".github/workflows/eev2-harness-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-evidence-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run test:harness
+      - run: node --test tests/eev2-evidence-harness.test.mjs
