@@ -1618,7 +1618,7 @@ function runDeterministicVerifier(findings) {
     if (budget > 0 && actual > 0) {
       const recalculated = actual - budget;
       normalized.calculation.difference = recalculated;
-      if (actual > budget && normalized.financial_category === "LEAKAGE_AND_OVERRUN") normalized.amount_inr = recalculated;
+      if (actual > budget && normalized.financial_category === "LEAKAGE_AND_OVERRUN" && normalized.recoverability_guardrail !== "NOT_ESTABLISHED") normalized.amount_inr = recalculated;
       if (originalDifference !== recalculated || (actual > budget && originalAmount !== normalized.amount_inr)) {
         corrected.push({
           source_finding_index: index + 1,
@@ -1677,7 +1677,10 @@ function normalizeFindingForVerification(finding) {
       difference: Number(calculation.difference || 0),
       formula: "Actual - Budget"
     },
-    confidence: ["HIGH", "MEDIUM", "LOW"].indexOf((finding || {}).confidence) >= 0 ? finding.confidence : "LOW"
+    confidence: ["HIGH", "MEDIUM", "LOW"].indexOf((finding || {}).confidence) >= 0 ? finding.confidence : "LOW",
+    exposure_amount_inr: Math.max(0, Number((finding || {}).exposure_amount_inr || 0)),
+    eev2_semantic_classification: String((finding || {}).eev2_semantic_classification || ""),
+    recoverability_guardrail: String((finding || {}).recoverability_guardrail || "")
   };
   return normalized;
 }
@@ -1745,11 +1748,13 @@ function scoreBoardroomFindings(findings) {
 function boardroomActionability(item) {
   if (!item || item.financial_category === "BASELINE_BUDGET" || item.financial_category === "ESG_METRIC") return ACTION_MONITORING_CONTEXT;
   if (item.financial_category !== "LEAKAGE_AND_OVERRUN") return ACTION_EVIDENCE_FOLLOWUP;
+  if (item.recoverability_guardrail === "NOT_ESTABLISHED") return ACTION_EVIDENCE_FOLLOWUP;
   if (boardroomHasQuantifiedCostExposure(item) || Number(item.days || 0) > 0) return ACTION_RECOVERABLE;
   return ACTION_EVIDENCE_FOLLOWUP;
 }
 
 function boardroomHasQuantifiedCostExposure(item) {
+  if (!item || item.recoverability_guardrail === "NOT_ESTABLISHED") return false;
   const calculation = item.calculation || {};
   return Number(item.amount_inr || 0) > 0 || (Number(calculation.budget || 0) > 0 && Number(calculation.actual || 0) > Number(calculation.budget || 0));
 }
@@ -1784,6 +1789,7 @@ function boardroomSeverity(score) {
 
 function boardroomRecoverability(item) {
   if (item.financial_category !== "LEAKAGE_AND_OVERRUN") return "LOW";
+  if (item.recoverability_guardrail === "NOT_ESTABLISHED") return "UNKNOWN";
   if (item.amount_inr > 0 && item.confidence === "HIGH") return "HIGH";
   if (item.amount_inr > 0 || item.days > 0) return "MEDIUM";
   return "UNKNOWN";
