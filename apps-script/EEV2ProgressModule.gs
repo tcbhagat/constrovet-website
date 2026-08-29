@@ -2,17 +2,19 @@
 // Deterministic structured progress extraction.
 // Safety rule: preserve source-reported variance and show recalculated variance separately.
 
-const EEV2_PROGRESS_ENGINE_VERSION = "2.0.0-dev.1";
+const EEV2_PROGRESS_ENGINE_VERSION = "2.0.0-dev.2";
 
 function eev2ClassifyProgressDocument(file, text) {
   const source = String(text || "").replace(/\s+/g, " ").toLowerCase();
   const name = String(file || "").toLowerCase();
   const anchors = [
     /activity progress/,
+    /activity[- ]wise progress report/,
+    /overall project progress/,
     /planned\s*(?:progress)?\s*%?/,
     /actual\s*(?:progress)?\s*%?/,
     /variance/,
-    /project\s*id/,
+    /(?:project\s*)?id\s*:/,
     /generated\s*:/
   ];
   const score = anchors.reduce((sum, re) => sum + (re.test(source) ? 1 : 0), 0);
@@ -36,8 +38,15 @@ function eev2ProgressNormalizeText(text) {
 }
 
 function eev2ProgressExtractProjectId(text) {
-  const m = /(?:Project\s*ID|Activity\s*Progress\s*ID)\s*[:\-]?\s*([A-Z0-9_-]+)/i.exec(text);
-  return m ? m[1] : "";
+  const patterns = [
+    /(?:Project\s*ID|Activity\s*Progress\s*ID)\s*[:\-]?\s*([A-Z0-9_-]+)/i,
+    /\bID\s*[:\-]\s*([A-Z0-9_-]+)/i
+  ];
+  for (let i = 0; i < patterns.length; i += 1) {
+    const m = patterns[i].exec(text);
+    if (m) return m[1];
+  }
+  return "";
 }
 
 function eev2ProgressExtractReportDate(text) {
@@ -46,29 +55,38 @@ function eev2ProgressExtractReportDate(text) {
 }
 
 function eev2ProgressExtractMonth(text) {
-  const m = /Month\s*[:\-]?\s*(\d+)\s*\/\s*(\d+)/i.exec(text);
-  if (!m) return null;
-  return { current: Number(m[1]), total: Number(m[2]) };
+  const patterns = [
+    /Month\s*[:\-]?\s*(\d+)\s*\/\s*(\d+)/i,
+    /Month\s*[:\-]?\s*(\d+)\s+of\s+(\d+)/i
+  ];
+  for (let i = 0; i < patterns.length; i += 1) {
+    const m = patterns[i].exec(text);
+    if (m) return { current: Number(m[1]), total: Number(m[2]) };
+  }
+  return null;
 }
 
 function eev2ProgressExtractOverall(text) {
   const source = eev2ProgressNormalizeText(text);
+  const overallWindowMatch = /Overall\s+Project\s+Progress\s*:?\s*([\s\S]{0,220})/i.exec(source);
+  const overallWindow = overallWindowMatch ? overallWindowMatch[0] : source;
+  const separator = "[:=\\-]?";
   const plannedPatterns = [
-    /Planned\s*(?:Progress)?\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i,
-    /Planned\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i
+    new RegExp(`Planned\\s*(?:Progress)?\\s*${separator}\\s*(-?\\d+(?:\\.\\d+)?)\\s*%`, "i"),
+    /Planned\s*=\s*(-?\d+(?:\.\d+)?)\s*%/i
   ];
   const actualPatterns = [
-    /Actual\s*(?:Progress)?\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i,
-    /Actual\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i
+    new RegExp(`Actual\\s*(?:Progress)?\\s*${separator}\\s*(-?\\d+(?:\\.\\d+)?)\\s*%`, "i"),
+    /Actual\s*=\s*(-?\d+(?:\.\d+)?)\s*%/i
   ];
   const variancePatterns = [
-    /(?:Source\s*)?Variance\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i,
-    /Progress\s*Variance\s*[:\-]?\s*(-?\d+(?:\.\d+)?)\s*%/i
+    new RegExp(`(?:Source\\s*)?Variance\\s*${separator}\\s*(-?\\d+(?:\\.\\d+)?)\\s*%`, "i"),
+    /Progress\s*Variance\s*=\s*(-?\d+(?:\.\d+)?)\s*%/i
   ];
 
   function firstMatch(patterns) {
     for (let i = 0; i < patterns.length; i += 1) {
-      const m = patterns[i].exec(source);
+      const m = patterns[i].exec(overallWindow);
       if (m) return Number(m[1]);
     }
     return null;
@@ -97,25 +115,34 @@ function eev2ProgressExtractOverall(text) {
   };
 }
 
+function eev2ProgressActivityRowRegex(labelPattern) {
+  return new RegExp(
+    `${labelPattern}\\s+(\\d+(?:\\.\\d+)?)\\s+(\\d+(?:\\.\\d+)?)\\s+(\\d+(?:\\.\\d+)?)\\s*%\\s+(\\d+(?:\\.\\d+)?)\\s*%`,
+    "i"
+  );
+}
+
 function eev2ProgressExtractActivities(text) {
   const source = eev2ProgressNormalizeText(text);
   const specs = [
-    { activity: "Internal Plastering", re: /Internal\s+Plastering\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i },
-    { activity: "Flooring Lower", re: /Flooring\s+Lower\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i },
-    { activity: "Flooring Upper", re: /Flooring\s+Upper\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i },
-    { activity: "Doors", re: /\bDoors\b\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i },
-    { activity: "MEP Final Fix", re: /MEP\s+Final\s+Fix\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i },
-    { activity: "Painting", re: /\bPainting\b\s+(\d+(?:\.\d+)?)\s*%?\s+(\d+(?:\.\d+)?)\s*%?/i }
+    { activity: "Internal Plastering", re: eev2ProgressActivityRowRegex("Internal\\s+Plastering") },
+    { activity: "Flooring Lower", re: eev2ProgressActivityRowRegex("Flooring\\s*-?\\s*Lower(?:\\s+Floors)?") },
+    { activity: "Flooring Upper", re: eev2ProgressActivityRowRegex("Flooring\\s*-?\\s*Upper(?:\\s+Floors)?") },
+    { activity: "Doors", re: eev2ProgressActivityRowRegex("Doors(?:,?\\s+Windows\\s*&\\s*Glazing)?") },
+    { activity: "MEP Final Fix", re: eev2ProgressActivityRowRegex("MEP\\s+Final\\s+Fix(?:\\s*&\\s*Testing)?") },
+    { activity: "Painting", re: eev2ProgressActivityRowRegex("Painting(?:\\s*-?\\s*Interior)?") }
   ];
 
   const rows = [];
   specs.forEach((spec) => {
     const m = spec.re.exec(source);
     if (!m) return;
-    const planned = Number(m[1]);
-    const actual = Number(m[2]);
+    const planned = Number(m[3]);
+    const actual = Number(m[4]);
     rows.push({
       activity: spec.activity,
+      planned_start_week: Number(m[1]),
+      planned_end_week: Number(m[2]),
       planned_pct: planned,
       actual_pct: actual,
       variance_pct_points: Number((actual - planned).toFixed(1)),
@@ -178,7 +205,7 @@ function eev2ProgressEvidenceToFindings(evidence) {
       citations: [{
         file,
         page_or_sheet: page,
-        quoted_span: `Planned ${evidence.planned_progress_pct}% Actual ${evidence.actual_progress_pct}% Variance ${evidence.source_variance_pct_points}%`
+        quoted_span: `Overall Project Progress: Planned = ${evidence.planned_progress_pct}% | Actual = ${evidence.actual_progress_pct}% | Variance = ${evidence.source_variance_pct_points}%`
       }],
       calculation: {
         budget: evidence.planned_progress_pct,
