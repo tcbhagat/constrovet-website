@@ -2,7 +2,7 @@
 // Builds an executive schedule reconciliation from already-verified cited findings.
 // Safety rule: no project-delay, critical-path, entitlement, compensability, or cost-causation inference.
 
-const EEV2_LIVE_SCHEDULE_BRIDGE_VERSION = "2.0.0-dev.1";
+const EEV2_LIVE_SCHEDULE_BRIDGE_VERSION = "2.0.0-dev.2";
 
 function eev2FindingsToLiveScheduleReconciliation(findings) {
   const list = findings || [];
@@ -11,19 +11,23 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
   const responsibilityFinding = list.find((f) => String((f || {}).eev2_semantic_classification || "").toUpperCase() === "DELAY_RESPONSIBILITY_PROFILE") || null;
 
   const progressCalc = progressFinding && progressFinding.calculation ? progressFinding.calculation : {};
+  const sourceVariance = progressFinding && progressFinding.citations && progressFinding.citations.length
+    ? eev2ParseSourceProgressVariance(progressFinding.citations[0].quoted_span)
+    : null;
+  const recalculatedVariance = progressFinding ? eev2RoundOneOrNull(progressCalc.difference) : null;
   const responsibility = eev2ParseDelayResponsibilityProfile(responsibilityFinding ? responsibilityFinding.statement : "");
 
   return {
     engine_version: EEV2_LIVE_SCHEDULE_BRIDGE_VERSION,
     reconciliation_status: (progressFinding || delayFinding) ? "MULTI_SIGNAL_RECONCILIATION_AVAILABLE" : "LIMITED_RECONCILIATION",
     progress_position: {
-      planned_progress_pct: progressFinding ? eev2FiniteOrNull(progressCalc.budget) : null,
-      actual_progress_pct: progressFinding ? eev2FiniteOrNull(progressCalc.actual) : null,
-      source_variance_pct_points: progressFinding && progressFinding.citations && progressFinding.citations.length
-        ? eev2ParseSourceProgressVariance(progressFinding.citations[0].quoted_span)
-        : null,
-      recalculated_variance_pct_points: progressFinding ? eev2FiniteOrNull(progressCalc.difference) : null,
-      variance_consistency: progressFinding ? (progressFinding.variance_consistency || "NOT_AVAILABLE") : "NOT_AVAILABLE",
+      planned_progress_pct: progressFinding ? eev2RoundOneOrNull(progressCalc.budget) : null,
+      actual_progress_pct: progressFinding ? eev2RoundOneOrNull(progressCalc.actual) : null,
+      source_variance_pct_points: sourceVariance,
+      recalculated_variance_pct_points: recalculatedVariance,
+      variance_consistency: progressFinding
+        ? eev2ResolveProgressVarianceConsistency(progressFinding.variance_consistency, sourceVariance, recalculatedVariance)
+        : "NOT_AVAILABLE",
       critical_path_relation: "NOT_ESTABLISHED",
       causal_explanation_status: "NOT_ESTABLISHED"
     },
@@ -63,6 +67,20 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
 function eev2FiniteOrNull(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function eev2RoundOneOrNull(value) {
+  const n = eev2FiniteOrNull(value);
+  return n === null ? null : Number(n.toFixed(1));
+}
+
+function eev2ResolveProgressVarianceConsistency(existing, sourceVariance, recalculatedVariance) {
+  const current = String(existing || "").trim();
+  if (current && current !== "NOT_AVAILABLE") return current;
+  if (sourceVariance === null || recalculatedVariance === null) return "INSUFFICIENT_DATA";
+  return Math.abs(sourceVariance - recalculatedVariance) <= 0.05
+    ? "SOURCE_MATCHES_RECALCULATION"
+    : "ROUNDING_DIFFERENCE_REVIEW";
 }
 
 function eev2ParseSourceProgressVariance(text) {
