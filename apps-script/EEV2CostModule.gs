@@ -1,9 +1,7 @@
-// Constrovet Evidence Engine v2 — EEV2-001
-// Isolated DEV module. No paid services. No Gemini arithmetic.
-// Purpose: classify COST_ESTIMATE documents and extract cited cost evidence
-// without changing production semantics for delay/progress/ESG.
+// Constrovet Evidence Engine v2 — EEV2-001C
+// DEV-only deterministic cost extraction with recoverability-safe legacy bridging.
 
-const EEV2_ENGINE_VERSION = "2.0.0-dev";
+const EEV2_ENGINE_VERSION = "2.0.0-dev.1";
 const EEV2_SCHEMA_VERSION = "2.0";
 const EEV2_RULESET_VERSION = "2026.08";
 
@@ -38,10 +36,6 @@ function eev2NormalizeAmount(raw) {
     .trim();
   const m = value.match(/-?\d+(?:\.\d+)?/);
   return m ? Number(m[0]) : null;
-}
-
-function eev2EscapeRegex(text) {
-  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function eev2FindLabeledAmount(text, labelPatterns) {
@@ -148,24 +142,19 @@ function eev2CostEvidenceToFindings(evidence) {
   const page = evidence.source_page_or_extraction_label || "Workspace OCR";
 
   function citationFor(keys) {
-    const spans = keys
-      .map((key) => fields[key] && fields[key].quoted_evidence)
-      .filter(Boolean);
-    return [{
-      file: sourceFile,
-      page_or_sheet: page,
-      quoted_span: spans.join(" | ").slice(0, 500)
-    }];
+    const spans = keys.map((key) => fields[key] && fields[key].quoted_evidence).filter(Boolean);
+    return [{ file: sourceFile, page_or_sheet: page, quoted_span: spans.join(" | ").slice(0, 500) }];
   }
 
   if (calcs.monthly_variance) {
     const value = Number(calcs.monthly_variance.value || 0);
     findings.push({
       statement: value > 0
-        ? `Monthly actual exceeds monthly budget by INR ${formatInr(Math.abs(value))}.`
+        ? `Monthly actual exceeds monthly budget by INR ${formatInr(Math.abs(value))}. This is cost variance; recoverability is not established.`
         : `Monthly actual is below monthly budget by INR ${formatInr(Math.abs(value))}.`,
       financial_category: value > 0 ? "LEAKAGE_AND_OVERRUN" : "BASELINE_BUDGET",
-      amount_inr: value > 0 ? value : 0,
+      amount_inr: 0,
+      exposure_amount_inr: value > 0 ? value : 0,
       days: 0,
       citations: citationFor(["monthly_budget", "monthly_actual"]),
       calculation: {
@@ -174,7 +163,9 @@ function eev2CostEvidenceToFindings(evidence) {
         difference: value,
         formula: "Actual - Budget"
       },
-      confidence: evidence.confidence
+      confidence: evidence.confidence,
+      eev2_semantic_classification: value > 0 ? "COST_VARIANCE" : "COST_VARIANCE_FAVOURABLE",
+      recoverability_guardrail: value > 0 ? "NOT_ESTABLISHED" : "NOT_APPLICABLE"
     });
   }
 
@@ -183,7 +174,8 @@ function eev2CostEvidenceToFindings(evidence) {
     findings.push({
       statement: `Cumulative actual exceeds cumulative budget by INR ${formatInr(value)}. This is cost exposure, not confirmed recoverable leakage.`,
       financial_category: "LEAKAGE_AND_OVERRUN",
-      amount_inr: value,
+      amount_inr: 0,
+      exposure_amount_inr: value,
       days: 0,
       citations: citationFor(["cumulative_budget", "cumulative_actual"]),
       calculation: {
@@ -203,7 +195,8 @@ function eev2CostEvidenceToFindings(evidence) {
     findings.push({
       statement: `Revised forecast at completion exceeds original budget by INR ${formatInr(value)}. This is forecast exposure, not confirmed recoverable leakage.`,
       financial_category: "LEAKAGE_AND_OVERRUN",
-      amount_inr: value,
+      amount_inr: 0,
+      exposure_amount_inr: value,
       days: 0,
       citations: citationFor(["original_budget", "forecast_at_completion"]),
       calculation: {
@@ -243,6 +236,7 @@ function eev2SyntheticCostRegression() {
   const e = result.cost_evidence || {};
   const f = e.fields || {};
   const c = e.calculations || {};
+  const semantic = result.findings || [];
   const checks = [
     ["document_type", result.document_type === "COST_ESTIMATE"],
     ["monthly_budget", Number((f.monthly_budget || {}).value) === 43333333],
@@ -254,7 +248,11 @@ function eev2SyntheticCostRegression() {
     ["monthly_variance", Number((c.monthly_variance || {}).value) === -626862],
     ["cumulative_variance", Number((c.cumulative_variance || {}).value) === 5498134],
     ["fac_variance", Number((c.fac_variance || {}).value) === 8247202],
-    ["no_confirmed_leakage_wording", (result.findings || []).every((x) => !/confirmed recoverable leakage/i.test(x.statement || "") || /not confirmed recoverable leakage/i.test(x.statement || ""))]
+    ["legacy_recoverable_total_zero", semantic.reduce((sum, x) => sum + Number(x.amount_inr || 0), 0) === 0],
+    ["cumulative_exposure_preserved", semantic.some((x) => x.eev2_semantic_classification === "COST_EXPOSURE" && Number(x.exposure_amount_inr) === 5498134)],
+    ["fac_exposure_preserved", semantic.some((x) => x.eev2_semantic_classification === "FORECAST_OVERRUN" && Number(x.exposure_amount_inr) === 8247202)],
+    ["recoverability_not_established", semantic.filter((x) => Number(x.exposure_amount_inr || 0) > 0).every((x) => x.recoverability_guardrail === "NOT_ESTABLISHED")],
+    ["no_confirmed_leakage_wording", semantic.every((x) => !/confirmed recoverable leakage/i.test(x.statement || "") || /not confirmed recoverable leakage/i.test(x.statement || ""))]
   ];
   return {
     ok: checks.every((item) => item[1]),
