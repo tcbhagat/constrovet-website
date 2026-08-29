@@ -30,3 +30,14 @@ test("Apps Script manifest retains the zero-cost Workspace architecture", () => 
     version: "v2"
   }]);
 });
+
+test("controlled TEST release gate is fail-closed and cannot send email", () => {
+  const source = readFileSync(new URL("../apps-script/EEV2ControlledTestReleaseGate.gs", import.meta.url), "utf8");
+
+  assert.match(source, /EEV2_ENVIRONMENT/);
+  assert.match(source, /EEV2_TEST_JOB_ID/);
+  assert.match(source, /production_deployment_authorized:\s*false/);
+  assert.match(source, /email_sent_by_gate:\s*false/);
+  assert.doesNotMatch(source, /MailApp\s*\.\s*sendEmail/);
+  assert.match(source, /READY_FOR_HUMAN_REVIEW/);
+});

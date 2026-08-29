@@ -16,11 +16,13 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
     : null;
   const recalculatedVariance = progressFinding ? eev2RoundOneOrNull(progressCalc.difference) : null;
   const responsibility = eev2ParseDelayResponsibilityProfile(responsibilityFinding ? responsibilityFinding.statement : "");
+  const eotEntries = list
+    .filter((item) => String((item || {}).eev2_semantic_classification || "").toUpperCase() === "EOT_STATUS")
+    .map((item) => eev2EotFindingToLiveEntry(item));
 
-  return {
-    engine_version: EEV2_LIVE_SCHEDULE_BRIDGE_VERSION,
-    reconciliation_status: (progressFinding || delayFinding) ? "MULTI_SIGNAL_RECONCILIATION_AVAILABLE" : "LIMITED_RECONCILIATION",
-    progress_position: {
+  const reconciliation = eev2BuildCrossDocumentReconciliation({
+    findings: list,
+    progress_evidence: {
       planned_progress_pct: progressFinding ? eev2RoundOneOrNull(progressCalc.budget) : null,
       actual_progress_pct: progressFinding ? eev2RoundOneOrNull(progressCalc.actual) : null,
       source_variance_pct_points: sourceVariance,
@@ -31,36 +33,46 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
       critical_path_relation: "NOT_ESTABLISHED",
       causal_explanation_status: "NOT_ESTABLISHED"
     },
-    delay_position: {
-      observed_delay_event_days: delayFinding ? Number(delayFinding.days || 0) : null,
-      contractor_non_excusable_days: responsibility.contractor_non_excusable_days,
-      client_days: responsibility.client_days,
-      neutral_external_days: responsibility.neutral_external_days,
-      unclassified_days: 0,
+    delay_evidence: {
+      total_observed_delay_event_days: delayFinding ? Number(delayFinding.days || 0) : null,
+      responsibility_summary: {
+        contractor_non_excusable_days: responsibility.contractor_non_excusable_days,
+        client_days: responsibility.client_days,
+        neutral_external_days: responsibility.neutral_external_days,
+        unclassified_days: 0
+      },
       critical_path_impact: "NOT_ESTABLISHED",
       concurrency_status: "NOT_ESTABLISHED",
       float_impact_status: "NOT_ESTABLISHED",
       entitlement_status: "REQUIRES_CONTRACT_AND_SCHEDULE_REVIEW"
     },
-    eot_position: {
-      eot_count: 0,
-      review_required_count: 0,
+    eot_evidence: {
+      entries: eotEntries,
       entitlement_conclusion: "NOT_ESTABLISHED",
       critical_path_entitlement: "NOT_ESTABLISHED",
-      compensability_conclusion: "NOT_ESTABLISHED",
-      items: []
-    },
-    relationship_statement: (progressFinding && delayFinding)
-      ? "Progress slippage and observed delay events coexist in the cited reporting evidence. Their causal relationship is not established."
-      : "Structured schedule evidence is available, but a causal relationship is not established.",
-    causal_link_status: "NOT_ESTABLISHED",
-    delay_to_cost_causation: "NOT_ESTABLISHED",
-    progress_to_cost_causation: "NOT_ESTABLISHED",
-    critical_path_impact: "NOT_ESTABLISHED",
-    contractual_entitlement: "NOT_ESTABLISHED",
-    compensability: "NOT_ESTABLISHED",
-    recoverability: "NOT_ESTABLISHED",
-    safety_statement: "Observed delay-event days are not equivalent to project critical-path delay. Cross-document coexistence does not establish cost causation, entitlement, compensability or recoverability."
+      compensability_conclusion: "NOT_ESTABLISHED"
+    }
+  });
+
+  reconciliation.engine_version = EEV2_LIVE_SCHEDULE_BRIDGE_VERSION;
+  return reconciliation;
+}
+
+function eev2EotFindingToLiveEntry(finding) {
+  const item = finding || {};
+  const statement = String(item.statement || "");
+  const reference = (/\b(EOT-[A-Z0-9/-]+)/i.exec(statement) || [])[1] || "";
+  const basis = (/\bbasis\s+(.+?);\s*claimed\b/i.exec(statement) || [])[1] || "";
+  const claimed = (/\bclaimed\s+(\d+(?:\.\d+)?)\s+day/i.exec(statement) || [])[1];
+  const approved = (/\bapproved\s+(\d+(?:\.\d+)?)/i.exec(statement) || [])[1];
+  const status = (/\bstatus\s+([A-Z_]+)/i.exec(statement) || [])[1] || "";
+  return {
+    eot_reference: reference,
+    basis,
+    days_claimed: claimed === undefined ? null : Number(claimed),
+    days_approved: approved === undefined ? null : Number(approved),
+    status,
+    consistency_flags: item.consistency_flags || []
   };
 }
 

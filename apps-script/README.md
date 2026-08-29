@@ -39,6 +39,20 @@ Proceed to the GOOD/BAD/NORMAL reference-document validation only when the
 returned `ok` value is `true`, all suites pass, and the release decision is
 `READY_FOR_CONTROLLED_TEST_PROJECT_VALIDATION`.
 
+For the controlled document gate, set `EEV2_ENVIRONMENT=TEST` and set
+`EEV2_TEST_JOB_ID` to the explicit TEST submission containing the three named
+reference PDFs. Keep both Gemini flags disabled, then run:
+
+```javascript
+eev2RunControlledTestReleaseGate()
+```
+
+This gate reads the three TEST files, validates citations, cost exposure,
+progress, observed delay events, EOT records, email rendering and audit-row
+presence, and writes one JSON result into that TEST job's outputs folder. It
+does not send email and can return only `READY_FOR_HUMAN_REVIEW`; it never
+authorizes production deployment.
+
 The selected development baseline and its relationship to the earlier
 `eev2-002-structured-schedule` branch are recorded in `EEV2_BASELINE.md`.
 

@@ -19,6 +19,19 @@ function eev2RunLiveScheduleBridgeRegression() {
       statement: "Delay responsibility profile: contractor non-excusable 11 days; client 7 days; neutral/external 14 days.",
       days: 0,
       eev2_semantic_classification: "DELAY_RESPONSIBILITY_PROFILE"
+    },
+    {
+      statement: "Cumulative adverse cost variance of INR 54,98,134 is a quantified cost exposure. Recoverability is not established.",
+      amount_inr: 0,
+      exposure_amount_inr: 5498134,
+      eev2_semantic_classification: "COST_EXPOSURE",
+      recoverability_guardrail: "NOT_ESTABLISHED"
+    },
+    {
+      statement: "EOT-01/2026: basis Monsoon / Force Majeure; claimed 6 day(s); approved 7; status UNDER_REVIEW. Entitlement is not established.",
+      days: 0,
+      eev2_semantic_classification: "EOT_STATUS",
+      consistency_flags: ["APPROVED_DAYS_EXCEED_CLAIMED_DAYS"]
     }
   ];
 
@@ -38,6 +51,9 @@ function eev2RunLiveScheduleBridgeRegression() {
     ["contractor_exact", s.contractor_non_excusable_days === 11],
     ["client_exact", s.client_days === 7],
     ["neutral_external_exact", s.neutral_external_days === 14],
+    ["cost_exposure_exact", Number((browserReport.eev2_schedule_reconciliation.cost_position || {}).cumulative_adverse_variance_inr) === 5498134],
+    ["eot_count_exact", s.eot_count === 1],
+    ["eot_review_flag_exact", s.eot_review_required_count === 1],
     ["critical_path_not_established", s.critical_path_impact === "NOT_ESTABLISHED"],
     ["causal_link_not_established", s.causal_link_status === "NOT_ESTABLISHED"],
     ["schedule_html_present", /Schedule Position/.test(html)],

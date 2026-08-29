@@ -16,7 +16,9 @@ function eev2RunStructuredRoutingRegression() {
     "Heavy Rainfall 9 Neutral Excusable + Compensable",
     "MSEDCL power cuts 5 External Excusable",
     "Batching plant breakdown 4 Contractor Non-excusable",
-    "TOTAL DELAY THIS MONTH 32"
+    "TOTAL DELAY THIS MONTH 32",
+    "EOT-01/2026 Monsoon / Force Majeure 6 7 Under Review",
+    "EOT-02/2026 Client-caused delay 7 - Submitted"
   ].join("\n");
 
   const progressText = [
@@ -44,6 +46,8 @@ function eev2RunStructuredRoutingRegression() {
     ["cost_three_findings", (cost.findings || []).length === 3],
     ["delay_handled", delay.handled === true && delay.document_type === "DELAY_ANALYSIS"],
     ["delay_observed_32", (delay.findings || []).some((x) => x.eev2_semantic_classification === "OBSERVED_DELAY_EVENT_DAYS" && Number(x.days) === 32)],
+    ["delay_eot_two_entries", (delay.findings || []).filter((x) => x.eev2_semantic_classification === "EOT_STATUS").length === 2],
+    ["delay_eot_review_flag", (delay.findings || []).some((x) => x.eev2_semantic_classification === "EOT_STATUS" && (x.consistency_flags || []).length > 0)],
     ["progress_handled", progress.handled === true && progress.document_type === "PROGRESS_REPORT"],
     ["progress_variance_present", (progress.findings || []).some((x) => x.eev2_semantic_classification === "PROGRESS_VARIANCE")],
     ["unknown_falls_back", unknown.handled === false && unknown.document_type === "UNKNOWN"],

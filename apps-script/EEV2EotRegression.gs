@@ -21,6 +21,7 @@ function eev2RunEotRegression() {
   const eot1 = entries.find((item) => item.eot_reference === "EOT-01/2026") || {};
   const eot2 = entries.find((item) => item.eot_reference === "EOT-02/2026") || {};
   const findings = eev2EotEvidenceToFindings(evidence);
+  const verifierIssues = findings.map((finding) => verifyBoardroomFinding(finding));
   const rendered = findings.map((item) => item.statement).join("\n");
 
   const checks = [
@@ -42,7 +43,8 @@ function eev2RunEotRegression() {
     ["critical_path_entitlement_not_established", evidence && evidence.critical_path_entitlement === "NOT_ESTABLISHED"],
     ["compensability_not_established", evidence && evidence.compensability_conclusion === "NOT_ESTABLISHED"],
     ["no_auto_entitlement_language", !/entitled to|approved entitlement|compensable entitlement|recoverable/i.test(rendered)],
-    ["findings_preserve_guardrail", findings.length === 2 && findings.every((item) => item.recoverability_guardrail === "NOT_ESTABLISHED")]
+    ["findings_preserve_guardrail", findings.length === 2 && findings.every((item) => item.recoverability_guardrail === "NOT_ESTABLISHED")],
+    ["findings_pass_live_verifier", verifierIssues.every((issues) => issues.length === 0)]
   ];
 
   const result = {

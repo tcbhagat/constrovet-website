@@ -1756,6 +1756,10 @@ function verifyBoardroomFinding(finding) {
       semantic === "COST_VARIANCE"
     );
 
+  const isEev2GuardrailedControlFinding =
+    guardrail === "NOT_ESTABLISHED" &&
+    semantic === "EOT_STATUS";
+
   const allowed = [
     "BASELINE_BUDGET",
     "LEAKAGE_AND_OVERRUN",
@@ -1818,7 +1822,8 @@ function verifyBoardroomFinding(finding) {
     Number(finding.amount_inr || 0) <= 0 &&
     Number(finding.days || 0) <= 0 &&
     !boardroomLeakageRe().test(evidenceText) &&
-    !isEev2UnestablishedExposure
+    !isEev2UnestablishedExposure &&
+    !isEev2GuardrailedControlFinding
   ) {
     issues.push(
       "LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal."

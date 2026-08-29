@@ -14,11 +14,15 @@ function eev2RouteStructuredBoardroomFindings(file, pageOrSheet, text) {
 
   const delay = eev2ExtractStructuredDelayFindings(file, pageOrSheet, text);
   if (delay && delay.document_type === "DELAY_ANALYSIS") {
+    const eot = eev2ExtractStructuredEotFindings(file, pageOrSheet, text);
     return {
       handled: true,
       document_type: "DELAY_ANALYSIS",
-      findings: delay.findings || [],
-      delay_evidence: delay.delay_evidence || null
+      findings: (delay.findings || []).concat(
+        eot && eot.document_type === "EOT_REGISTER" ? (eot.findings || []) : []
+      ),
+      delay_evidence: delay.delay_evidence || null,
+      eot_evidence: eot && eot.document_type === "EOT_REGISTER" ? eot.eot_evidence : null
     };
   }
 
