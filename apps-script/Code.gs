@@ -1464,7 +1464,12 @@ function boardroomHasConstructionFileNameHint(name) {
 
 function extractBoardroomFindings(file, pageOrSheet, text, page) {
   const findings = [];
-  if (page.headers && page.row) {
+  const eev2 = eev2ExtractStructuredFindings(file, pageOrSheet, text);
+  if (eev2 && eev2.document_type === "COST_ESTIMATE") {
+    findings.push(...(eev2.findings || []));
+    return findings;
+  }
+  if (page && page.headers && page.row) {
     const rowFinding = boardroomCsvBudgetActualFinding(file, pageOrSheet, text, page.headers, page.row);
     if (rowFinding) findings.push(rowFinding);
   }
