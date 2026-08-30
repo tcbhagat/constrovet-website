@@ -66,6 +66,7 @@ test("production hardening protects responsive navigation and first-offline PWA 
   for (const path of ["index.html", "assets/nav.html", "assets/css/style.css"]) {
     assert.match(ciWorkflow, new RegExp(`- "${path.replaceAll(".", "\\.")}"`));
   }
+  assert.match(ciWorkflow, /- run: npm ci/);
 });
 
 test("offline service worker returns assets by type and limits HTML fallback to navigation", async () => {
