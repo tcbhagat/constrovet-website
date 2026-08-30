@@ -1,0 +1,68 @@
+name: EEV2-001G semantic verifier patch
+
+on:
+  push:
+    branches:
+      - eev2-001-structured-cost-extraction
+    paths:
+      - .github/workflows/eev2-001g-semantic-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: eev2-001-structured-cost-extraction
+          fetch-depth: 0
+      - name: Patch semantic verifier
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('apps-script/Code.gs')
+          text = p.read_text()
+          original = text
+
+          marker = '''function verifyBoardroomFinding(finding) {'''
+          helper = '''function boardroomIsEev2UnestablishedExposure(finding) {
+  const semantic = String((finding || {}).eev2_semantic_classification || "").toUpperCase();
+  const guard = String((finding || {}).recoverability_guardrail || "").toUpperCase();
+  return guard === "NOT_ESTABLISHED" && ["COST_EXPOSURE", "FORECAST_OVERRUN", "COST_VARIANCE"].indexOf(semantic) >= 0;
+}
+
+function verifyBoardroomFinding(finding) {'''
+          if 'function boardroomIsEev2UnestablishedExposure' not in text:
+              if marker not in text:
+                  raise SystemExit('verifyBoardroomFinding marker missing')
+              text = text.replace(marker, helper, 1)
+
+          old = '''  if (category === "LEAKAGE_AND_OVERRUN" && finding.amount_inr <= 0 && finding.days <= 0 && !boardroomLeakageRe().test(evidenceText)) {
+    issues.push("LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal.");
+  }'''
+          new = '''  if (category === "LEAKAGE_AND_OVERRUN" && finding.amount_inr <= 0 && finding.days <= 0 && !boardroomLeakageRe().test(evidenceText) && !boardroomIsEev2UnestablishedExposure(finding)) {
+    issues.push("LEAKAGE_AND_OVERRUN finding lacks cited amount, days, or leakage/overrun signal.");
+  }'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('leakage verifier clause missing')
+
+          if text != original:
+              p.write_text(text)
+          PY
+      - name: Verify markers
+        run: |
+          grep -F 'function boardroomIsEev2UnestablishedExposure(finding)' apps-script/Code.gs
+          grep -F '!boardroomIsEev2UnestablishedExposure(finding)' apps-script/Code.gs
+      - name: Commit
+        run: |
+          if git diff --quiet -- apps-script/Code.gs; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps-script/Code.gs
+          git commit -m 'fix(eev2): allow unestablished exposure through verifier'
+          git push origin HEAD:eev2-001-structured-cost-extraction
