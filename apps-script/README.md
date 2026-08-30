@@ -10,6 +10,52 @@ automation. The form trigger copies accepted upload files from the Forms respons
 folder into a controlled project folder, runs deterministic evidence extraction
 where possible, writes report artifacts, sends email, and appends an audit row.
 
+## Constrovet Evidence Harness v1
+
+The repository contains the versioned EEV2 modules exported from the Apps Script
+TEST project and a local, zero-cost acceptance harness. The harness executes ten
+deterministic suites covering structured routing, cost exposure, delay, EOT,
+progress, cross-document reconciliation, executive schedule reporting, report
+rendering, and the live schedule bridge.
+
+Run locally or in GitHub Actions:
+
+```text
+npm run test:harness
+```
+
+The runner blocks and records any attempt to call Drive, MailApp, UrlFetchApp,
+PropertiesService, ScriptApp, or FormApp. A passing local result authorizes only
+controlled validation in the Apps Script TEST project. It never authorizes a
+production deployment.
+
+In the Apps Script TEST project, run:
+
+```javascript
+eev2RunEvidenceHarnessV1()
+```
+
+Proceed to the GOOD/BAD/NORMAL reference-document validation only when the
+returned `ok` value is `true`, all suites pass, and the release decision is
+`READY_FOR_CONTROLLED_TEST_PROJECT_VALIDATION`.
+
+For the controlled document gate, set `EEV2_ENVIRONMENT=TEST` and set
+`EEV2_TEST_JOB_ID` to the explicit TEST submission containing the three named
+reference PDFs. Keep both Gemini flags disabled, then run:
+
+```javascript
+eev2RunControlledTestReleaseGate()
+```
+
+This gate reads the three TEST files, validates citations, cost exposure,
+progress, observed delay events, EOT records, email rendering and audit-row
+presence, and writes one JSON result into that TEST job's outputs folder. It
+does not send email and can return only `READY_FOR_HUMAN_REVIEW`; it never
+authorizes production deployment.
+
+The selected development baseline and its relationship to the earlier
+`eev2-002-structured-schedule` branch are recorded in `EEV2_BASELINE.md`.
+
 ## Deploy
 
 1. Open `script.google.com` as `admin@constrovet.com`.
