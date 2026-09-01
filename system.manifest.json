@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "updated": "2026-09-01",
+  "purpose": "Single source of truth for the Constrovet system. Routes, services, denylists and known gaps are declared here and nowhere else. scripts/verify.mjs checks reality against this file. If a fact in a document contradicts this file, the document is wrong.",
+
+  "identity": {
+    "name": "Constrovet",
+    "domain": "www.constrovet.com",
+    "scope": "Construction cost, delay, ESG and financier-risk evidence review in India",
+    "public_repository": true
+  },
+
+  "deploy": {
+    "host": "github-pages",
+    "repo": "tcbhagat/constrovet-website",
+    "branch": "main",
+    "pages_source_dir": "/",
+    "rollback": "git revert; never rewrite public history during an incident"
+  },
+
+  "routes": [
+    { "path": "/",                                                  "file": "index.html",                                        "family": "construction", "topic": "home",              "index": true,  "sitemap": true,  "smoke": true,  "canonical": "https://www.constrovet.com/" },
+    { "path": "/demo",                                              "file": "demo.html",                                         "family": "construction", "topic": "demo",              "index": true,  "sitemap": true,  "smoke": true,  "canonical": "https://www.constrovet.com/demo" },
+    { "path": "/app/",                                              "file": "app/index.html",                                    "family": "construction", "topic": "app-launcher",      "index": true,  "sitemap": true,  "smoke": true,  "canonical": "https://www.constrovet.com/app/" },
+    { "path": "/boardroom/",                                        "file": "boardroom/index.html",                              "family": "construction", "topic": "boardroom-intake",  "index": true,  "sitemap": true,  "smoke": true,  "canonical": "https://www.constrovet.com/boardroom/" },
+    { "path": "/blog/",                                             "file": "blog/index.html",                                   "family": "construction", "topic": "blog-index",        "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/blog/" },
+    { "path": "/blog/boq-vs-actual-cost-overrun",                   "file": "blog/boq-vs-actual-cost-overrun.html",              "family": "construction", "topic": "blog-boq-actual",   "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/blog/boq-vs-actual-cost-overrun" },
+    { "path": "/blog/construction-carbon-audit-india",              "file": "blog/construction-carbon-audit-india.html",         "family": "construction", "topic": "blog-carbon",       "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/blog/construction-carbon-audit-india" },
+    { "path": "/blog/documents-needed-for-construction-cost-leakage-audit", "file": "blog/documents-needed-for-construction-cost-leakage-audit.html", "family": "construction", "topic": "blog-documents", "index": true, "sitemap": true, "smoke": false, "canonical": "https://www.constrovet.com/blog/documents-needed-for-construction-cost-leakage-audit" },
+
+    { "path": "/construction-cost-leakage-audit",                   "file": "construction-cost-leakage-audit.html",              "family": "construction", "topic": "cost-leakage-overrun", "index": true, "sitemap": true, "smoke": false, "canonical": "https://www.constrovet.com/construction-cost-leakage-audit", "primary_for_topic": true },
+    { "path": "/construction-esg-carbon-audit",                     "file": "construction-esg-carbon-audit.html",                "family": "construction", "topic": "esg-carbon",        "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/construction-esg-carbon-audit", "primary_for_topic": true },
+    { "path": "/construction-financier-risk-audit",                 "file": "construction-financier-risk-audit.html",            "family": "construction", "topic": "financier-diligence", "index": true, "sitemap": true, "smoke": false, "canonical": "https://www.constrovet.com/construction-financier-risk-audit", "primary_for_topic": true },
+    { "path": "/construction-project-recovery-plan",                "file": "construction-project-recovery-plan.html",           "family": "construction", "topic": "schedule-recovery", "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/construction-project-recovery-plan", "primary_for_topic": true },
+    { "path": "/schedule-delay-cost-impact",                        "file": "schedule-delay-cost-impact.html",                   "family": "construction", "topic": "delay-cost-impact", "index": true,  "sitemap": true,  "smoke": false, "canonical": "https://www.constrovet.com/schedule-delay-cost-impact", "primary_for_topic": true },
+
+    { "path": "/pages/solution.html",                               "file": "pages/solution.html",                               "family": "construction", "topic": "solution",          "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/how-it-works.html",                           "file": "pages/how-it-works.html",                           "family": "construction", "topic": "how-it-works",      "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/industries.html",                             "file": "pages/industries.html",                             "family": "construction", "topic": "industries",        "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/knowledge.html",                              "file": "pages/knowledge.html",                              "family": "construction", "topic": "knowledge",         "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/company.html",                                "file": "pages/company.html",                                "family": "construction", "topic": "company",           "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/team.html",                                   "file": "pages/team.html",                                   "family": "construction", "topic": "team",              "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/client.html",                                 "file": "pages/client.html",                                 "family": "construction", "topic": "client",            "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/contact.html",                                "file": "pages/contact.html",                                "family": "construction", "topic": "contact",           "index": true,  "sitemap": true,  "smoke": false },
+    { "path": "/pages/privacy.html",                                "file": "pages/privacy.html",                                "family": "construction", "topic": "privacy",           "index": true,  "sitemap": true,  "smoke": false },
+
+    { "path": "/pages/construction-cost-leakage-audit.html",        "file": "pages/construction-cost-leakage-audit.html",        "family": "construction", "topic": "cost-leakage-overrun", "index": false, "sitemap": false, "smoke": false, "consolidate_into": "/construction-cost-leakage-audit", "gap": "GAP-001" },
+    { "path": "/pages/construction-cost-overrun-analysis.html",     "file": "pages/construction-cost-overrun-analysis.html",     "family": "construction", "topic": "cost-leakage-overrun", "index": false, "sitemap": false, "smoke": false, "consolidate_into": "/construction-cost-leakage-audit", "gap": "GAP-001" },
+    { "path": "/pages/construction-esg-carbon-audit.html",          "file": "pages/construction-esg-carbon-audit.html",          "family": "construction", "topic": "esg-carbon",        "index": false, "sitemap": false, "smoke": false, "consolidate_into": "/construction-esg-carbon-audit", "gap": "GAP-001" },
+    { "path": "/pages/construction-due-diligence-financiers.html",  "file": "pages/construction-due-diligence-financiers.html",  "family": "construction", "topic": "financier-diligence", "index": false, "sitemap": false, "smoke": false, "consolidate_into": "/construction-financier-risk-audit", "gap": "GAP-001" },
+    { "path": "/pages/schedule-slippage-recovery.html",             "file": "pages/schedule-slippage-recovery.html",             "family": "construction", "topic": "schedule-recovery", "index": false, "sitemap": false, "smoke": false, "consolidate_into": "/construction-project-recovery-plan", "gap": "GAP-001" },
+
+    { "path": "/pages/challanse.html",                              "file": "pages/challanse.html",                              "family": "preserved-unlinked", "topic": "challanse",   "index": false, "sitemap": false, "smoke": false },
+    { "path": "/claim-companion/",                                  "file": "claim-companion/index.html",                        "family": "preserved-unlinked", "topic": "claim-companion", "index": false, "sitemap": false, "smoke": false },
+    { "path": "/ssm-core-demo/",                                    "file": "ssm-core-demo/index.html",                          "family": "preserved-unlinked", "topic": "ssm-core",    "index": false, "sitemap": false, "smoke": false }
+  ],
+
+  "discovery_surfaces": [
+    "index.html",
+    "assets/nav.html",
+    "assets/footer.html",
+    "pages/contact.html",
+    "sitemap.xml",
+    "llms.txt"
+  ],
+
+  "denylist": {
+    "reason": "Rule H4. These products are preserved but must never appear in construction discovery surfaces.",
+    "terms": [
+      "claim-companion",
+      "Claim Companion",
+      "Hospital Cost Estimate",
+      "ChallanSe",
+      "ssm-core-demo",
+      "CA Beta",
+      "CA statutory cockpit"
+    ]
+  },
+
+  "retired_infrastructure": {
+    "reason": "Rule H3. These must not appear on public entry pages.",
+    "patterns": ["app\\.constrovet\\.com", "prod-constrovet", "run\\.app"],
+    "checked_files": ["index.html", "demo.html", "app/index.html", "boardroom/index.html"]
+  },
+
+  "public_safety": {
+    "reason": "Rule H2. This repository is public.",
+    "forbidden_patterns_in_docs": ["/home/[a-z]", "AKfy[A-Za-z0-9_-]{30,}", "AIza[0-9A-Za-z_-]{20,}"],
+    "note": "Policy text naming these categories is fine. Actual values and real local paths are not."
+  },
+
+  "services": [
+    { "name": "GitHub Pages static site",        "status": "active",         "note": "Main public production path." },
+    { "name": "Browser Analyse (/app/)",         "status": "active",         "note": "No upload required. No cost. Explain limits plainly." },
+    { "name": "Boardroom intake (/boardroom/)",  "status": "active",         "note": "Routes qualified requests into the Workspace path." },
+    { "name": "Workspace Apps Script / Drive / MailApp", "status": "active", "note": "Free-tier processor. Role-owned storage only." },
+    { "name": "Public SEO files",                "status": "active",         "note": "sitemap, robots and llms.txt must match manifest routes." },
+    { "name": "Gemini evidence review",          "status": "approval-gated", "note": "Only after explicit user action. Deterministic citations stay authoritative." },
+    { "name": "EEV2 production deployment",      "status": "approval-gated", "note": "Rule H6. Locally stable, not production-approved." },
+    { "name": "Branded app subdomains, public APIs", "status": "approval-gated", "note": "Do not activate from documentation alone." },
+    { "name": "Claim Companion / ChallanSe / SSM Core routes", "status": "preserved-unlinked", "note": "Source retained. noindex. Never linked from construction surfaces." },
+    { "name": "Cloud Run, GCP paid backend, GCS, Cloud SQL, Firestore, paid monitoring", "status": "retired", "note": "Rule H3. Rollback reference only." },
+    { "name": "Public tunnels, hosted autonomous agents", "status": "retired", "note": "Rule H3." }
+  ],
+
+  "known_gaps": [
+    {
+      "id": "GAP-001",
+      "title": "Duplicate service pages compete for the same keywords",
+      "detail": "Five topics each have a root-level clean URL and a /pages/*.html twin. Both are indexed and self-canonicalise. This splits ranking signal and creates ambiguity about which file to edit.",
+      "intent": "Root clean URLs are primary. Each /pages/ twin gets noindex plus a canonical pointing at its primary, or is merged and removed from the sitemap.",
+      "severity": "high",
+      "opened": "2026-09-01",
+      "closes_when": "verify.mjs topic check passes with no pending entries"
+    },
+    {
+      "id": "GAP-002",
+      "title": "LOCAL_CONTENT_REFRESH_ROLLBACK.md contains a real local machine path",
+      "detail": "The file publishes an operator home directory and a stale local branch name in a public repository. It breaks Rule H2 and describes work that is finished.",
+      "intent": "Delete the file. Record the rollback approach as a DECISIONS entry instead.",
+      "severity": "medium",
+      "opened": "2026-09-01",
+      "closes_when": "file removed and public_safety check passes"
+    },
+    {
+      "id": "GAP-003",
+      "title": "README project structure is stale",
+      "detail": "The tree in README lists nine pages and omits blog, boardroom, tests, scripts, docs, android and the preserved products. An agent orienting from it forms a wrong model of the repo.",
+      "intent": "README stops describing structure. The manifest owns route truth.",
+      "severity": "medium",
+      "opened": "2026-09-01",
+      "closes_when": "README rewritten to point at AGENTS.md and the manifest"
+    },
+    {
+      "id": "GAP-004",
+      "title": "CI path filters leave gaps",
+      "detail": "Workflows only fire on listed paths. Edits to blog, docs, or root-level service pages run no gate at all.",
+      "intent": "Add a site-wide verify job that runs on every pull request with no path filter.",
+      "severity": "medium",
+      "opened": "2026-09-01",
+      "closes_when": "verify workflow runs unconditionally on pull_request"
+    },
+    {
+      "id": "GAP-006",
+      "title": "EDITING.md publishes a real local machine path",
+      "detail": "Found by the first verify.mjs run. The Local Ubuntu Workflow section names an operator home directory in a public repository. Breaks Rule H2.",
+      "intent": "EDITING.md merges into README. The local workflow uses a placeholder path.",
+      "severity": "high",
+      "opened": "2026-09-01",
+      "closes_when": "public_safety check reports zero failures"
+    },
+    {
+      "id": "GAP-005",
+      "title": "Seven overlapping SEO documents in docs/",
+      "detail": "seo-geo-audit, seo-geo-change-log, final-seo-geo-validation, geo-optimisation, SEO_LAUNCH_CHECKLIST, search-console-setup and content-calendar restate each other. Loading them costs context and produces contradictions.",
+      "intent": "Collapse to one policy document plus one append-only log. Move the rest to docs/archive/.",
+      "severity": "low",
+      "opened": "2026-09-01",
+      "closes_when": "docs/ contains a single active SEO policy file"
+    }
+  ]
+}

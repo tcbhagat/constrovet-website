@@ -1,0 +1,26 @@
+name: System Verify
+
+# No path filters. Every change to this repository runs this gate.
+# Closes GAP-004: path-filtered workflows left blog/, docs/ and root-level
+# service pages with no gate at all.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Manifest vs reality
+        run: npm run verify
+      - name: Deterministic tests
+        run: npm test
