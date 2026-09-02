@@ -1560,7 +1560,7 @@ function boardroomValueNear(lower, original, keywordRegex) {
 }
 
 function boardroomFirstAmount(text) {
-  const match = /(?:₹|INR|Rs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/i.exec(String(text || ""));
+  const match = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/i.exec(String(text || ""));
   if (!match) return 0;
   let value = Number(match[1].replace(/,/g, ""));
   const unit = (match[2] || "").toLowerCase();
@@ -1570,7 +1570,7 @@ function boardroomFirstAmount(text) {
 }
 
 function boardroomLastAmount(text) {
-  const regex = /(?:₹|INR|Rs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
+  const regex = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
   let match;
   let value = 0;
   while ((match = regex.exec(String(text || "")))) {

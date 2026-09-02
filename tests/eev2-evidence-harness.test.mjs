@@ -10,8 +10,8 @@ test("Constrovet Evidence Harness v1 passes every deterministic suite without ex
   assert.equal(result.mode, "TEST_ONLY");
   assert.equal(result.production_mutation_authorized, false);
   assert.equal(result.paid_service_required, false);
-  assert.equal(result.regression.suite_count, 10);
-  assert.equal(result.regression.pass_count, 10);
+  assert.equal(result.regression.suite_count, 11);
+  assert.equal(result.regression.pass_count, 11);
   assert.equal(result.regression.fail_count, 0);
   assert.equal(result.regression.pass_rate_pct, 100);
   assert.equal(result.regression.failed_suite_ids.length, 0);
