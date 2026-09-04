@@ -46,3 +46,31 @@ Hard stops
 ·Do not deploy or merge — that decision is the founder's alone.  
 ·Do not re-run initValidationErrorLog()-style one-time setup functions without explicit confirmation they haven't already run.  
 - ·Do not treat a prior AI agent's success claim as verified; re-check against the real artifact.  
+Delegation boundaries (added 2026-09-04 after the Version 12 gate wipe)  
+These are permanent. They exist because a deployment went live without being
+diffed against a freshly-confirmed live state, and silently removed 864 lines
+including the entire validation layer.  
+You may do autonomously, no check-in needed  
+·Reading code, including `clasp pull` and `clasp pull --versionNumber <n>` — these are reads.  
+·Writing and running tests locally or in a container; running regression suites.  
+·Producing diffs, inventories, and replays against real artifacts.  
+·Writing to SESSION_LOG.md.  
+·Flagging ambiguity, contradictions, or unverifiable claims.  
+You may propose but must wait for explicit written approval  
+·Any change to a file that will be pushed live.  
+·Any new regression suite becoming part of the release gate.  
+·Any wording change to CONTRACTS.md.  
+Only the founder may execute, ever  
+·`clasp login`, `clasp push`.  
+·Apps Script deployment or version changes (`create-version`, `update-deployment`).  
+·Anything altering the structure of the live Validation-Errors or Audit sheets.  
+·Any `init*` function.  
+Immediately escalate — do not attempt to fix quietly  
+·Any discovery that live code does not match what a prior session believed was live. This line exists because of the 2026-09-04 incident; treat it as a stop-and-report, not a thing to reconcile in passing.  
+Intake-path fact, established 2026-09-04 — do not re-derive  
+Real client submissions reach this project through the installable `onFormSubmit`
+trigger, which executes the script's current saved HEAD. Deployment version
+labels are irrelevant to real traffic. Therefore a deployment rollback does NOT
+restore code; only a change to HEAD does. Evidence: every report email in the
+Gmail history carries a `form-` job id minted solely inside
+`handleBoardroomFormSubmit`, and `doPost` rejects `form-` ids by regex.  

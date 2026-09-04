@@ -611,3 +611,489 @@ with the pipeline's own later `setContent` calls but was not separately confirme
 ---
 ## Session end: 2026-09-04 16:38
 
+
+
+---
+## Session 2026-09-04 — EEV2-004 / CHECK 5e post-deployment verification: BLOCKED
+
+**Scope:** verify what actually landed live after the founder deployed
+`boardroomTriggerOwnedAmount` + line-1497 and CHECK 5e. Read-only. **No code
+changed, no init/setup function run, no deployment or revert attempted.**
+
+**HEADLINE: the deployment could NOT be verified. `clasp` auth is dead, so no
+fresh pull was possible. Nothing below describes live code.**
+
+### Steps requested vs. what was possible
+
+| # | Task | Outcome |
+|---|---|---|
+| 1 | `clasp pull` into fresh scratch dir | **BLOCKED** — `{"error":"invalid_grant","error_description":"reauth related error (invalid_rapt)"}`. `clasp login` needs an interactive browser and hung until timeout; not retried. |
+| 2 | Locate live `boardroomTriggerOwnedAmount` / CHECK 5e | **BLOCKED** — depends on (1). Refused to substitute the repo or the 2026-09-03 pull, per explicit instruction and AGENTS.md guardrail #1. |
+| 3 | Diff live vs intended | **BLOCKED** — depends on (2). Intended side was read in full and is characterised below. |
+| 4 | Live Test A / Test B submissions | **NOT ATTEMPTED** — no capability to submit files to a Google Form (no browser automation), and the Drive/Gmail MCP connectors disconnected this session, so artifacts could not have been read back either. |
+| 5 | Confirm 4 Contract 1 artifacts by hand | **BLOCKED** — depends on (4). |
+| 6 | Does CHECK 5e cover the INR 454.16 blind spot? | **ANSWERED for the INTENDED fix** — see below. Not answerable for live. |
+| 7 | No init/setup functions | Complied. None run. |
+
+### CONTRADICTION — flagged, not resolved (AGENTS.md guardrail #5)
+
+The brief states CHECK 5e was deployed. The repo's own records say it was not:
+
+- `apps-script/EEV2_004_LIVE_CHECK5E.md:3` — `**Status: NOT APPLIED. Paste-ready. The founder holds deploy.**`
+- `SESSION_LOG.md:475` — "Paste-ready CHECK 5e for the LIVE `Code.js`. **Not applied.**"
+- `SESSION_LOG.md:484` — "CHECK 5e — second layer, founder-approved 2026-09-04, **NOT DEPLOYED**"
+
+Both cannot be true. Resolving this requires the pull. Until then the live state
+of CHECK 5e is **UNKNOWN — need a `clasp pull`**.
+
+### Verified — and how (INTENDED fix only; repo + paste-ready doc, NOT live)
+
+Sources: `apps-script/Code.gs` (committed `5f0645b`) for the extraction change;
+`apps-script/EEV2_004_LIVE_CHECK5E.md` for CHECK 5e. Both extracted verbatim and
+executed under node. Fixture text is the citation span quoted verbatim from the
+report email really delivered for job `form-20260902-135120-81f4fd27` —
+**email-sourced this session, not artifact-sourced**: the scratchpad holding
+yesterday's downloaded `browser-report.json` was cleared, and Drive MCP is
+disconnected, so the artifact could not be re-fetched.
+
+**Step 6 answer — the brief's premise is wrong. The intended fix covers the
+INR 454.16 case, at BOTH layers:**
+
+| Layer | Result |
+|---|---|
+| Extraction — `boardroomTriggerOwnedAmount` | returns **0** where `boardroomFirstAmount` returned `454.16`. The finding would carry no amount at all. |
+| Validation — CHECK 5e | if such a finding existed anyway: **1 error**, `UNOWNED_AMOUNT`, blocking (category is `LEAKAGE_AND_OVERRUN`). |
+
+Per-marker trace on the real PO span shows why: the 40-char label window before
+`Rs.454.16` is `"PO-5578-001Cement (OPC 53 Grade) 144 MT "` — no leakage term, so
+the figure is not owned by the "delay" trigger.
+
+**Control cases (extraction layer):**
+
+| Span | `boardroomFirstAmount` | `boardroomTriggerOwnedAmount` |
+|---|---|---|
+| Procurement boilerplate (the ₹3.45 cr risk flagged 2026-09-03) | 34,503,245.66 | **0** |
+| PO unit-rate table (INR 454.16 blind spot) | 454.16 | **0** |
+| **False-positive control** — genuine `NGT ... penalty of Rs. 25,00,000` | 2,500,000 | **2,500,000 preserved** |
+
+So the intended fix suppresses both fabricated/unowned figures while leaving a
+genuine penalty intact. **Open Item 7 would be closed by this fix — if it is
+actually live.**
+
+### NEW DEFECT FOUND in the intended fix — `ld` / `late` false ownership
+
+`boardroomLeakageRe` (`Code.gs:1551`) has no word boundaries. Previously logged
+as a latent false-*positive* source. Under EEV2-004 it becomes something worse:
+the same regex is now the **ownership test**, so an ordinary word in the label
+window can make an unrelated figure look owned — a false **negative** in the
+gate, the dangerous direction.
+
+13 of 14 ordinary construction terms tested match via substring:
+`Building`, `Scaffolding`, `Welding`, `Moulding`, `Cold storage`, `Field survey`,
+`Shield wall`, `Threshold`, `Weldment`, `Boulder soling` (all `"ld"`);
+`Shuttering plate`, `Insulated panel`, `Plate girder` (all `"late"`).
+Only `Bulkhead` did not match.
+
+Realistic spans, run through `boardroomTriggerOwnedAmount`:
+
+    "Shuttering plate hire for slab casting Rs.2,40,000 billed..."  -> 240000
+    "Cold storage civil works Rs.15,00,000 as per BOQ item 4.2"     -> 1500000
+    "Boulder soling works completed at plot boundary Rs.8,75,000"   -> 0 (window fell short)
+
+Two of three produce a figure claimed as `LEAKAGE_AND_OVERRUN` because a word
+contained `ld` or `late`. This weakens both the extraction fix and CHECK 5e,
+since both use this regex as the ownership predicate. **Not a reason to revert
+EEV2-004** — it is still a large net improvement — but it should be fixed with
+word boundaries and a regression fixture before Contract 4 is considered.
+
+### Discrepancies in the EEV2-004 documentation — flagged, unverifiable now
+
+- `EEV2_004_LIVE_CHECK5E.md:31-33` attributes "INR 12 × 8 / isValid=false, 16
+  errors" to job `form-20260902-152539-b6de1624`. The job measured at exactly 16
+  errors on 2026-09-03 was `form-20260902-135120-81f4fd27`. Two different IDs,
+  identical profile. Either two similar jobs exist or one ID is a transcription
+  error. Not resolvable without Drive.
+- The same doc cites job `form-20260902-184403-e5014284` as having emailed a
+  client an **INR 27,60,26,419** headline. That incident is larger than the one
+  this log has tracked and has never had its own Contract 1 check. It should get
+  one.
+
+### NOT verified this session
+
+- **Anything about live code.** No pull. The live state of
+  `boardroomTriggerOwnedAmount`, the line-1497/1506 call site, and CHECK 5e is
+  entirely UNKNOWN. Whether the founder's deployment matches the intended text —
+  the actual question asked — is unanswered.
+- Contract 1 and Contract 3 were **not** re-run. No live submission was made.
+  Contract 1 remains UNMET, exactly as CONTRACTS.md already states.
+- No Contract 1 artifact was inspected (no email, no `VALIDATION_FAILED.json`,
+  no sheet row) — Drive and Gmail connectors are down.
+- CHECK 5e was **not** executed inside Apps Script V8, only under node.
+- The EEV2-004 regression suite (`EEV2ProximityRegression.gs`) was not run, and
+  `eev2RunFullRegressionGate()` was not run — neither locally nor in the TEST
+  project. No pass/fail counts are claimed.
+- The `ld`/`late` finding is demonstrated on **constructed** spans that use real
+  construction vocabulary; it is not yet demonstrated on a real production
+  document.
+
+### Assumptions
+
+**Assumption E — the repo's committed `boardroomTriggerOwnedAmount` (5f0645b) is
+textually what the founder deployed.** Used only to characterise the *intended*
+fix; every conclusion above is labelled as intended-not-live.
+*Pro:* it is the only committed version, and the brief describes deploying "the
+line-1497 change", matching `Code.gs:1506`. *Con:* the brief also says the
+deployment was not diffed before going out, which is precisely the scenario where
+deployed text drifts from committed text. This assumption is why step 3 cannot be
+faked and was refused rather than estimated.
+
+**Assumption F — the email-quoted citation span equals the artifact's
+`quoted_span`.** *Pro:* on 2026-09-03 the same span, read from the real Drive
+artifact, produced results consistent with the email. *Con:* the email renders
+with soft line wrapping; a whitespace difference could shift the 40-character
+label window, which is load-bearing for every ownership result above. The
+Drive artifact is the authority and should be re-read when connectors return.
+
+### The single most important next test
+
+**Re-authenticate and pull, then diff — nothing else is worth doing first.**
+
+    clasp login                       # founder, interactive
+    # then, into a scratch dir only:
+    clasp pull
+    grep -n "boardroomTriggerOwnedAmount\|CHECK 5e\|UNOWNED_AMOUNT" Code.js
+
+Confirm three things: (a) `boardroomTriggerOwnedAmount` exists live and matches
+`Code.gs:1581-1600` character-for-character; (b) the leakage call site uses it,
+not `boardroomFirstAmount`; (c) CHECK 5e is present inside `validateReportOutput`
+immediately before `// CHECK 6`. Until that runs, the deployment is unverified
+and Contract 1 stays UNMET.
+
+---
+## Session end: 2026-09-04 16:51
+
+
+
+---
+## 2026-09-04 17:00 — INCIDENT: the deployment WIPED the live validation layer
+
+**Severity: production has no validation gate right now.** Verified by
+`clasp pull` at 2026-09-04 17:00 into a scratch dir. Read-only; nothing changed,
+reverted or redeployed.
+
+### What happened
+
+The deployment overwrote live `Code.js` with the repo's `apps-script/Code.gs`.
+`diff` reports **2 differing lines — a trailing newline and nothing else.**
+
+| | lines | bytes |
+|---|---|---|
+| live `Code.js` pulled 2026-09-03 | 5,876 | 278,015 |
+| **live `Code.js` pulled 2026-09-04 17:00** | **5,106** | **237,153** |
+| repo `apps-script/Code.gs` | 5,107 | 237,154 |
+
+**770 lines / ~41 KB of live-only code were destroyed.**
+
+### Confirmed present / absent in live, by grep
+
+**Live (EEV2-004 did land):**
+- `BOARDROOM_LABEL_WINDOW = 40` — `Code.js:9`
+- `boardroomTriggerOwnedAmount` — defined `Code.js:1581`, called `Code.js:1506`
+
+**ABSENT — the entire validation layer:**
+`validateReportOutput`, `logValidationError`, `initValidationErrorLog`,
+`heldForValidationFailureDelivery_`, `heldForExtractionFailureDelivery_`,
+`boardroomTechnicalExtractionFailures_`, `detectDocumentTemplate`,
+`VALIDATION_LOG_SHEET_ID`, `PASSED_VALIDATION`, `REVERTED_NOT_SENT`,
+`HELD_VALIDATION_FAILED`, `CHECK 5b`, `UNVERIFIED_AMOUNT`, `COUNT_READ_AS_AMOUNT`.
+
+**ABSENT — CHECK 5e was never applied**: no `UNOWNED_AMOUNT`, no
+`OWNERSHIP_RE_BY_CATEGORY`. The repo's own status line was correct all along;
+the brief's premise that it had been deployed was wrong.
+
+(The 2 remaining `CHECK 5c` hits at `Code.js:6` and `:1574` are comment prose
+inside the EEV2-004 block referring to a check that no longer exists live.)
+
+### The send path in live today
+
+    let emailDelivery = missingUserEmailDelivery(jobId);
+    if (isValidEmail(submitterEmail)) {
+      try {
+        emailDelivery = sendReportEmail(submitterEmail, jobId, report, ...);
+
+One guard: is the address well-formed. **The three-way branch is gone.** No
+`VALIDATION_FAILED.json` can be written, no `[VALIDATION FAILED]` alert can be
+sent, no row can reach `ConstroVet-Validation-Errors` — the sheet ID constant
+itself no longer exists in the deployed code. This is the pre-incident
+2026-09-02 architecture.
+
+### Contract status
+
+- **Contract 1 — CANNOT PASS.** Not "unmet pending a test": three of the four
+  required artifacts are now unproducible by construction.
+- **Contract 2 — CANNOT PASS.** No `PASSED_VALIDATION` row can be written.
+- **Contract 4 — launch gate hard closed.**
+
+### Partial mitigation (do not over-rely on it)
+
+EEV2-004 *is* live, and it suppresses the known fabrication classes at the
+extraction layer — replayed this session, `boardroomTriggerOwnedAmount` returns
+`0` for both the Procurement boilerplate (was ₹3.45 cr) and the PO unit-rate
+span (was ₹454.16), while preserving a genuine `penalty of Rs. 25,00,000`. So
+the specific defects that caused the original incident are blocked at source.
+
+But there is now **no backstop behind it**, and the `ld`/`late` word-boundary
+hole in `boardroomLeakageRe` (logged earlier today) lets ordinary construction
+vocabulary — `Building`, `Welding`, `Cold storage`, `Shuttering plate` — satisfy
+the ownership test. Anything EEV2-004 misses now goes straight to a client.
+
+### Recovery
+
+**No local copy of the lost code exists.** Yesterday's 5,876-line pull was in the
+session scratchpad, which has since been cleared; `find` across `/tmp` returns
+only today's 5,106-line pull. `validateReportOutput` survives in this repo only
+as prose in `CONTRACTS.md` / `SESSION_LOG.md` and as the CHECK 5e patch in
+`EEV2_004_LIVE_CHECK5E.md` — **not as a recoverable full function body.**
+
+The only restore source is **Apps Script's own version history** in the editor
+(File → Version history), which was never examined and is now the single most
+valuable artifact in the project. It should be opened before any further edit to
+the live project, because continued editing can age out or complicate the
+restore point.
+
+### NOT verified
+
+- Whether Apps Script version history actually retains a pre-deployment version
+  — not checked; no access from here.
+- When the overwrite happened, or whether any submission ran against the
+  gate-less code since. No job folders or sheet rows were inspected (Drive and
+  Gmail connectors are disconnected this session).
+- Whether the live `boardroomTriggerOwnedAmount` is character-identical to
+  `Code.gs:1581-1600` — the byte-level diff shows only the trailing newline
+  differing across the whole file, which implies identity, but the function was
+  not separately diffed.
+- No live submission was made; Contract 1 and Contract 3 were not re-run.
+
+### The single most important next action
+
+**Open Apps Script → File → Version history and confirm a pre-deployment version
+exists.** If it does, that is the restore path for the validation layer. Do not
+make further live edits until that check is done. Founder holds the decision;
+no revert was attempted from here.
+
+---
+## Session end: 2026-09-04 17:02
+
+
+
+---
+## 2026-09-04 19:00 — Phases 0-2: intake path resolved, V11 RECOVERED, no traffic lost
+
+Read AGENTS.md + CONTRACTS.md in full first. Read-only throughout. **No
+`clasp push`, no deploy, no version change, no `init*` function, no revert.**
+
+### PHASE 0 — ANSWERED: real traffic runs on the installable `onFormSubmit` trigger
+
+**One sentence:** every real submission reaches this project through the
+installable `onFormSubmit` trigger on the script, which executes the script's
+current saved HEAD, **not** through any Web App deployment.
+
+Evidence (all first-hand this session):
+
+1. **Traffic fingerprint.** Gmail, `subject:Constrovet newer_than:7d in:anywhere`
+   — ~201 matching threads, 29 inspected. **Every** report carries a `form-`
+   prefixed job id and `Mode: FORM_INTAKE_REPORT`. **Zero `cv-` jobs exist.**
+2. **`form-` ids are minted in exactly one place.** `Code.js:854`
+   `` return `form-${stamp}-${random}`; `` inside `makeBoardroomJobId`, called
+   only at `Code.js:167` inside `handleBoardroomFormSubmit`.
+3. **That function is reached only from the trigger.** `Code.js:157`
+   `function onFormSubmit(e) { return handleBoardroomFormSubmit(e); }`, and
+   `Code.js:578` `ScriptApp.newTrigger("onFormSubmit").forForm(form).onFormSubmit().create()`.
+4. **The Web App path cannot produce these jobs.** `doPost` → `validatePayload`
+   requires `job_id` matching `/^cv-[a-zA-Z0-9-]+$/`; a `form-` id throws
+   "Valid job_id is required." (Verified in the repo copy, which is currently
+   byte-identical to live — see below.)
+
+**Certainty: high on the mechanism.** Not verified directly: the Triggers panel
+and the Google Form's own settings are browser UI and were not opened, so a
+*second* trigger, or a Web App path that produces no email, cannot be excluded.
+Neither would change the conclusion for the traffic that actually generates
+client reports.
+
+**CONSEQUENCE — this is the load-bearing finding.** Installable triggers ignore
+deployment version labels and always run current HEAD. Therefore:
+- The wipe is live for real traffic **right now**. There is no "an older
+  deployment is still serving clients" cushion.
+- **Rolling back or re-pointing a deployment will NOT restore the gate.** The
+  fix must write code back to HEAD.
+
+### No traffic has been lost — two independent confirmations
+
+- Gmail: newest Constrovet report is `form-20260902-184403-e5014284`,
+  **2026-09-02 18:45:11Z**. Nothing on 09-03 or 09-04.
+- Drive: newest job folder is the same job, created **2026-09-02 18:44:04Z**.
+  A control query (same shape, no date bound) returns many 09-02 folders, so the
+  empty post-09-03 result is real, not a malformed query.
+
+**No submission has run since the wipe. No client report has gone out ungated.**
+
+### PHASE 1 — verified inventory of the real live path (HEAD, pulled 18:59)
+
+Live HEAD: **5,106 lines / 237,153 bytes**. Two independent pulls (17:00 and
+18:59) agree. Byte-identical to repo `apps-script/Code.gs` apart from a trailing
+newline.
+
+| Function | in real live path? | tested this session | result |
+|---|---|---|---|
+| `validateReportOutput` | **ABSENT** | n/a | gate cannot run |
+| `logValidationError` | **ABSENT** | n/a | no sheet row can be written |
+| `initValidationErrorLog` | **ABSENT** | not run (hard stop) | — |
+| `boardroomTriggerOwnedAmount` | PRESENT (1581) | yes, extracted from live | works as intended |
+| `boardroomFirstAmount` | PRESENT (1601) | yes | EEV2-003 fix present |
+| `boardroomLastAmount` | PRESENT (1611) | yes | EEV2-003 fix present |
+| `handleBoardroomFormSubmit` | PRESENT (165) | not executed | send guarded only by `isValidEmail` |
+| `doPost` | PRESENT (60) | not executed | not in the real traffic path |
+| `sendReportEmail` | PRESENT (4036) | not executed | reachable with no gate before it |
+| `onFormSubmit` | PRESENT (157) | not executed | delegates to the above |
+
+**Confirmed working:** EEV2-004 extraction. Live functions extracted and run:
+
+    Procurement boilerplate (was 3.45cr)   firstAmount 34503245.66 -> triggerOwned 0
+    PO unit-rate row (was 454.16)          firstAmount      454.16 -> triggerOwned 0
+    CONTROL genuine NGT penalty            firstAmount     2500000 -> triggerOwned 2500000
+
+**Confirmed broken:** the whole validation/blocking layer (absent).
+**Confirmed broken — `ld`/`late` false ownership, now demonstrated in LIVE code:**
+
+    Cold storage civil works Rs.15,00,000      -> triggerOwned 1500000
+    Shuttering plate hire ... Rs.2,40,000      -> triggerOwned  240000
+
+Both figures are claimed as LEAKAGE_AND_OVERRUN because an ordinary word
+contains `ld` / `late`. With no validation layer behind it, nothing catches this.
+
+**Unknown — could not verify:** whether a second trigger exists; whether any
+Web App deployment receives traffic; Apps Script quota/runtime behaviour.
+
+### PHASE 2 — Version 11 RECOVERED (read-only; no restore performed)
+
+`clasp list-versions` → 12 versions. **`clasp pull --versionNumber 11`** succeeded
+— this is a read and needed no founder action.
+
+**V11 `Code.js` = 5,876 lines / 278,015 bytes — byte-for-byte the size of the
+2026-09-03 pull.** V11 is what was live yesterday. Validation layer intact:
+`validateReportOutput`, `logValidationError`, `initValidationErrorLog`,
+`heldForValidationFailureDelivery_`, `VALIDATION_LOG_SHEET_ID`,
+`PASSED_VALIDATION`, `REVERTED_NOT_SENT`, `UNVERIFIED_AMOUNT`,
+`COUNT_READ_AS_AMOUNT` all present. EEV2-003 present (`:2186`, `:2196`).
+
+**Preserved locally** (the session scratchpad was wiped twice today, so this was
+not left there): `recovery-v11/Code.v11.js` and `recovery-v11/Code.v12-current-HEAD.js`,
+UNTRACKED in the repo working tree. sha256 of V11 begins `c049a91156fcb749`.
+Delete freely once recovery is done — they are evidence copies, not code changes.
+
+**Exactly what the deploy did:** 864 lines lost, 94 gained. 21 functions lost:
+`validateReportOutput`, `logValidationError`, `initValidationErrorLog`,
+`heldForValidationFailureDelivery_`, `heldForExtractionFailureDelivery_`,
+`boardroomTechnicalExtractionFailures_`, `detectDocumentTemplate`,
+`boardroomDisputedFigures_`, `boardroomRecomputedRateFindings_`,
+`boardroomRecomputeStatedRate_`, `boardroomParseRateContradiction_`,
+`boardroomCitationDisputeNote_`, `boardroomVariationOrderEvidence_`,
+`boardroomSignalStatement_`, `boardroomFindingStatementLines_`,
+`boardroomMatchedTerm_`, `boardroomTruncateWithNotice_`,
+`boardroomIsTransientDriveError_`, `claimBoardroomSubmission_`,
+`getBoardroomResponseId_`, `renderFindingStatementsEmailHtml`.
+**Exactly one function gained:** `boardroomTriggerOwnedAmount`.
+
+**CHECK 5e status — verified, not assumed: NOT DEPLOYED and never was.**
+`UNOWNED_AMOUNT` is absent from V11 *and* from V12. The repo's own
+"NOT APPLIED" status line was correct; the brief's premise was wrong.
+
+**Merge plan (proposal — founder executes):** start from `Code.v11.js`; apply the
+94 V12-only lines, i.e. `BOARDROOM_LABEL_WINDOW` (`:9`), the
+`boardroomTriggerOwnedAmount` body, and the single call-site change in the
+leakage branch; add word boundaries to `boardroomLeakageRe` in the same change,
+since it is the ownership predicate for the fix being restored and is
+demonstrably broken; decide CHECK 5e deliberately. Rollback = V12 is preserved
+and is also reproducible by `clasp pull --versionNumber 12`.
+
+### NOT verified this session
+
+- No live submission. Contract 1 and Contract 3 **not** re-run; Contract 1 stays
+  UNMET, and is currently **unpassable** (three of four artifacts unproducible).
+- Triggers panel and Form settings not inspected (browser UI).
+- V11 not diffed function-by-function against the 2026-09-03 pull beyond byte
+  count — the 2026-09-03 copy no longer exists to diff against.
+- `boardroomTriggerOwnedAmount` in live not character-diffed against
+  `Code.gs:1581`; whole-file diff shows only a trailing newline differing, which
+  implies identity.
+- The `ld`/`late` demonstration uses constructed spans with real construction
+  vocabulary, not a real production document.
+- Phases 3-5 of the master prompt (staging proposal, AGENTS.md delegation
+  section, ROADMAP.md) not yet written.
+
+### The single most important next action
+
+**Founder merges V11 + EEV2-004 + the `boardroomLeakageRe` word-boundary fix and
+pushes it to HEAD.** Not a deployment change — HEAD is what the trigger runs.
+Until then production has no gate. Nothing has been lost yet only because no
+submission has arrived since 2026-09-02 18:44; the next one is unprotected.
+
+---
+## Session end: 2026-09-04 19:01
+
+
+
+---
+## 2026-09-04 19:15 — Phases 3-5 delivered (documents only)
+
+Written this turn, no code and no live change:
+
+- **AGENTS.md** — appended a permanent "Delegation boundaries" section (Phase 4):
+  what an agent may do autonomously (reads, including
+  `clasp pull --versionNumber`), what needs written approval, what only the
+  founder may ever execute (`clasp login`, `clasp push`, version/deployment
+  changes, sheet-structure changes, any `init*`), and a stop-and-report rule for
+  any live/expected mismatch. Also records the intake-path fact permanently so it
+  is never re-derived: real traffic runs the `onFormSubmit` trigger on HEAD, so
+  **a deployment rollback does not restore code**.
+- **STAGING_PROPOSAL.md** (new, Phase 3) — proposal only, nothing built. Option A:
+  a separate Apps Script project with its own form, sheets and Drive root.
+  Option B ("second deployment of the same script") is recorded as **rejected** —
+  one HEAD, one trigger, no real isolation — so it is not re-proposed. Notes that
+  staging is the one sanctioned place to run `initValidationErrorLog()`, against
+  the staging sheet only.
+- **ROADMAP.md** (new, Phase 5) — goal, sequencing rule, and 7 milestones each
+  with a pass/fail test. **Active milestone recorded as 2.** Milestone 1 marked
+  DONE with its evidence. Milestone 3 (`ld`/`late`) is deliberately folded into
+  milestone 2's push rather than left as a follow-up, because the same regex is
+  the ownership predicate for the fix being restored. Milestone 7 adds the
+  scheduled gate self-check the master prompt flagged as a gap.
+
+### NOT verified
+
+- These are documents; nothing in them has been executed or tested.
+- Milestone 2 remains untouched: production still has no validation layer.
+  Contract 1 is still unpassable, and no live submission has been made.
+- The staging proposal's setup steps have not been trialled; effort and the
+  Advanced Drive service requirement are read off `apps-script/README.md`, not
+  confirmed by building it.
+
+### Working-tree state at end of session
+
+Modified: `AGENTS.md`, `SESSION_LOG.md`.
+New, untracked: `ROADMAP.md`, `STAGING_PROPOSAL.md`, `recovery-v11/`.
+Nothing committed, nothing pushed, nothing deployed — founder holds all of that.
+
+### Next action, unchanged from 19:00
+
+Merge V11 + EEV2-004 + the `boardroomLeakageRe` word-boundary fix and push to
+**HEAD**. That is milestone 2, and it is the only thing standing between
+production and the next unprotected submission.
+
+---
+## Session end: 2026-09-04 19:10
+
+
+---
+## Session end: 2026-09-04 19:13
+
