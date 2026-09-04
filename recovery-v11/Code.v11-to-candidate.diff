@@ -1,0 +1,170 @@
+--- recovery-v11/Code.v11.js	2026-09-04 19:00:20.456369309 +0530
++++ recovery-v11/Code.merged-candidate.js	2026-09-04 22:18:30.588473976 +0530
+@@ -2,6 +2,11 @@
+ const CONSTROVET_PROJECTS_FOLDER = "projects";
+ const MAX_FILES = 3;
+ const MAX_FILE_BYTES = 10 * 1024 * 1024;
++// EEV2-004: characters of text before a currency marker that count as that
++// figure's label region. Matches the 40-char preceding window live CHECK 5c
++// (COUNT_PHRASES) already uses, so both layers agree on what "immediately
++// preceded by" means.
++const BOARDROOM_LABEL_WINDOW = 40;
+ const BOARDROOM_MAX_FILES = 10;
+ const BOARDROOM_DEEP_ANALYSIS_MAX_FILES = 3;
+ const DAILY_EMAIL_LIMIT = 5;
+@@ -9,6 +14,14 @@
+ const DEFAULT_BOARDROOM_NOTIFY_EMAIL = "admin@constrovet.com";
+ const BOARDROOM_ADMIN_CC_PROPERTY = "BOARDROOM_CC_ADMIN";
+ const BOARDROOM_LAST_JOB_PROPERTY = "BOARDROOM_LAST_JOB_ID";
++// ROADMAP.md Milestone 7 circuit-breaker (2026-09-04, six-lens audit). A second,
++// independent load path that does not depend on anyone reading an alert email:
++// when boardroomGateHealthCheck() finds the validation layer missing or
++// unexercised, it sets this property to "FAILED", and sendReportEmail refuses
++// to send while it is set -- regardless of which of its 5 call sites is used.
++// Cleared only by boardroomClearGateHealthKillSwitch_(), run manually by a
++// human after the underlying problem is confirmed fixed. Never auto-clears.
++const GATE_HEALTH_PROPERTY = "GATE_HEALTH";
+ const BOARDROOM_LIVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ/exec";
+ const REPORT_EXECUTIVE_ACTION_PLAN = "EXECUTIVE_ACTION_PLAN";
+ const REPORT_EVIDENCE_INTAKE_EXCEPTION = "EVIDENCE_INTAKE_EXCEPTION";
+@@ -438,6 +451,79 @@
+   ]);
+ }
+ 
++// ROADMAP.md Milestone 7 (2026-09-04, six-lens audit). Run this on a time-based
++// trigger (recommend every 15-30 minutes, not daily -- see ROADMAP.md's
++// Milestone 7 note on why the check interval is the real design variable).
++// Detects two distinct failure modes, either of which halts sending:
++//   1. Presence: the validation-layer functions this deployment depends on
++//      are missing (typeof check, not existence-by-inference -- see AGENTS.md
++//      guardrail #6, real schemas only).
++//   2. Invocation: the validation layer is present but was not actually
++//      exercised on the most recent real job -- present-but-bypassed is the
++//      same client-facing risk as absent.
++// Idle periods (no job since the last check) never trigger a false alarm --
++// there is nothing to check invocation against, so only presence is checked.
++function boardroomGateHealthCheck() {
++  const props = PropertiesService.getScriptProperties();
++  const reasons = [];
++
++  if (typeof validateReportOutput !== "function") reasons.push("validateReportOutput is missing from this deployment.");
++  if (typeof logValidationError !== "function") reasons.push("logValidationError is missing from this deployment.");
++  if (typeof heldForValidationFailureDelivery_ !== "function") reasons.push("heldForValidationFailureDelivery_ is missing from this deployment.");
++  if (typeof heldForExtractionFailureDelivery_ !== "function") reasons.push("heldForExtractionFailureDelivery_ is missing from this deployment.");
++  if (typeof boardroomTechnicalExtractionFailures_ !== "function") reasons.push("boardroomTechnicalExtractionFailures_ is missing from this deployment.");
++
++  if (!reasons.length) {
++    const lastJobId = String(props.getProperty(BOARDROOM_LAST_JOB_PROPERTY) || "").trim();
++    if (lastJobId) {
++      try {
++        const sheet = SpreadsheetApp.openById(VALIDATION_LOG_SHEET_ID).getSheetByName("validation-errors");
++        // Positional columns match logValidationError's own appendRow order
++        // exactly (timestamp=0, job_id=1) -- not a header-text lookup, so a
++        // renamed header cell cannot silently break this check.
++        const data = sheet.getDataRange().getValues();
++        let found = false;
++        for (let i = data.length - 1; i >= 1; i--) {
++          if (String(data[i][1]) === lastJobId) { found = true; break; }
++        }
++        if (!found) {
++          reasons.push("Most recent job " + lastJobId + " has no row on the validation-errors sheet -- the gate may not have been invoked.");
++        }
++      } catch (sheetError) {
++        reasons.push("Could not read the validation-errors sheet to confirm invocation: " + sheetError.message);
++      }
++    }
++  }
++
++  if (reasons.length) {
++    props.setProperty(GATE_HEALTH_PROPERTY, "FAILED");
++    try {
++      MailApp.sendEmail(
++        VALIDATION_ALERT_EMAIL,
++        "[GATE HEALTH FAILED] Constrovet validation layer",
++        "The scheduled gate health check found a problem and has HALTED all outbound " +
++        "client reports until this is cleared.\n\n" +
++        "Reasons:\n  " + reasons.join("\n  ") + "\n\n" +
++        "Run boardroomClearGateHealthKillSwitch_() from the Apps Script editor only " +
++        "after the underlying problem is fixed and re-verified -- this does not clear itself."
++      );
++    } catch (mailError) {
++      Logger.log("Gate health alert email failed: " + mailError);
++    }
++  }
++
++  return { ok: reasons.length === 0, reasons: reasons };
++}
++
++// MANUAL ONLY (AGENTS.md hard stop: any live-state-clearing action is founder-
++// only). Never call this from a trigger or from boardroomGateHealthCheck itself
++// -- run it from the Apps Script editor, by a human, only after confirming the
++// underlying gate-health problem is actually fixed and re-verified.
++function boardroomClearGateHealthKillSwitch_() {
++  PropertiesService.getScriptProperties().deleteProperty(GATE_HEALTH_PROPERTY);
++  Logger.log("GATE_HEALTH kill-switch cleared manually at " + new Date().toISOString());
++}
++
+ /**
+  * Derive a document-family label from the source filenames so repeated
+  * failures from one boilerplate template can be grouped in review.
+@@ -2004,7 +2090,11 @@
+       findings.push(boardroomFinding(`Actual exceeds budget by INR ${formatInr(actual - budget)}.`, "LEAKAGE_AND_OVERRUN", actual - budget, 0, file, pageOrSheet, span, budget, actual, actual - budget, "HIGH"));
+     }
+     if (boardroomLeakageRe().test(lower)) {
+-      const amount = boardroomFirstAmount(span) || Math.max(actual || 0, 0);
++      // EEV2-004: was boardroomFirstAmount(span), which scanned from character 0
++      // and let a trigger term claim any figure in the span regardless of which
++      // label owned it. No fallback to `actual` here: when no figure is owned by
++      // the trigger the finding reports 0 and keeps its narrative and days.
++      const amount = boardroomTriggerOwnedAmount(span, boardroomLeakageRe());
+       const days = boardroomFirstDays(span);
+       findings.push(boardroomFinding(boardroomSignalStatement_("LEAKAGE", span, amount, days), "LEAKAGE_AND_OVERRUN", amount, days, file, pageOrSheet, span, budget || 0, actual || 0, actual && budget ? actual - budget : 0, amount || days ? "MEDIUM" : "LOW"));
+     } else if (boardroomEsgRe().test(lower)) {
+@@ -2162,7 +2252,32 @@
+   // \bld\b, not bare "ld" -- see boardroomConstructionSignalRe() for why: the unbounded form
+   // matched inside "cold", "Welding", etc. and fabricated cited leakage amounts from unrelated
+   // nearby figures. Confirmed on real production documents 1 Sept 2026.
+-  return /overrun|cost variance|actual exceeds|spent more|\bld\b|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|late|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
++  // \blate\b, not bare "late" -- ROADMAP.md Milestone 3 fix, 2026-09-04. Bare "late" matched
++  // inside "plate", "template", "escalated", "calculate", "translate", "relate", "inflate" --
++  // confirmed via a 30-word construction-vocabulary sweep against real production spans
++  // ("Shuttering plate hire Rs.2,40,000" was fabricated as leakage this way). Standalone
++  // "late" (e.g. "late fee waiver") still correctly matches -- only the substring form is fixed.
++  return /overrun|cost variance|actual exceeds|spent more|\bld\b|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|\blate\b|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
++}
++
++function boardroomTriggerOwnedAmount(text, keywordRegex) {
++  const source = String(text || "");
++  const currency = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
++  const trigger = new RegExp(keywordRegex.source, "i");
++  let match;
++  let previousEnd = 0;
++  while ((match = currency.exec(source))) {
++    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW);
++    const labelRegion = source.slice(labelStart, match.index);
++    previousEnd = match.index + match[0].length;
++    if (!trigger.test(labelRegion)) continue;
++    let value = Number(match[1].replace(/,/g, ""));
++    const unit = (match[2] || "").toLowerCase();
++    if (unit === "crore" || unit === "cr") value *= 10000000;
++    if (unit === "lakh" || unit === "lac") value *= 100000;
++    return value;
++  }
++  return 0;
+ }
+ 
+ function boardroomEsgRe() {
+@@ -4698,6 +4813,13 @@
+ }
+ 
+ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
++  if (PropertiesService.getScriptProperties().getProperty(GATE_HEALTH_PROPERTY) === "FAILED") {
++    throw new Error(
++      "GATE_HEALTH_FAILED: automated sending is halted because boardroomGateHealthCheck() " +
++      "found a problem with the validation layer. See the [GATE HEALTH FAILED] alert email. " +
++      "Run boardroomClearGateHealthKillSwitch_() manually after the problem is fixed."
++    );
++  }
+   if (!isValidEmail(email)) throw new Error("Valid user email is required before sending the executive report.");
+   const recipient = String(email).trim();
+   const cc = boardroomAdminCc(recipient);
