@@ -2,6 +2,11 @@ const CONSTROVET_ROOT_FOLDER = "Constrovet";
 const CONSTROVET_PROJECTS_FOLDER = "projects";
 const MAX_FILES = 3;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// EEV2-004: characters of text before a currency marker that count as that
+// figure's label region. Matches the 40-char preceding window live CHECK 5c
+// (COUNT_PHRASES) already uses, so both layers agree on what "immediately
+// preceded by" means.
+const BOARDROOM_LABEL_WINDOW = 40;
 const BOARDROOM_MAX_FILES = 10;
 const BOARDROOM_DEEP_ANALYSIS_MAX_FILES = 3;
 const DAILY_EMAIL_LIMIT = 5;
@@ -1494,7 +1499,11 @@ function extractBoardroomFindings(file, pageOrSheet, text, page) {
       findings.push(boardroomFinding(`Actual exceeds budget by INR ${formatInr(actual - budget)}.`, "LEAKAGE_AND_OVERRUN", actual - budget, 0, file, pageOrSheet, span, budget, actual, actual - budget, "HIGH"));
     }
     if (boardroomLeakageRe().test(lower)) {
-      const amount = boardroomFirstAmount(span) || Math.max(actual || 0, 0);
+      // EEV2-004: was boardroomFirstAmount(span), which scanned from character 0
+      // and let a trigger term claim any figure in the span regardless of which
+      // label owned it. No fallback to `actual` here: when no figure is owned by
+      // the trigger the finding reports 0 and keeps its narrative and days.
+      const amount = boardroomTriggerOwnedAmount(span, boardroomLeakageRe());
       const days = boardroomFirstDays(span);
       findings.push(boardroomFinding(`Potential leakage or overrun signal: ${boardroomShortStatement(span)}`, "LEAKAGE_AND_OVERRUN", amount, days, file, pageOrSheet, span, budget || 0, actual || 0, actual && budget ? actual - budget : 0, amount || days ? "MEDIUM" : "LOW"));
     } else if (boardroomEsgRe().test(lower)) {
@@ -1557,6 +1566,36 @@ function boardroomValueNear(lower, original, keywordRegex) {
   const before = text.slice(Math.max(0, match.index - 90), match.index);
   const beforeAmount = boardroomLastAmount(before);
   return beforeAmount || null;
+}
+
+// EEV2-004: a trigger term may only claim a currency figure that its own label
+// region owns. The label region is the text immediately preceding the currency
+// marker, bounded by the previous figure and capped at 40 characters -- the same
+// 40-character preceding window live CHECK 5c already uses for COUNT_PHRASES.
+//
+// Proximity alone cannot separate these cases and must not be re-proposed:
+// on real production spans the FABRICATED figure sits 15 characters BEFORE its
+// trigger ("Total Procurement Value Rs.34503245.66 Delayed POs"), while a
+// GENUINE one sits 107 characters after it ("...penalty of Rs. 25,00,000").
+// No distance threshold satisfies both. Ownership does.
+function boardroomTriggerOwnedAmount(text, keywordRegex) {
+  const source = String(text || "");
+  const currency = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
+  const trigger = new RegExp(keywordRegex.source, "i");
+  let match;
+  let previousEnd = 0;
+  while ((match = currency.exec(source))) {
+    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW);
+    const labelRegion = source.slice(labelStart, match.index);
+    previousEnd = match.index + match[0].length;
+    if (!trigger.test(labelRegion)) continue;
+    let value = Number(match[1].replace(/,/g, ""));
+    const unit = (match[2] || "").toLowerCase();
+    if (unit === "crore" || unit === "cr") value *= 10000000;
+    if (unit === "lakh" || unit === "lac") value *= 100000;
+    return value;
+  }
+  return 0;
 }
 
 function boardroomFirstAmount(text) {

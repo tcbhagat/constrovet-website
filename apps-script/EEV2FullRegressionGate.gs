@@ -14,7 +14,8 @@ function eev2RunFullRegressionGate() {
     { id: "EEV2-002E-RENDER", name: "Schedule report rendering", fn: "eev2RunScheduleReportRenderingRegression" },
     { id: "EEV2-002E-LIVE-BRIDGE", name: "Live schedule bridge", fn: "eev2RunLiveScheduleBridgeRegression" },
     { id: "EEV2-002F-ROUTING", name: "Structured cost, delay and progress routing", fn: "eev2RunStructuredRoutingRegression" },
-    { id: "EEV2-003", name: "Amount extraction word-boundary fabrication guard", fn: "eev2RunAmountFabricationRegression" }
+    { id: "EEV2-003", name: "Amount extraction word-boundary fabrication guard", fn: "eev2RunAmountFabricationRegression" },
+    { id: "EEV2-004", name: "Trigger-term label ownership guard", fn: "eev2RunProximityRegression" }
   ];
 
   const results = [];
@@ -104,7 +105,8 @@ function eev2ResolveRegressionFunction(name) {
     eev2RunExecutiveScheduleReportingRegression: typeof eev2RunExecutiveScheduleReportingRegression === "function" ? eev2RunExecutiveScheduleReportingRegression : null,
     eev2RunScheduleReportRenderingRegression: typeof eev2RunScheduleReportRenderingRegression === "function" ? eev2RunScheduleReportRenderingRegression : null,
     eev2RunLiveScheduleBridgeRegression: typeof eev2RunLiveScheduleBridgeRegression === "function" ? eev2RunLiveScheduleBridgeRegression : null,
-    eev2RunAmountFabricationRegression: typeof eev2RunAmountFabricationRegression === "function" ? eev2RunAmountFabricationRegression : null
+    eev2RunAmountFabricationRegression: typeof eev2RunAmountFabricationRegression === "function" ? eev2RunAmountFabricationRegression : null,
+    eev2RunProximityRegression: typeof eev2RunProximityRegression === "function" ? eev2RunProximityRegression : null
   };
   return registry[name] || null;
 }
