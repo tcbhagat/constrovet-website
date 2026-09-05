@@ -75,3 +75,34 @@ labels are irrelevant to real traffic. Therefore a deployment rollback does NOT
 restore code; only a change to HEAD does. Evidence: every report email in the
 Gmail history carries a `form-` job id minted solely inside
 `handleBoardroomFormSubmit`, and `doPost` rejects `form-` ids by regex.  
+
+Session-start context (automatic) — added 2026-09-05  
+Every time a Claude Code session opens in this project, a script
+(`scripts/session-context.sh`) now runs automatically and prints a short
+snapshot before any work begins: the last 8 git commits, whether anything is
+currently uncommitted, whether this computer's copy of the code is ahead of
+or behind the copy on GitHub, and whether the live Apps Script project's file
+list matches what's expected — all without changing anything.
+
+Why this exists: this project has already lost real time, more than once, to
+a session acting on a belief about "what's live" or "what's current" that
+turned out to be wrong the moment someone actually checked — the 2026-09-04
+gate wipe being the costliest example, but not the only one. A five-second
+automatic printout at the start of every session is cheap insurance against
+exactly that mistake happening again.
+
+Known limitation — read this before trusting the Apps Script part of the
+printout: the Apps Script status check depends on a login credential
+(`clasp`) that expires on its own from time to time, and only the founder can
+renew it (`clasp login` — see Delegation boundaries above). When that
+credential has expired, the script says so plainly instead of guessing or
+staying silent. **Before treating that section of the output as "everything
+is fine," check that it isn't empty or showing a "credentials expired"
+message** — an empty or missing Apps Script section means that check simply
+did not run, not that Apps Script itself is fine.
+
+What this deliberately does NOT include: anything from GitHub about open
+pull requests or issues. That was left out on purpose to keep the printout
+short and focused on the two things that have actually caused incidents
+here (git drift and Apps Script drift). If PR or issue status is ever
+needed, ask for it directly in that session.
