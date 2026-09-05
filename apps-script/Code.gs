@@ -14,6 +14,14 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_BOARDROOM_NOTIFY_EMAIL = "admin@constrovet.com";
 const BOARDROOM_ADMIN_CC_PROPERTY = "BOARDROOM_CC_ADMIN";
 const BOARDROOM_LAST_JOB_PROPERTY = "BOARDROOM_LAST_JOB_ID";
+// ROADMAP.md Milestone 7 circuit-breaker (2026-09-04, six-lens audit). A second,
+// independent load path that does not depend on anyone reading an alert email:
+// when boardroomGateHealthCheck() finds the validation layer missing or
+// unexercised, it sets this property to "FAILED", and sendReportEmail refuses
+// to send while it is set -- regardless of which of its 5 call sites is used.
+// Cleared only by boardroomClearGateHealthKillSwitch_(), run manually by a
+// human after the underlying problem is confirmed fixed. Never auto-clears.
+const GATE_HEALTH_PROPERTY = "GATE_HEALTH";
 const BOARDROOM_LIVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ/exec";
 const REPORT_EXECUTIVE_ACTION_PLAN = "EXECUTIVE_ACTION_PLAN";
 const REPORT_EVIDENCE_INTAKE_EXCEPTION = "EVIDENCE_INTAKE_EXCEPTION";
@@ -57,6 +65,28 @@ function doGet(e) {
   }
 }
 
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+
+// Your ConstroVet-Validation-Errors spreadsheet.
+// If you ever move or recreate that sheet, change this one line.
+const VALIDATION_LOG_SHEET_ID = "1htvKzTTPma9c4n2UjgzN28Eq9sPDJFjJ5qwoTU3n98U";
+
+// Where validation-failure alerts go for the FORM-TRIGGER path
+// (handleBoardroomFormSubmit). Session.getActiveUser().getEmail() often
+// returns "" inside a trigger, so this is set explicitly rather than relying
+// on the active user, matching the doPost path's use of GmailApp with the
+// deploying user's own address.
+const VALIDATION_ALERT_EMAIL = "bhagat.taran@gmail.com";
+
+/* ============================================================
+   CORRECTED doPost — validation inserted ONCE, right after
+   buildReport(), before any file writes or email send.
+   Replace your entire doPost function with this.
+   ============================================================ */
+
 function doPost(e) {
   try {
     const payload = parseRequest(e);
@@ -81,6 +111,44 @@ function doPost(e) {
     }));
     const verifierResult = payload.mode === "DEEP_ANALYSIS" ? runGeminiVerifier(browserReport) : fallbackVerifier(browserReport);
     const report = buildReport(payload, browserReport, verifierResult, savedFiles);
+
+    // *** VALIDATION LAYER (PHASE 1) — runs ONCE, right after buildReport() ***
+    const validationResult = validateReportOutput(report, browserReport);
+    if (!validationResult.isValid) {
+      logValidationError(payload.job_id, validationResult, browserReport);
+
+      const failedFile = folders.outputs.createFile(
+        `${payload.job_id}-VALIDATION_FAILED.json`,
+        JSON.stringify({ report: report, browser_report: browserReport, validation: validationResult }, null, 2),
+        MimeType.PLAIN_TEXT
+      );
+
+      GmailApp.sendEmail(
+        Session.getActiveUser().getEmail(),
+        `[VALIDATION FAILED] Constrovet Job ${payload.job_id}`,
+        `Report for job ${payload.job_id} FAILED validation and was NOT sent to the client.\n\n` +
+        `Errors:\n${validationResult.errors.join("\n")}\n\n` +
+        `Warnings:\n${validationResult.warnings.join("\n")}\n\n` +
+        `Debug file: ${failedFile.getUrl()}\n` +
+        `Job folder: ${folders.job.getUrl()}`
+      );
+
+      writeJobState(folders, newJobState(payload.job_id, "VALIDATION_FAILED", {
+        mode: payload.mode,
+        email: payload.email,
+        error_count: validationResult.errors.length
+      }));
+
+      return jsonResponse({
+        ok: false,
+        job_id: payload.job_id,
+        error: `Validation failed: ${validationResult.errors[0]}`,
+        validation_errors: validationResult.errors,
+        validation_warnings: validationResult.warnings,
+        message: "Report failed quality checks. Not sent to client. Admin notified."
+      });
+    }
+    // *** END VALIDATION LAYER ***
 
     const accessKey = makeResultAccessKey();
     report.result_access_key = accessKey;
@@ -154,6 +222,330 @@ function doPost(e) {
   }
 }
 
+/* ============================================================
+   CORRECTED validateReportOutput — matches your REAL schema
+   (financial_category, amount_inr, evidence_quality, calculation,
+   citations), verified against 3 real production reports.
+   Replace your old validateReportOutput with this one.
+   ============================================================ */
+
+function validateReportOutput(report, browserReport) {
+  const errors = [];
+  const warnings = [];
+  const findings = browserReport.findings || [];
+
+  // CHECK 1: Finding count.
+  // Zero findings is only valid when the system explicitly says
+  // "nothing was found" (EVIDENCE_INTAKE_EXCEPTION). If it claims
+  // analysis_generated=true but produced no findings, that's a bug.
+  if (findings.length === 0 && browserReport.analysis_generated === true) {
+    errors.push("FINDING_COUNT_ZERO: analysis_generated=true but no findings were produced");
+  }
+
+  // CHECK 2: Allowed categories only (catches mislabeled findings).
+  const ALLOWED_CATEGORIES = ["LEAKAGE_AND_OVERRUN", "BASELINE_BUDGET", "ESG_METRIC"];
+  findings.forEach((f, idx) => {
+    if (f.financial_category && ALLOWED_CATEGORIES.indexOf(f.financial_category) === -1) {
+      errors.push(`UNKNOWN_CATEGORY: Finding ${idx} has category "${f.financial_category}"`);
+    }
+  });
+
+  // CHECK 3: Math check — Actual - Budget must equal difference (±₹1).
+  findings.forEach((f, idx) => {
+    const calc = f.calculation || {};
+    if (calc.budget > 0 && calc.actual > 0) {
+      const expected = calc.actual - calc.budget;
+      const divergence = Math.abs(expected - (calc.difference || 0));
+      if (divergence > 1) {
+        errors.push(`MATH_MISMATCH: Finding ${idx} — Actual(${calc.actual}) - Budget(${calc.budget}) = ${expected}, but difference is ${calc.difference}`);
+      }
+    }
+  });
+
+  // CHECK 4: Evidence-quality-to-value consistency.
+  // If evidence_quality claims a specific figure type, that figure must
+  // actually be present. (A narrative-only watchlist signal with 0/0
+  // is fine — that's a real, valid "needs follow-up" state, NOT an error.)
+  findings.forEach((f, idx) => {
+    if (f.evidence_quality === "CITED_DAYS" && !(f.days > 0)) {
+      errors.push(`MISSING_DAYS: Finding ${idx} marked CITED_DAYS but days=${f.days}`);
+    }
+    if ((f.evidence_quality === "CITED_AMOUNT" || f.evidence_quality === "STRUCTURED_ACTUAL_BUDGET") && !(f.amount_inr > 0)) {
+      errors.push(`MISSING_AMOUNT: Finding ${idx} marked ${f.evidence_quality} but amount_inr=${f.amount_inr}`);
+    }
+  });
+
+  // CHECK 5: Fabricated leakage — a LEAKAGE_AND_OVERRUN finding whose only
+  // support is a bare keyword hit (CITED_NARRATIVE) must NOT carry a
+  // nonzero amount unless that amount also has a calculation backing it.
+  findings.forEach((f, idx) => {
+    if (f.financial_category === "LEAKAGE_AND_OVERRUN" &&
+        f.evidence_quality === "CITED_NARRATIVE" &&
+        f.amount_inr > 0) {
+      errors.push(`FABRICATED_LEAKAGE: Finding ${idx} is narrative-only evidence but claims INR ${f.amount_inr}`);
+    }
+  });
+
+  // CHECK 5b: THE CLIENT-FACING ONE. Any amount a finding claims must
+  // actually appear as a currency figure in that finding's own citation
+  // text. This is the check that stops fabricated rupee figures reaching
+  // a client's board pack. Observed real failures it catches:
+  //   - "penalty ... INR 6"   <- was "≥6/month" HSE inspection target
+  //   - "INR 12" x7 findings  <- was "Total Purchase Orders 12"
+  //   - "INR 120"             <- was skilled-worker headcount 120
+  //   - "INR 8"               <- was clock time "08:00"
+  //   - "INR 21"              <- was "Total Change Orders 21"
+  // Applies to ALL categories, not just leakage: an ESG or variation-order
+  // finding with a wrong rupee figure still goes out to the client as fact.
+  findings.forEach((f, idx) => {
+    if (!(f.amount_inr > 0)) return;
+    // Exemption: a STRUCTURED_ACTUAL_BUDGET amount is a *computed*
+    // difference (Actual - Budget). It legitimately never appears
+    // verbatim in the source text, so verify the inputs instead —
+    // CHECK 3 already re-does that arithmetic.
+    const calc = f.calculation || {};
+    if (f.evidence_quality === "STRUCTURED_ACTUAL_BUDGET" &&
+        calc.budget > 0 && calc.actual > 0 &&
+        Math.abs((calc.actual - calc.budget) - f.amount_inr) <= 1) {
+      return;
+    }
+    const cites = f.citations || [];
+    const amountStr = String(f.amount_inr);
+    const hasCurrencyContext = cites.some(c => {
+      const text = (c.quoted_span || "");
+      // \b word boundaries are essential: without them "Rs" matches inside
+      // ordinary words like "hours" and "workers", which silently turned
+      // the clock time "08:00" into a verified INR 8 during testing.
+      const currencyPattern = /(\bINR\b|\bRs\b\.?|₹)\s*[\d,]*\s*/gi;
+      let match;
+      while ((match = currencyPattern.exec(text)) !== null) {
+        const windowText = text.substr(match.index, match[0].length + amountStr.length + 5);
+        if (windowText.replace(/[,\s]/g, "").indexOf(amountStr) !== -1) return true;
+      }
+      return false;
+    });
+    if (!hasCurrencyContext) {
+      errors.push(`UNVERIFIED_AMOUNT: Finding ${idx} claims INR ${f.amount_inr} but no citation shows this figure next to a currency marker (INR/Rs/₹) — likely a count, rate, headcount, or timestamp misread as an amount`);
+    }
+  });
+
+  // CHECK 5c: Count-word guard. Even when a rupee symbol happens to sit
+  // nearby, a figure introduced by a counting phrase ("Total Purchase
+  // Orders 12", "Workers 120", "Total Change Orders 21", "Reporting
+  // Months 24") is a record count, not money. Catches the boilerplate
+  // metadata headers repeated across whole document families.
+  const COUNT_PHRASES = /(total\s+(purchase\s+orders|change\s+orders|rfis|documents|records)|workers?|headcount|strength|reporting\s+months|count|\bno\.?s?\b|qty|quantity)\s*[:\-]?\s*$/i;
+  findings.forEach((f, idx) => {
+    if (!(f.amount_inr > 0)) return;
+    const amountStr = String(f.amount_inr);
+    (f.citations || []).forEach(c => {
+      const text = (c.quoted_span || "");
+      let pos = text.indexOf(amountStr);
+      while (pos !== -1) {
+        const preceding = text.substring(Math.max(0, pos - 40), pos);
+        if (COUNT_PHRASES.test(preceding)) {
+          errors.push(`COUNT_READ_AS_AMOUNT: Finding ${idx} claims INR ${amountStr}, but in the citation that figure follows a counting phrase ("${preceding.trim().slice(-30)}") — this is a record count, not a rupee amount`);
+          return;
+        }
+        pos = text.indexOf(amountStr, pos + 1);
+      }
+    });
+  });
+
+  // CHECK 5d: Multi-amount citation warning (row-jump risk). When a
+  // citation contains several distinct Rs./INR figures, the extractor may
+  // have attached the wrong one to this finding — e.g. a tower crane's
+  // Rs.85,000 labelled as the "diesel" ESG figure when the diesel
+  // generator's real cost was Rs.22,000 in the same table row. Warning,
+  // not error: this is a smell for manual review, not proof of a bug.
+  findings.forEach((f, idx) => {
+    if (!(f.amount_inr > 0)) return;
+    (f.citations || []).forEach(c => {
+      const figures = (c.quoted_span || "").match(/(INR|Rs\.?|₹)\s*[\d][\d,\.]*/gi) || [];
+      if (figures.length > 2) {
+        warnings.push(`MULTI_AMOUNT_CITATION: Finding ${idx} cites INR ${f.amount_inr} from a passage containing ${figures.length} separate currency figures — verify the right one was attributed`);
+      }
+    });
+  });
+
+  // CHECK 6: Every finding must cite its source (file + quoted span).
+  findings.forEach((f, idx) => {
+    const cites = f.citations || [];
+    const hasValidCitation = cites.length > 0 && cites.every(c => c.file && c.quoted_span);
+    if (!hasValidCitation) {
+      errors.push(`MISSING_CITATION: Finding ${idx} has no valid citation`);
+    }
+  });
+
+  // CHECK 7: Truncation warning — statement or quoted text cut off mid-sentence.
+  findings.forEach((f, idx) => {
+    if ((f.statement || "").trim().endsWith("...")) {
+      warnings.push(`POSSIBLE_TRUNCATION: Finding ${idx} statement ends with "..."`);
+    }
+    (f.citations || []).forEach((c, cIdx) => {
+      if ((c.quoted_span || "").trim().endsWith("...")) {
+        warnings.push(`POSSIBLE_TRUNCATION: Finding ${idx} citation ${cIdx} ends with "..."`);
+      }
+    });
+  });
+
+  return {
+    isValid: errors.length === 0,
+    errors: errors,
+    warnings: warnings,
+    checkedAt: new Date().toISOString(),
+    job_id: report.source_job_id || (report.form_intake && report.form_intake.job_id) || null
+  };
+}
+
+/* ============================================================
+   Error log writer — unchanged from before, included for completeness.
+   Run initValidationErrorLog() once, manually, before first deploy.
+   ============================================================ */
+
+/**
+ * OPTIONAL — you do NOT need to run this. Your ConstroVet-Validation-Errors
+ * sheet and its "validation-errors" tab already exist. This is here only to
+ * rebuild them if the sheet is ever lost.
+ *
+ * Note: uses openById, NOT getActive(). getActive() returns null in a
+ * standalone Apps Script (one not created from inside a spreadsheet),
+ * which is what throws "Cannot read properties of null".
+ * Safe to run twice — it won't duplicate the tab or the headers.
+ */
+function initValidationErrorLog() {
+  const ss = SpreadsheetApp.openById(VALIDATION_LOG_SHEET_ID);
+  let sheet = ss.getSheetByName("validation-errors");
+  if (!sheet) {
+    sheet = ss.insertSheet("validation-errors");
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "timestamp", "job_id", "error_count", "error_list",
+      "warning_count", "warning_list", "action_taken",
+      "reverted_to_version", "source_document_template"
+    ]);
+    Logger.log("Validation error log headers created.");
+  } else {
+    Logger.log("Validation error log already set up — nothing to do.");
+  }
+}
+
+function logValidationError(job_id, validationResult, browserReport) {
+  const ss = SpreadsheetApp.openById(VALIDATION_LOG_SHEET_ID);
+  const sheet = ss.getSheetByName("validation-errors");
+  if (!sheet) {
+    Logger.log("WARNING: validation-errors tab not found — error not logged for " + job_id);
+    return;
+  }
+  sheet.appendRow([
+    new Date().toISOString(),
+    job_id,
+    validationResult.errors.length,
+    validationResult.errors.join(" | "),
+    validationResult.warnings.length,
+    validationResult.warnings.join(" | "),
+    validationResult.isValid ? "PASSED_VALIDATION" : "REVERTED_NOT_SENT",
+    "7",
+    detectDocumentTemplate(browserReport)
+  ]);
+}
+
+// ROADMAP.md Milestone 7 (2026-09-04, six-lens audit). Run this on a time-based
+// trigger (recommend every 15-30 minutes, not daily -- see ROADMAP.md's
+// Milestone 7 note on why the check interval is the real design variable).
+// Detects two distinct failure modes, either of which halts sending:
+//   1. Presence: the validation-layer functions this deployment depends on
+//      are missing (typeof check, not existence-by-inference -- see AGENTS.md
+//      guardrail #6, real schemas only).
+//   2. Invocation: the validation layer is present but was not actually
+//      exercised on the most recent real job -- present-but-bypassed is the
+//      same client-facing risk as absent.
+// Idle periods (no job since the last check) never trigger a false alarm --
+// there is nothing to check invocation against, so only presence is checked.
+function boardroomGateHealthCheck() {
+  const props = PropertiesService.getScriptProperties();
+  const reasons = [];
+
+  if (typeof validateReportOutput !== "function") reasons.push("validateReportOutput is missing from this deployment.");
+  if (typeof logValidationError !== "function") reasons.push("logValidationError is missing from this deployment.");
+  if (typeof heldForValidationFailureDelivery_ !== "function") reasons.push("heldForValidationFailureDelivery_ is missing from this deployment.");
+  if (typeof heldForExtractionFailureDelivery_ !== "function") reasons.push("heldForExtractionFailureDelivery_ is missing from this deployment.");
+  if (typeof boardroomTechnicalExtractionFailures_ !== "function") reasons.push("boardroomTechnicalExtractionFailures_ is missing from this deployment.");
+
+  if (!reasons.length) {
+    const lastJobId = String(props.getProperty(BOARDROOM_LAST_JOB_PROPERTY) || "").trim();
+    if (lastJobId) {
+      try {
+        const sheet = SpreadsheetApp.openById(VALIDATION_LOG_SHEET_ID).getSheetByName("validation-errors");
+        // Positional columns match logValidationError's own appendRow order
+        // exactly (timestamp=0, job_id=1) -- not a header-text lookup, so a
+        // renamed header cell cannot silently break this check.
+        const data = sheet.getDataRange().getValues();
+        let found = false;
+        for (let i = data.length - 1; i >= 1; i--) {
+          if (String(data[i][1]) === lastJobId) { found = true; break; }
+        }
+        if (!found) {
+          reasons.push("Most recent job " + lastJobId + " has no row on the validation-errors sheet -- the gate may not have been invoked.");
+        }
+      } catch (sheetError) {
+        reasons.push("Could not read the validation-errors sheet to confirm invocation: " + sheetError.message);
+      }
+    }
+  }
+
+  if (reasons.length) {
+    props.setProperty(GATE_HEALTH_PROPERTY, "FAILED");
+    try {
+      MailApp.sendEmail(
+        VALIDATION_ALERT_EMAIL,
+        "[GATE HEALTH FAILED] Constrovet validation layer",
+        "The scheduled gate health check found a problem and has HALTED all outbound " +
+        "client reports until this is cleared.\n\n" +
+        "Reasons:\n  " + reasons.join("\n  ") + "\n\n" +
+        "Run boardroomClearGateHealthKillSwitch_() from the Apps Script editor only " +
+        "after the underlying problem is fixed and re-verified -- this does not clear itself."
+      );
+    } catch (mailError) {
+      Logger.log("Gate health alert email failed: " + mailError);
+    }
+  }
+
+  return { ok: reasons.length === 0, reasons: reasons };
+}
+
+// MANUAL ONLY (AGENTS.md hard stop: any live-state-clearing action is founder-
+// only). Never call this from a trigger or from boardroomGateHealthCheck itself
+// -- run it from the Apps Script editor, by a human, only after confirming the
+// underlying gate-health problem is actually fixed and re-verified.
+function boardroomClearGateHealthKillSwitch_() {
+  PropertiesService.getScriptProperties().deleteProperty(GATE_HEALTH_PROPERTY);
+  Logger.log("GATE_HEALTH kill-switch cleared manually at " + new Date().toISOString());
+}
+
+/**
+ * Derive a document-family label from the source filenames so repeated
+ * failures from one boilerplate template can be grouped in review.
+ * "Procurement_Governance---Taran-Bhagat.pdf"      -> "Procurement_*"
+ * "M20_CostEstimate_BAD---Taran-Bhagat.pdf"        -> "M20_*"
+ * "boardroom-professional-actions-delay-only.csv"  -> "boardroom-*"
+ */
+function detectDocumentTemplate(browserReport) {
+  const outcomes = (browserReport && browserReport.document_outcomes) || [];
+  const families = {};
+  outcomes.forEach(o => {
+    const name = o.file || "";
+    let family = "OTHER";
+    const mMonth = name.match(/^(M\d+)_/);
+    const mPrefix = name.match(/^([A-Za-z]+)[_\-]/);
+    if (mMonth) family = mMonth[1] + "_*";
+    else if (mPrefix) family = mPrefix[1] + "_*";
+    families[family] = true;
+  });
+  return Object.keys(families).join(", ") || "UNKNOWN";
+}
+
 function onFormSubmit(e) {
   return handleBoardroomFormSubmit(e);
 }
@@ -162,7 +554,61 @@ function onCorrectionFormSubmit(e) {
   return handleBoardroomCorrectionFormSubmit(e);
 }
 
+// --- Duplicate-submission guard (added 2026-08-30) ---------------------
+// Google Forms can fire onFormSubmit more than once for the same physical
+// response. Each firing carries the SAME response object, so we use its
+// stable response ID as a claim key: only the first firing to grab the
+// claim (via a short script lock) proceeds; any near-simultaneous repeat
+// firing for the same response is dropped before it does any work at all
+// (no duplicate job folder, no duplicate client email, no duplicate audit
+// row). A brand-new, different submission always gets its own ID and is
+// never affected. If the lock or cache is unavailable for any reason, we
+// fail OPEN (allow processing) so a real submission is never silently lost.
+function getBoardroomResponseId_(e) {
+  try {
+    if (e && e.response && typeof e.response.getId === "function") {
+      const id = e.response.getId();
+      if (id) return String(id);
+    }
+  } catch (err) {
+    // fall through
+  }
+  return "";
+}
+
+function claimBoardroomSubmission_(responseId) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (err) {
+    return true; // could not get the lock in time -- fail open, allow processing
+  }
+  try {
+    const cache = CacheService.getScriptCache();
+    const key = "boardroom_claim_" + responseId;
+    if (cache.get(key)) {
+      return false; // another (duplicate) firing already claimed this exact response
+    }
+    cache.put(key, "1", 21600); // 6 hours -- far longer than any duplicate-firing window
+    return true;
+  } catch (err) {
+    return true; // cache unavailable -- fail open, allow processing
+  } finally {
+    lock.releaseLock();
+  }
+}
+// -------------------------------------------------------------------------
+
 function handleBoardroomFormSubmit(e) {
+  const responseId = getBoardroomResponseId_(e);
+  if (responseId && !claimBoardroomSubmission_(responseId)) {
+    return {
+      ok: true,
+      duplicate_submission_ignored: true,
+      response_id: responseId,
+      message: "Duplicate onFormSubmit firing for the same response was detected and ignored."
+    };
+  }
   const startedAt = new Date();
   const jobId = makeBoardroomJobId(startedAt);
   rememberLatestBoardroomJob(jobId);
@@ -291,7 +737,24 @@ function handleBoardroomFormSubmit(e) {
   createDeepReviewArtifact(folders.outputs, jobId, report, browserReport);
   finalFile.setContent(JSON.stringify(report, null, 2));
   let emailDelivery = missingUserEmailDelivery(jobId);
-  if (isValidEmail(submitterEmail)) {
+  const technicalExtractionFailures = boardroomTechnicalExtractionFailures_(report);
+  const validationResult = validateReportOutput(report, browserReport);   // <-- NEW
+  logValidationError(jobId, validationResult, browserReport);             // <-- NEW (logs pass AND fail)
+  if (technicalExtractionFailures.length) {
+    // A document we could not READ is not a document the client failed to
+    // SUPPLY. Hold the client report and alert admin instead of sending a
+    // conclusion we know is unreliable.
+    emailDelivery = heldForExtractionFailureDelivery_(jobId, submitterEmail, technicalExtractionFailures);
+  } else if (!validationResult.isValid) {                                 // <-- NEW BRANCH
+    // A figure we cannot verify against its own cited source is not a
+    // figure a client should see on a board pack. Hold and alert.
+    folders.outputs.createFile(
+      `${jobId}-VALIDATION_FAILED.json`,
+      JSON.stringify({ validation: validationResult, report: report }, null, 2),
+      MimeType.PLAIN_TEXT
+    );
+    emailDelivery = heldForValidationFailureDelivery_(jobId, submitterEmail, validationResult, folders);
+  } else if (isValidEmail(submitterEmail)) {
     try {
       emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
     } catch (error) {
@@ -758,7 +1221,7 @@ function renderActionPlanHtml(report) {
   </section>`;
   const actionHtml = `<section class="section card"><h2>7 / 30 / 90 Actions</h2><div class="grid">${periods.map((period) => {
     const items = actions[period] || [];
-    return `<div><h3>${escapeHtml(period.replace("_", " "))}</h3><ol class="actions">${items.length ? items.map((item) => `<li><strong>${escapeHtml(item.title || "Action")}:</strong> ${escapeHtml(item.recommendation || item.action || "")}<br><span class="muted">Owner: ${escapeHtml(item.owner_role || "Project Controls")} | Evidence: ${escapeHtml(item.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Blocked: ${item.blocked_by_missing_evidence ? "Yes" : "No"}</span></li>`).join("") : "<li class=\"muted\">No action produced for this horizon.</li>"}</ol></div>`;
+    return `<div><h3>${escapeHtml(period.replace("_", " "))}</h3><ol class="actions">${items.length ? items.map((item) => `<li><strong>${escapeHtml(item.title || "Action")}:</strong> ${escapeHtml(item.recommendation || item.action || "")}<br><span class="muted">Owner: ${escapeHtml(item.owner_role || "Project Controls")} | Evidence: ${escapeHtml(item.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Recovery-ready: ${item.blocked_by_missing_evidence ? "No" : "Yes"}</span></li>`).join("") : "<li class=\"muted\">No action produced for this horizon.</li>"}</ol></div>`;
   }).join("")}</div></section>`;
   const citations = decisionPack.citations || [];
   const citationHtml = `<section class="section card"><h2>Citations Behind Actions</h2><ul class="actions">${citations.length ? citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</li>`).join("") : "<li class=\"muted\">No action citations were available.</li>"}</ul></section>`;
@@ -872,14 +1335,35 @@ function getBoardroomSubmitterEmailInfo(e) {
   return email ? { email, source: "FORM_EMAIL_FIELD" } : { email: "", source: "MISSING" };
 }
 
+// Defence in depth. Even with the pattern above corrected, a single
+// unreadable Drive reference must not destroy an entire client submission --
+// that is what happened at 00:03 and again at 11:19, and both times the
+// client received nothing at all. Partial failure now continues with the
+// files that ARE readable; total failure still fails loudly, because an
+// empty report is worse than an error.
 function getBoardroomFilesFromEvent(e) {
   const byId = {};
+  const attempted = [];
+  const skipped = [];
   getBoardroomItemResponses(e).forEach((item) => {
     extractDriveFileIds(item.response).forEach((id) => {
-      if (!byId[id]) byId[id] = driveFileInfo(id, item.title);
+      if (byId[id]) return;
+      attempted.push(id);
+      try {
+        byId[id] = driveFileInfo(id, item.title);
+      } catch (error) {
+        skipped.push(id);
+      }
     });
   });
-  return Object.keys(byId).map((id) => byId[id]);
+  const files = Object.keys(byId).map((id) => byId[id]);
+  if (skipped.length) {
+    console.warn(`Boardroom intake skipped ${skipped.length} unreadable Drive reference(s): ${skipped.join(", ")}`);
+  }
+  if (!files.length && attempted.length) {
+    throw new Error(`None of the ${attempted.length} uploaded file reference(s) could be opened. First failures: ${skipped.slice(0, 5).join(", ")}`);
+  }
+  return files;
 }
 
 function getBoardroomItemResponses(e) {
@@ -901,7 +1385,12 @@ function extractDriveFileIds(value) {
   const patterns = [
     /\/file\/d\/([A-Za-z0-9_-]{20,})/g,
     /[?&]id=([A-Za-z0-9_-]{20,})/g,
-    /\b([A-Za-z0-9_-]{25,})\b/g
+    // NOT \b...\b: a hyphen is not a word character, so a Drive ID ending in
+    // "-" had its last character severed, yielding a phantom ID one character
+    // short. driveFileInfo was then called on the phantom and threw
+    // "Invalid file or folder ID", killing the whole submission. These
+    // lookarounds treat "-" as part of the token, which it is.
+    /(?<![A-Za-z0-9_-])([A-Za-z0-9_-]{25,})(?![A-Za-z0-9_-])/g
   ];
   patterns.forEach((regex) => {
     let match;
@@ -1073,28 +1562,115 @@ function extractBoardroomDocument(fileInfo) {
   return { id: fileInfo.id, file: fileInfo.name, type: "unknown", pages: [], extraction_error: "UNSUPPORTED_FILE_TYPE" };
 }
 
+// --- Extraction resilience + technical-failure separation (2026-08-31) ---
+// A Drive throttle ("User rate limit exceeded") used to make a readable PDF
+// look like absent evidence: the document was never read, and the client was
+// told their evidence was missing. That is wrong advice stated confidently,
+// which is worse than no report. Two changes below:
+//   1. transient Drive errors are retried with exponential backoff;
+//   2. if a document still cannot be READ, that is recorded as a technical
+//      failure -- never as a conclusion about what the client supplied.
+function boardroomIsTransientDriveError_(error) {
+  const message = String(error && error.message ? error.message : error);
+  return /rate limit|ratelimitexceeded|userratelimitexceeded|quota|backenderror|internal error|try again|timed out|timeout|unavailable|\b429\b|\b500\b|\b503\b/i.test(message);
+}
+
 function extractPdfTextWithOptionalOcr(fileInfo) {
   if (typeof Drive === "undefined" || !Drive.Files || typeof Drive.Files.copy !== "function") {
     return { text: "", reason: "TEXT_EXTRACTION_UNAVAILABLE_ADVANCED_DRIVE_SERVICE_DISABLED" };
   }
-  let docId = "";
-  try {
-    const resource = { title: `${fileInfo.name} OCR`, mimeType: MimeType.GOOGLE_DOCS };
-    const converted = Drive.Files.copy(resource, fileInfo.id, { ocr: true, ocrLanguage: "en" });
-    docId = converted.id;
-    const body = DocumentApp.openById(docId).getBody();
-    return { text: body ? body.getText() : "", reason: "" };
-  } catch (error) {
-    return { text: "", reason: `TEXT_EXTRACTION_UNAVAILABLE_${String(error && error.message ? error.message : error).slice(0, 120)}` };
-  } finally {
-    if (docId) {
-      try {
-        DriveApp.getFileById(docId).setTrashed(true);
-      } catch (error) {
-        // Leave converted OCR artifact in Drive if cleanup fails.
+  const maxAttempts = 3;
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let docId = "";
+    try {
+      const resource = { title: `${fileInfo.name} OCR`, mimeType: MimeType.GOOGLE_DOCS };
+      const converted = Drive.Files.copy(resource, fileInfo.id, { ocr: true, ocrLanguage: "en" });
+      docId = converted.id;
+      const body = DocumentApp.openById(docId).getBody();
+      return { text: body ? body.getText() : "", reason: "", attempts: attempt };
+    } catch (error) {
+      lastError = error;
+    } finally {
+      if (docId) {
+        try {
+          DriveApp.getFileById(docId).setTrashed(true);
+        } catch (cleanupError) {
+          // Leave converted OCR artifact in Drive if cleanup fails.
+        }
       }
     }
+    if (attempt >= maxAttempts || !boardroomIsTransientDriveError_(lastError)) break;
+    Utilities.sleep(Math.round(Math.pow(2, attempt - 1) * 1500 + Math.random() * 500));
   }
+  const message = String(lastError && lastError.message ? lastError.message : lastError).slice(0, 120);
+  return { text: "", reason: `TEXT_EXTRACTION_UNAVAILABLE_${message}`, attempts: maxAttempts };
+}
+
+function boardroomTechnicalExtractionFailures_(report) {
+  const queue = (report && report.missing_evidence_queue) || [];
+  const notes = [];
+  queue.forEach(function (item) {
+    const text = String((item && (item.missing_item || item.missingItem)) || item || "");
+    if (/TEXT_EXTRACTION_UNAVAILABLE/i.test(text)) notes.push(text);
+  });
+  return notes;
+}
+
+function heldForExtractionFailureDelivery_(jobId, email, notes) {
+  const delivery = emptyEmailDelivery(email, jobId);
+  delivery.email_status = "EMAIL_HELD_EXTRACTION_FAILURE";
+  delivery.email_error = `Client report withheld: ${notes.length} document(s) could not be read for technical reasons, so any missing-evidence conclusion would be unreliable. ${notes.join(" | ")}`.slice(0, 900);
+  return delivery;
+}
+
+/* ============================================================
+   HOLD-AND-ALERT for the FORM-TRIGGER validation path — mirrors
+   heldForExtractionFailureDelivery_ above. Added so that
+   handleBoardroomFormSubmit (form-trigger intake) can hold and
+   alert on a validation failure the same way doPost (API intake)
+   already does, instead of silently sending the client an
+   unverified figure.
+   ============================================================ */
+function heldForValidationFailureDelivery_(jobId, submitterEmail, validationResult, folders) {
+  // Group repeated errors so 7 duplicate documents read as 1 root cause.
+  const grouped = {};
+  validationResult.errors.forEach(msg => {
+    const type = String(msg).split(":")[0];
+    grouped[type] = (grouped[type] || 0) + 1;
+  });
+  const summary = Object.keys(grouped)
+    .map(k => `${k} x${grouped[k]}`)
+    .join(", ");
+
+  try {
+    MailApp.sendEmail(
+      VALIDATION_ALERT_EMAIL,
+      `[VALIDATION FAILED] Constrovet ${jobId}`,
+      `Report for job ${jobId} FAILED output validation and was NOT sent to the client.\n\n` +
+      `Summary: ${summary}\n\n` +
+      `Errors (${validationResult.errors.length}):\n  ` +
+      validationResult.errors.join("\n  ") + `\n\n` +
+      `Warnings (${validationResult.warnings.length}):\n  ` +
+      (validationResult.warnings.join("\n  ") || "none") + `\n\n` +
+      `Intended recipient: ${submitterEmail || "(none)"}\n` +
+      `Job folder: ${folders.job.getUrl()}\n` +
+      `Outputs folder: ${folders.outputs.getUrl()}\n\n` +
+      `The full report and validation detail are saved as ` +
+      `${jobId}-VALIDATION_FAILED.json in the outputs folder.`
+    );
+  } catch (err) {
+    Logger.log("Validation alert email failed for " + jobId + ": " + err);
+  }
+
+  return {
+    email_to: submitterEmail || "",
+    email_cc: "",
+    email_subject: "",
+    email_sent_at: "",
+    email_status: "HELD_VALIDATION_FAILED",
+    email_error: summary
+  };
 }
 
 function parseBoardroomCsvPages(text) {
@@ -1471,6 +2047,13 @@ function boardroomHasConstructionFileNameHint(name) {
 
 function extractBoardroomFindings(file, pageOrSheet, text, page) {
   const findings = [];
+  const recomputedRateFindings = boardroomRecomputedRateFindings_(file, pageOrSheet, text);
+  // Runs unconditionally, like the rate-recompute check above: a Schedule Status document also
+  // carries Planned/Actual Progress percentages and is very likely routed and handled as a
+  // PROGRESS_REPORT by the structured router below. That handling must not be replaced -- this
+  // adds contradiction findings (SPI vs its own label, completion-date slip vs its own label,
+  // critical-path status) on top of whatever the router already extracted from the same page.
+  const scheduleStatusFindings = eev2ScheduleStatusContradictionFindings_(file, pageOrSheet, text);
 
   const structured =
     eev2RouteStructuredBoardroomFindings(
@@ -1481,6 +2064,8 @@ function extractBoardroomFindings(file, pageOrSheet, text, page) {
 
   if (structured && structured.handled) {
     findings.push(...(structured.findings || []));
+    findings.push(...recomputedRateFindings);
+    findings.push(...scheduleStatusFindings);
     return findings;
   }
 
@@ -1492,7 +2077,13 @@ function extractBoardroomFindings(file, pageOrSheet, text, page) {
     const lower = span.toLowerCase();
     const budget = boardroomValueNear(lower, span, boardroomBaselineRe());
     const actual = boardroomValueNear(lower, span, boardroomActualRe());
-    if (budget !== null) {
+    const variation = boardroomVariationOrderEvidence_(span);
+    if (variation) {
+      findings.push(boardroomFinding(
+        `Approved variation/change order with cited cost impact of INR ${formatInr(variation.amount)}${variation.days ? ` and ${variation.days} day(s) stated schedule impact` : ""}. Approved change against baseline -- monitor; not contractor-recoverable leakage.`,
+        "BASELINE_BUDGET", variation.amount, variation.days, file, pageOrSheet, span, variation.amount, 0, 0, "MEDIUM"));
+    }
+    if (!variation && budget !== null) {
       findings.push(boardroomFinding(`Baseline budget evidence of INR ${formatInr(budget)} is cited.`, "BASELINE_BUDGET", budget, 0, file, pageOrSheet, span, budget, 0, 0, "MEDIUM"));
     }
     if (budget !== null && actual !== null && actual > budget) {
@@ -1505,12 +2096,109 @@ function extractBoardroomFindings(file, pageOrSheet, text, page) {
       // the trigger the finding reports 0 and keeps its narrative and days.
       const amount = boardroomTriggerOwnedAmount(span, boardroomLeakageRe());
       const days = boardroomFirstDays(span);
-      findings.push(boardroomFinding(`Potential leakage or overrun signal: ${boardroomShortStatement(span)}`, "LEAKAGE_AND_OVERRUN", amount, days, file, pageOrSheet, span, budget || 0, actual || 0, actual && budget ? actual - budget : 0, amount || days ? "MEDIUM" : "LOW"));
+      findings.push(boardroomFinding(boardroomSignalStatement_("LEAKAGE", span, amount, days), "LEAKAGE_AND_OVERRUN", amount, days, file, pageOrSheet, span, budget || 0, actual || 0, actual && budget ? actual - budget : 0, amount || days ? "MEDIUM" : "LOW"));
     } else if (boardroomEsgRe().test(lower)) {
-      findings.push(boardroomFinding(`ESG metric signal: ${boardroomShortStatement(span)}`, "ESG_METRIC", boardroomFirstAmount(span) || 0, boardroomFirstDays(span), file, pageOrSheet, span, 0, 0, 0, "MEDIUM"));
+      const esgAmount = boardroomFirstAmount(span) || 0;
+      const esgDays = boardroomFirstDays(span);
+      findings.push(boardroomFinding(boardroomSignalStatement_("ESG", span, esgAmount, esgDays), "ESG_METRIC", esgAmount, esgDays, file, pageOrSheet, span, 0, 0, 0, "MEDIUM"));
     }
   });
+  findings.push(...recomputedRateFindings);
+  findings.push(...scheduleStatusFindings);
   return findings;
+}
+
+// An approved variation/change order is a committed cost change against the
+// baseline. It is NOT contractor-recoverable leakage, so it is cited as
+// baseline context (monitor) rather than inflating any recovery figure.
+// A finding is a statement about the evidence, not a slice of the evidence.
+// These two used to emit a raw 140-character fragment of the source table as
+// their statement, which read as unfinished work once statements became the
+// headline section of the client email. The raw text still appears -- in the
+// citation, where it belongs.
+// Taking the FIRST match names whichever term happens to appear earliest --
+// on a waste report that produced "relating to fuel" because the word fuel
+// sat in a bracketed list above the headline. Pick the term that dominates
+// the passage instead: most frequent, then most specific (longest).
+function boardroomMatchedTerm_(text, regex) {
+  const hits = String(text || "").match(new RegExp(regex.source, "ig")) || [];
+  if (!hits.length) return "";
+  const counts = {};
+  hits.forEach(function (hit) {
+    const key = String(hit).toLowerCase().trim();
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return Object.keys(counts).sort(function (a, b) {
+    if (counts[b] !== counts[a]) return counts[b] - counts[a];
+    return b.length - a.length;
+  })[0] || "";
+}
+
+function boardroomSignalStatement_(kind, span, amount, days) {
+  const term = kind === "ESG"
+    ? boardroomMatchedTerm_(span, boardroomEsgRe())
+    : boardroomMatchedTerm_(span, boardroomLeakageRe());
+  const figures = [];
+  if (Number(amount || 0) > 0) figures.push(`INR ${formatInr(amount)}`);
+  if (Number(days || 0) > 0) figures.push(`${days} day(s)`);
+  if (!figures.length) {
+    const percent = /([0-9]+(?:\.[0-9]+)?)\s*%/.exec(String(span || ""));
+    if (percent) figures.push(`${percent[1]}%`);
+  }
+  const figureText = figures.length ? ` Cited figure(s): ${figures.join(", ")}.` : "";
+  if (kind === "ESG") {
+    return `ESG metric evidence${term ? ` relating to ${term}` : ""} was found in this document.${figureText} Context only -- no cost exposure is implied. The source text is quoted in the citations below.`;
+  }
+  return `Possible leakage or overrun signal${term ? ` (trigger term: ${term})` : ""} was found in this document.${figureText} Supporting evidence is required before any recovery action. The source text is quoted in the citations below.`;
+}
+
+function boardroomVariationOrderEvidence_(span) {
+  const text = String(span || "");
+  if (!/variation|change order|\bvo[-\s]?\d/i.test(text)) return null;
+  if (!/cost impact|amount|value|rs\.?|inr|₹/i.test(text)) return null;
+  const amount = boardroomFirstAmount(text);
+  if (!amount) return null;
+  return { amount: amount, days: boardroomFirstDays(text) };
+}
+
+// Deterministic arithmetic check: where a document states an overall rate and
+// also shows the rows behind it, recompute the quantity-weighted average and
+// flag disagreement. No model involved -- this is arithmetic. It is trusted
+// only when the parsed row quantities reconcile to the document's own stated
+// TOTAL (within 1%), which proves the table was read correctly.
+function boardroomRecomputeStatedRate_(text) {
+  const flat = String(text || "").replace(/\s+/g, " ");
+  const stated = /(?:overall|total|average|weighted)[^%]{0,60}?rate\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)\s*%/i.exec(flat);
+  if (!stated) return null;
+  const totalMatch = /\bTOTAL\b\s+([0-9]+(?:\.[0-9]+)?)/i.exec(flat);
+  if (!totalMatch) return null;
+  const body = flat.slice(0, totalMatch.index);
+  const pairs = [];
+  const rowRe = /([0-9]+(?:\.[0-9]+)?)\s+(?:(?!\d+(?:\.\d+)?\s)[^%]){0,140}?([0-9]{1,3})\s*%/g;
+  let match;
+  while ((match = rowRe.exec(body))) pairs.push([Number(match[1]), Number(match[2])]);
+  if (pairs.length < 3) return null;
+  const quantity = pairs.reduce((sum, pair) => sum + pair[0], 0);
+  const declaredTotal = Number(totalMatch[1]);
+  if (!declaredTotal || Math.abs(quantity - declaredTotal) / declaredTotal > 0.01) return null;
+  const weighted = pairs.reduce((sum, pair) => sum + pair[0] * pair[1], 0) / quantity;
+  return {
+    claimed: Number(stated[1]),
+    computed: Number(weighted.toFixed(2)),
+    gap: Number((Number(stated[1]) - weighted).toFixed(2)),
+    rows: pairs.length,
+    quantity: Number(quantity.toFixed(2)),
+    citation: flat.slice(stated.index, Math.min(flat.length, stated.index + 160))
+  };
+}
+
+function boardroomRecomputedRateFindings_(file, pageOrSheet, text) {
+  const check = boardroomRecomputeStatedRate_(text);
+  if (!check || Math.abs(check.gap) < 0.5) return [];
+  if (!boardroomEsgRe().test(String(text || "").toLowerCase())) return [];
+  const direction = check.gap > 0 ? "overstates" : "understates";
+  const statement = `Stated headline rate of ${check.claimed}% ${direction} the document's own data: recomputing the quantity-weighted average across its ${check.rows} rows (total ${check.quantity}, matching the document's own stated TOTAL) gives ${check.computed}% -- a gap of ${Math.abs(check.gap)} percentage points. Verify before relying on the stated figure.`;
+  return [boardroomFinding(statement, "ESG_METRIC", 0, 0, file, pageOrSheet, check.citation, 0, 0, 0, "HIGH")];
 }
 
 function boardroomCsvBudgetActualFinding(file, pageOrSheet, span, headers, row) {
@@ -1527,20 +2215,33 @@ function boardroomCsvBudgetActualFinding(file, pageOrSheet, span, headers, row) 
   return boardroomFinding(`CSV row shows Actual - Budget overrun of INR ${formatInr(actual - budget)}.`, "LEAKAGE_AND_OVERRUN", actual - budget, 0, file, pageOrSheet, span, budget, actual, actual - budget, "HIGH");
 }
 
+// A period is not always the end of a sentence. "Rs. 1,050,000" was being
+// split into "... Rs." + "1,050,000 ...", orphaning every rupee figure from
+// its currency marker -- so amounts became invisible to the extractor, and a
+// Rs 1,050,000 approved variation order was reported as "no cost evidence
+// found". The lookbehind below keeps known abbreviations intact.
 function boardroomEvidenceWindows(text) {
   return String(text || "").replace(/\s+/g, " ")
-    .split(/(?<=[.!?])\s+|\s+\|\s+|;\s+/)
+    .split(/(?<!\b(?:Rs|INR|No|Nos|Pvt|Ltd|Co|Inc|Sr|Jr|Mr|Mrs|Ms|Dr|Approx|Est|Ref|Fig|vs|etc|viz)\.)(?<=[.!?])\s+|\s+\|\s+|;\s+/)
     .map((part) => part.trim())
     .filter((part) => part.length > 12 && boardroomConstructionSignalRe().test(part.toLowerCase()))
     .slice(0, 40);
 }
 
 function boardroomConstructionSignalRe() {
-  return /budget|boq|actual|overrun|delay|penalty|ld|liquidated damages|eot|extension of time|variation|change order|debit note|wastage|waste|rework|idle|idle plant|idle labour|idle equipment|excess|consumption|invoice|ra bill|running account|ipc|interim payment|paid|spent|escalation|reconciliation|retention|deduction|back charge|delayed po|purchase order delay|carbon|energy|water|diesel|fuel|electricity|emission|scope|days?|₹|inr|rs\.?/i;
+  // \bld\b (not bare "ld"): the bare form matched as a substring inside ordinary words --
+  // "cold", "Welding", "building", "held" -- and pulled in whatever dollar figure happened to sit
+  // nearby as if it were liquidated-damages evidence. Confirmed 1 Sept 2026 on real production
+  // documents: a BoQ's plumbing line "hot & cold water piping" and an energy report's "Welding
+  // Set" both matched "ld" and fabricated cited "leakage" amounts (INR 35 and INR 37,620) from a
+  // per-unit BOQ rate and an unrelated equipment cost row -- neither document contains any real
+  // liquidated-damages or leakage signal. \b requires "ld" to stand alone (as the LD abbreviation
+  // typically appears: "LD clause", "LD: Rs. 50,000", "(LD)"), not embedded in another word.
+  return /budget|boq|actual|overrun|delay|penalty|\bld\b|liquidated damages|eot|extension of time|variation|change order|debit note|wastage|waste|rework|idle|idle plant|idle labour|idle equipment|excess|consumption|invoice|ra bill|running account|ipc|interim payment|paid|spent|escalation|reconciliation|retention|deduction|back charge|delayed po|purchase order delay|carbon|energy|water|diesel|fuel|electricity|emission|scope|days?|₹|inr|rs\.?/i;
 }
 
 function boardroomBaselineRe() {
-  return /budget|boq|planned|estimate|contract value|contract sum|baseline|ra bill|running account|ipc|interim payment|cumulative work done|advance recovery/;
+  return /budget|boq|planned|estimate|contract value|contract sum|baseline|ra bill|running account|ipc|interim payment|cumulative work done|advance recovery|variation order|change order|cost impact|approved variation/;
 }
 
 function boardroomActualRe() {
@@ -1548,36 +2249,17 @@ function boardroomActualRe() {
 }
 
 function boardroomLeakageRe() {
-  return /overrun|cost variance|actual exceeds|spent more|ld|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|late|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
+  // \bld\b, not bare "ld" -- see boardroomConstructionSignalRe() for why: the unbounded form
+  // matched inside "cold", "Welding", etc. and fabricated cited leakage amounts from unrelated
+  // nearby figures. Confirmed on real production documents 1 Sept 2026.
+  // \blate\b, not bare "late" -- ROADMAP.md Milestone 3 fix, 2026-09-04. Bare "late" matched
+  // inside "plate", "template", "escalated", "calculate", "translate", "relate", "inflate" --
+  // confirmed via a 30-word construction-vocabulary sweep against real production spans
+  // ("Shuttering plate hire Rs.2,40,000" was fabricated as leakage this way). Standalone
+  // "late" (e.g. "late fee waiver") still correctly matches -- only the substring form is fixed.
+  return /overrun|cost variance|actual exceeds|spent more|\bld\b|liquidated damages|penalty|wastage|rework|idle|idle plant|idle labour|idle equipment|excess|delay|delayed|slippage|\blate\b|behind schedule|purchase order delay|debit note|back charge|deduction|consumption variance|material variance|price escalation|escalation claim|reconciliation gap|unreconciled|delay cost/;
 }
 
-function boardroomEsgRe() {
-  return /carbon|waste diversion|energy|water|fuel|diesel|electricity|emission|scope 1|scope 2|scope 3/;
-}
-
-function boardroomValueNear(lower, original, keywordRegex) {
-  const text = String(original || "");
-  const keyword = new RegExp(keywordRegex.source, "i");
-  const match = keyword.exec(text);
-  if (!match) return null;
-  const after = text.slice(match.index, Math.min(text.length, match.index + 140));
-  const afterAmount = boardroomFirstAmount(after);
-  if (afterAmount) return afterAmount;
-  const before = text.slice(Math.max(0, match.index - 90), match.index);
-  const beforeAmount = boardroomLastAmount(before);
-  return beforeAmount || null;
-}
-
-// EEV2-004: a trigger term may only claim a currency figure that its own label
-// region owns. The label region is the text immediately preceding the currency
-// marker, bounded by the previous figure and capped at 40 characters -- the same
-// 40-character preceding window live CHECK 5c already uses for COUNT_PHRASES.
-//
-// Proximity alone cannot separate these cases and must not be re-proposed:
-// on real production spans the FABRICATED figure sits 15 characters BEFORE its
-// trigger ("Total Procurement Value Rs.34503245.66 Delayed POs"), while a
-// GENUINE one sits 107 characters after it ("...penalty of Rs. 25,00,000").
-// No distance threshold satisfies both. Ownership does.
 function boardroomTriggerOwnedAmount(text, keywordRegex) {
   const source = String(text || "");
   const currency = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
@@ -1596,6 +2278,23 @@ function boardroomTriggerOwnedAmount(text, keywordRegex) {
     return value;
   }
   return 0;
+}
+
+function boardroomEsgRe() {
+  return /carbon|waste diversion|energy|water|fuel|diesel|electricity|emission|scope 1|scope 2|scope 3/;
+}
+
+function boardroomValueNear(lower, original, keywordRegex) {
+  const text = String(original || "");
+  const keyword = new RegExp(keywordRegex.source, "i");
+  const match = keyword.exec(text);
+  if (!match) return null;
+  const after = text.slice(match.index, Math.min(text.length, match.index + 140));
+  const afterAmount = boardroomFirstAmount(after);
+  if (afterAmount) return afterAmount;
+  const before = text.slice(Math.max(0, match.index - 90), match.index);
+  const beforeAmount = boardroomLastAmount(before);
+  return beforeAmount || null;
 }
 
 function boardroomFirstAmount(text) {
@@ -1948,6 +2647,21 @@ function boardroomRiskScore(item) {
   if (Number(item.days || 0) >= 30) score += 15;
   else if (Number(item.days || 0) > 0) score += 10;
   if (item.calculation.actual > item.calculation.budget && item.calculation.budget > 0) score += 15;
+  // A document that contradicts its own arithmetic is a hard finding, not a
+  // footnote. Scaled by how badly it disagrees, so a rounding-level gap stays
+  // moderate while a material overstatement reaches HIGH.
+  const contradiction = boardroomParseRateContradiction_(item.statement);
+  if (contradiction) score += contradiction.gap >= 5 ? 50 : 35;
+  // Same principle for a schedule-status document that contradicts its own status label: an
+  // SPI below 1.0 or a completion-date slip called "ON SCHEDULE"/"ON TRACK" is a reporting-
+  // integrity problem, scaled by how large the gap is. A stated Critical Path Status of CRITICAL
+  // always lands at the top tier -- float fully consumed is inherently a severe schedule signal,
+  // and must never be able to sit uncounted under a "Critical/high findings: 0" rollup.
+  const scheduleContradiction = eev2ParseScheduleStatusContradiction_(item.statement);
+  if (scheduleContradiction) {
+    if (scheduleContradiction.type === "CRITICAL_PATH") score += 50;
+    else score += scheduleContradiction.gap >= (scheduleContradiction.type === "SPI" ? 5 : 20) ? 50 : 35;
+  }
   if (item.confidence === "HIGH") score += 10;
   if (item.confidence === "MEDIUM") score += 5;
   if (boardroomEvidenceQuality(item) === "STRUCTURED_ACTUAL_BUDGET") score += 10;
@@ -2327,11 +3041,33 @@ function buildExecutiveDecisionPack(options) {
   };
 }
 
+// Filters out generic, non-actionable system disclaimers that were previously shown to clients
+// as if they were the client's own evidence obligations. These describe Constrovet's own pipeline
+// behaviour (deterministic keyword matching, OCR service requirements, citation completeness) --
+// none of them name anything the client can submit. Genuine, specific gaps (a named file, a named
+// finding missing one side of a budget/actual comparison) are untouched by this filter.
 function actionableMissingEvidenceItems(items) {
   return (items || [])
     .map((item) => String(item || "").trim())
     .filter((item) => item && !/No blocking evidence gap/i.test(item))
-    .filter((item) => !/Workspace form automation is deterministic|review citations before using findings/i.test(item));
+    .filter((item) => !/Workspace form automation is deterministic|review citations before using findings/i.test(item))
+    .filter((item) => !/PDF text extraction requires the Advanced Drive service/i.test(item))
+    .filter((item) => !/Every executive recovery action needs file and page.sheet traceability/i.test(item))
+    .filter((item) => !/Comparable Budget and Actual values were not found for every suspected variance/i.test(item));
+}
+
+// Caps a client-facing list at `limit` items WITHOUT silently dropping the rest. A checklist the
+// client is expected to fully resolve (missing evidence, documents not processed) must never claim
+// completeness it doesn't have -- if there is more than `limit`, the last slot is replaced with an
+// honest "...and N more" line naming where the complete list actually lives (found 1 Sept 2026: a
+// real 10-file intake had 2 of its 10 rejected files silently missing from the client email while
+// the internal audit record correctly listed all 10).
+function boardroomTruncateWithNotice_(items, limit, noun) {
+  const all = items || [];
+  if (all.length <= limit) return all.slice();
+  const shown = all.slice(0, Math.max(0, limit - 1));
+  const remaining = all.length - shown.length;
+  return shown.concat([`...and ${remaining} more ${noun}${remaining === 1 ? "" : "s"} -- see the full list in your Constrovet project output folder.`]);
 }
 
 function collectExecutiveActionCards(actionPlan) {
@@ -2472,10 +3208,56 @@ function buildBoardroomImmediateControlFailures(findings) {
 
 function buildBoardroomMissingEvidence(findings, documentsNotProcessed) {
   const gaps = [];
-  if (!findings.some((item) => item.calculation.budget > 0 && item.calculation.actual > 0)) gaps.push("Comparable Budget and Actual values were not found for every suspected variance.");
-  if (!findings.some((item) => item.citations && item.citations[0] && item.citations[0].file && item.citations[0].page_or_sheet)) gaps.push("Every executive recovery action needs file and page/sheet traceability.");
+  // Only raise a Budget/Actual gap against a specific cost-overrun finding that is actually
+  // missing one side of the comparison it depends on -- never as a blanket statement that fires
+  // just because other, legitimately non-budget-comparison findings exist (ESG, delay, VO, cost
+  // exposure). Named by file so the client knows exactly what to submit and why.
+  //
+  // financial_category === "LEAKAGE_AND_OVERRUN" alone is NOT a safe signal here: every EEV2
+  // module (delay-day counts, schedule-status contradictions, cost-exposure summaries) also uses
+  // this category purely to route actionability, with budget/actual left at 0 by design because
+  // they were never a budget-vs-actual comparison in the first place. A real production run
+  // proved this out -- a delay-day count and three schedule-status label contradictions all got
+  // told to submit "missing Budget and Actual figures" they never claimed to have. Every EEV2
+  // finding carries either eev2_semantic_classification or recoverability_guardrail
+  // "NOT_ESTABLISHED" (often both); the legacy per-span leakage findings this check was written
+  // for carry neither. Excluding on either signal is what actually narrows this to genuine,
+  // legacy-style budget/actual claims.
+  //
+  // Those two markers are not the only way a LEAKAGE_AND_OVERRUN finding can legitimately have
+  // no budget/actual to compare. The generic keyword fallback (the one every non-EEV2-module
+  // document goes through -- see boardroomEvidenceWindows()) tags ANY span containing a trigger
+  // term like "delay" or "penalty" as LEAKAGE_AND_OVERRUN even when nothing quantifiable was
+  // nearby -- it never claimed a budget-vs-actual comparison in the first place, so there is
+  // nothing missing to confirm. Confirmed 1 Sept 2026 on a real production EOT claim (job
+  // form-20260901-071257-6379ac7a): 24 separate narrative "possible leakage... trigger term:
+  // delay" findings, none carrying a budget figure, an actual figure, or even a cited rupee
+  // amount, each generated its own "missing the Budget and Actual figures" gap -- 24 near-
+  // identical false-positive asks stacked onto a client who never claimed a dollar variance in
+  // that document at all (their actual claim was a schedule/day-count one, already correctly
+  // asked for elsewhere in the report). A finding only genuinely claims a budget-vs-actual
+  // comparison if it cites at least one side of that comparison, or an amount -- one of budget,
+  // actual, or amount_inr being nonzero. A finding with none of the three carries no dollar
+  // dimension to complete.
+  findings.forEach((item) => {
+    if ((item || {}).financial_category !== "LEAKAGE_AND_OVERRUN") return;
+    if ((item || {}).eev2_semantic_classification) return;
+    if ((item || {}).recoverability_guardrail === "NOT_ESTABLISHED") return;
+    const calc = (item || {}).calculation || {};
+    const hasBudget = Number(calc.budget || 0) > 0;
+    const hasActual = Number(calc.actual || 0) > 0;
+    if (hasBudget && hasActual) return;
+    if (!hasBudget && !hasActual && !(Number((item || {}).amount_inr || 0) > 0)) return;
+    const file = ((item.citations || [])[0] || {}).file || "the source document";
+    const missingSide = !hasBudget && !hasActual
+      ? "the Budget and Actual figures"
+      : (!hasBudget ? "the approved Budget/BOQ figure" : "the Actual/spend figure");
+    gaps.push(`${file}: this cost-overrun finding is missing ${missingSide} needed to confirm the stated variance -- please submit the missing figure(s) for this line item.`);
+  });
+  // File/page/sheet traceability on every finding is Constrovet's own extraction-quality gate --
+  // the citation is produced by our OCR and analysis pipeline, not supplied by the client. It is
+  // not something the client can submit, so it is no longer raised as a client evidence request.
   documentsNotProcessed.forEach((item) => gaps.push(item));
-  if (!gaps.length) gaps.push("No blocking evidence gap was detected by the deterministic scan; still review source citations before decisions.");
   return gaps;
 }
 
@@ -3205,10 +3987,7 @@ function buildMissingEvidenceQueue(jobId, browserReport, ownerEmail) {
     ...(((browserReport || {}).honesty_check || {}).documents_not_processed || [])
   ].filter(Boolean);
   const seen = {};
-  return items
-    .map((item) => String(item || "").trim())
-    .filter((item) => item && !/No blocking evidence gap/i.test(item))
-    .filter((item) => !/Workspace form automation is deterministic|review citations before using findings/i.test(item))
+  return actionableMissingEvidenceItems(items)
     .filter((item) => {
       if (seen[item]) return false;
       seen[item] = true;
@@ -3916,7 +4695,7 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     lines.push(`### ${period.replace("_", " ")}`);
     ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => {
       lines.push(`- ${action.title}: ${action.recommendation}`);
-      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}`);
+      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Recovery-ready: ${action.blocked_by_missing_evidence ? "No" : "Yes"}`);
     });
     lines.push("");
   });
@@ -4034,6 +4813,13 @@ function buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, sa
 }
 
 function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
+  if (PropertiesService.getScriptProperties().getProperty(GATE_HEALTH_PROPERTY) === "FAILED") {
+    throw new Error(
+      "GATE_HEALTH_FAILED: automated sending is halted because boardroomGateHealthCheck() " +
+      "found a problem with the validation layer. See the [GATE HEALTH FAILED] alert email. " +
+      "Run boardroomClearGateHealthKillSwitch_() manually after the problem is fixed."
+    );
+  }
   if (!isValidEmail(email)) throw new Error("Valid user email is required before sending the executive report.");
   const recipient = String(email).trim();
   const cc = boardroomAdminCc(recipient);
@@ -4095,14 +4881,18 @@ function rememberLatestBoardroomJob(jobId) {
 function finalizeBoardroomEmailDelivery(jobId, report, delivery, options) {
   const result = delivery || emptyEmailDelivery((options || {}).recipient || "", jobId);
   const status = String(result.email_status || "");
-  if (!["EMAIL_FAILED", "EMAIL_NOT_SENT_MISSING_USER_EMAIL"].includes(status)) return result;
+  if (!["EMAIL_FAILED", "EMAIL_NOT_SENT_MISSING_USER_EMAIL", "EMAIL_HELD_EXTRACTION_FAILURE"].includes(status)) return result;
   result.original_email_status = status;
   const notice = sendBoardroomEmailAdminNotice(jobId, report, result, options || {});
   result.admin_notice_status = notice.status;
   result.admin_notice_to = notice.email_to || "";
   result.admin_notice_error = notice.error || "";
   if (notice.status === "EMAIL_SENT") {
-    result.email_status = status === "EMAIL_FAILED" ? "EMAIL_FAILED_ADMIN_NOTIFIED" : "EMAIL_NOT_SENT_ADMIN_NOTIFIED";
+    if (status === "EMAIL_HELD_EXTRACTION_FAILURE") {
+      result.email_status = "EMAIL_HELD_ADMIN_NOTIFIED";
+    } else {
+      result.email_status = status === "EMAIL_FAILED" ? "EMAIL_FAILED_ADMIN_NOTIFIED" : "EMAIL_NOT_SENT_ADMIN_NOTIFIED";
+    }
   } else {
     result.email_status = "EMAIL_ADMIN_NOTICE_FAILED";
   }
@@ -4115,10 +4905,15 @@ function sendBoardroomEmailAdminNotice(jobId, report, delivery, options) {
   if (!isValidEmail(admin)) {
     return { status: "EMAIL_NOT_SENT_MISSING_ADMIN_EMAIL", email_to: "", error: "BOARDROOM_NOTIFY_EMAIL is not a valid email." };
   }
-  const subject = `[Constrovet] Email delivery issue - ${jobId}`;
+  const heldForExtraction = String(delivery.email_status || "") === "EMAIL_HELD_EXTRACTION_FAILURE";
+  const subject = heldForExtraction
+    ? `[Constrovet] Report HELD - document could not be read - ${jobId}`
+    : `[Constrovet] Email delivery issue - ${jobId}`;
   const resultUrl = report && report.result_url ? report.result_url : "";
   const body = [
-    "Constrovet generated a report, but user email delivery needs attention.",
+    heldForExtraction
+      ? "Constrovet did NOT send this report to the client. One or more uploaded documents could not be READ for a technical reason (see the delivery error below), so any 'missing evidence' conclusion in this report would be wrong. Re-run the job once the cause is clear."
+      : "Constrovet generated a report, but user email delivery needs attention.",
     "",
     `Job ID: ${jobId}`,
     `Mode: ${(options || {}).mode || (report || {}).mode || ""}`,
@@ -4558,6 +5353,7 @@ function buildExecutiveEmailHtml(jobId, report, resultUrl) {
     <p style="margin:0 0 12px;color:#66737d">INR at stake from cited leakage/overrun: INR ${formatInr(decisionPack.money_at_stake_inr || leakageTotal)} | Evidence: ${escapeHtml(decisionPack.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Actions blocked by missing evidence: ${decisionPack.blocked_by_missing_evidence ? "Yes" : "No"}</p>
     ${renderExecutiveActionsEmailHtml(browserReport)}
     ${renderExecutiveActionPlanEmailHtml(browserReport)}
+    ${renderFindingStatementsEmailHtml(browserReport)}
     ${renderEvidenceQualityEmailHtml(browserReport)}
     ${renderActionCitationsEmailHtml(browserReport)}
     ${renderMissingEvidenceEmailHtml(browserReport)}
@@ -4610,14 +5406,22 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     lines.push(period.replace("_", " "));
     ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => {
       lines.push(`- ${action.title}: ${action.recommendation}`);
-      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}`);
+      lines.push(`  Owner role: ${action.owner_role || "Project Controls"}; Evidence: ${action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED"}; Recovery-ready: ${action.blocked_by_missing_evidence ? "No" : "Yes"}`);
     });
   });
+  boardroomFindingStatementLines_(browserReport).forEach((line) => lines.push(line));
   if ((decisionPack.citations || []).length) {
     lines.push("", "Citations Behind Actions");
-    (decisionPack.citations || []).slice(0, 6).forEach((citation) => lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`));
+    (decisionPack.citations || []).slice(0, 6).forEach((citation) => {
+      const body = citation.derived
+        ? `${citation.quoted_span || ""} (derived from document values, not a verbatim quote)`
+        : `"${citation.quoted_span || ""}"`;
+      lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): ${body}`);
+      const note = boardroomCitationDisputeNote_(browserReport, citation);
+      if (note) lines.push(`  ** ${note}`);
+    });
   }
-  const missing = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  const missing = boardroomTruncateWithNotice_(boardroomMissingEvidenceItems(browserReport), 8, "item");
   if (missing.length) {
     lines.push("", "Missing Evidence / Documents Not Processed");
     missing.forEach((item) => lines.push(`- ${item}`));
@@ -4738,7 +5542,7 @@ function buildIntakeExceptionEmailText(jobId, report, resultUrl) {
     lines.push(period.replace("_", " "));
     ((browserReport.executive_action_plan || {})[period] || []).forEach((action) => lines.push(`- ${action.title}: ${action.recommendation}`));
   });
-  const missing = boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  const missing = boardroomTruncateWithNotice_(boardroomMissingEvidenceItems(browserReport), 8, "item");
   if (missing.length) {
     lines.push("", "Missing Evidence / Documents Not Processed");
     missing.forEach((item) => lines.push(`- ${item}`));
@@ -4792,9 +5596,12 @@ function renderNoAnalysisKpisEmailHtml(browserReport, report) {
 }
 
 function renderDocumentOutcomesEmailHtml(browserReport) {
-  const outcomes = (browserReport.document_outcomes || []).slice(0, 10);
+  const all = browserReport.document_outcomes || [];
+  const outcomes = all.slice(0, 10);
   if (!outcomes.length) return "<h2 style=\"font-size:18px;margin:18px 0 8px\">What Was Processed</h2><p>No source document outcomes were recorded.</p>";
-  return `<h2 style="font-size:18px;margin:18px 0 8px">What Was Processed</h2><ul style="margin-top:0;padding-left:20px">${outcomes.map((item) => `<li><strong>${escapeHtml(item.file || "unknown")}:</strong> ${escapeHtml(item.status || "UNKNOWN")}${item.reason ? ` - ${escapeHtml(item.reason)}` : ""}</li>`).join("")}</ul>`;
+  const items = outcomes.map((item) => `<li><strong>${escapeHtml(item.file || "unknown")}:</strong> ${escapeHtml(item.status || "UNKNOWN")}${item.reason ? ` - ${escapeHtml(item.reason)}` : ""}</li>`).join("")
+    + (all.length > 10 ? `<li style="color:#66737d">...and ${all.length - 10} more file(s) -- see the full list in your Constrovet project output folder.</li>` : "");
+  return `<h2 style="font-size:18px;margin:18px 0 8px">What Was Processed</h2><ul style="margin-top:0;padding-left:20px">${items}</ul>`;
 }
 
 function renderRequiredUploadFieldsEmailHtml() {
@@ -4809,31 +5616,106 @@ function renderEvidenceQualityEmailHtml(browserReport) {
 function renderExecutiveActionPlanEmailHtml(browserReport) {
   const plan = browserReport.executive_action_plan || {};
   const blocks = ["7_days", "30_days", "90_days"].map((period) => {
-    const items = (plan[period] || []).map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.recommendation || "")}<br><span style="color:#66737d">Owner: ${escapeHtml(action.owner_role || "Project Controls")} | Evidence: ${escapeHtml(action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Blocked: ${action.blocked_by_missing_evidence ? "Yes" : "No"}</span></li>`).join("");
+    const items = (plan[period] || []).map((action) => `<li><strong>${escapeHtml(action.title || "Action")}:</strong> ${escapeHtml(action.recommendation || "")}<br><span style="color:#66737d">Owner: ${escapeHtml(action.owner_role || "Project Controls")} | Evidence: ${escapeHtml(action.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Recovery-ready: ${action.blocked_by_missing_evidence ? "No" : "Yes"}</span></li>`).join("");
     return `<h3 style="font-size:15px;margin:12px 0 4px">${escapeHtml(period.replace("_", " "))}</h3><ul style="margin-top:0;padding-left:20px">${items || "<li>No action produced for this horizon.</li>"}</ul>`;
   }).join("");
   return `<h2 style="font-size:18px;margin:18px 0 8px">7 / 30 / 90 Action Plan</h2>${blocks}`;
 }
 
+// The report was already computing findings the client never saw: the email
+// rendered citations only. So the system could prove a stated figure wrong and
+// then quote that same figure approvingly, with no warning attached. These
+// helpers surface the finding statements, and mark any citation whose figure a
+// finding has disputed.
+// One parser for the deterministic-contradiction wording, shared by the
+// citation warning and the severity score, so the two can never disagree.
+function boardroomParseRateContradiction_(statement) {
+  const match = /Stated headline rate of ([0-9.]+)% (?:overstates|understates)[\s\S]*?gives ([0-9.]+)%/.exec(String(statement || ""));
+  if (!match) return null;
+  return {
+    claimed: match[1],
+    computed: match[2],
+    gap: Math.abs(Number(match[1]) - Number(match[2]))
+  };
+}
+
+function boardroomDisputedFigures_(browserReport) {
+  const disputes = [];
+  ((browserReport || {}).findings || []).forEach(function (finding) {
+    const parsed = boardroomParseRateContradiction_(finding.statement);
+    if (!parsed) return;
+    disputes.push({
+      file: (((finding.citations || [])[0]) || {}).file || "",
+      claimed: parsed.claimed,
+      computed: parsed.computed
+    });
+  });
+  return disputes;
+}
+
+function boardroomCitationDisputeNote_(browserReport, citation) {
+  const span = String((citation || {}).quoted_span || "");
+  const file = String((citation || {}).file || "");
+  let note = "";
+  boardroomDisputedFigures_(browserReport).forEach(function (dispute) {
+    if (note) return;
+    if (dispute.file && file && dispute.file !== file) return;
+    if (span.indexOf(dispute.claimed + "%") < 0) return;
+    note = `DISPUTED: the ${dispute.claimed}% figure quoted above disagrees with this document's own rows. Deterministic recheck gives ${dispute.computed}%. Do not rely on the quoted figure.`;
+  });
+  return note;
+}
+
+function renderFindingStatementsEmailHtml(browserReport) {
+  const all = (browserReport || {}).findings || [];
+  const findings = all.slice(0, 8);
+  if (!findings.length) return "";
+  const items = findings.map(function (finding) {
+    const file = (((finding.citations || [])[0]) || {}).file || "";
+    return `<li style="margin-bottom:6px">${escapeHtml(finding.statement || "")}${file ? `<br><span style="color:#66737d;font-size:13px">Source: ${escapeHtml(file)}</span>` : ""}</li>`;
+  }).join("") + (all.length > 8 ? `<li style="margin-bottom:6px;color:#66737d">...and ${all.length - 8} more cited finding(s) -- see the full list in your Constrovet project output folder.</li>` : "");
+  return `<h2 style="font-size:18px;margin:18px 0 8px">What The Evidence Shows</h2><ul style="margin-top:0;padding-left:20px">${items}</ul>`;
+}
+
+function boardroomFindingStatementLines_(browserReport) {
+  const all = (browserReport || {}).findings || [];
+  const findings = all.slice(0, 8);
+  if (!findings.length) return [];
+  const lines = ["", "What The Evidence Shows"];
+  findings.forEach(function (finding) {
+    const file = (((finding.citations || [])[0]) || {}).file || "";
+    lines.push(`- ${finding.statement || ""}${file ? ` (source: ${file})` : ""}`);
+  });
+  if (all.length > 8) lines.push(`- ...and ${all.length - 8} more cited finding(s) -- see the full list in your Constrovet project output folder.`);
+  return lines;
+}
+
 function renderActionCitationsEmailHtml(browserReport) {
   const citations = ((browserReport.executive_decision_pack || {}).citations || []).slice(0, 6);
   if (!citations.length) return "";
-  return `<h2 style="font-size:18px;margin:18px 0 8px">Citations Behind Actions</h2><ul style="margin-top:0;padding-left:20px">${citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</li>`).join("")}</ul>`;
+  return `<h2 style="font-size:18px;margin:18px 0 8px">Citations Behind Actions</h2><ul style="margin-top:0;padding-left:20px">${citations.map((citation) => {
+    const note = boardroomCitationDisputeNote_(browserReport, citation);
+    const span = escapeHtml(citation.quoted_span || "");
+    const body = citation.derived ? `${span} <span style="color:#66737d">(derived from document values, not a verbatim quote)</span>` : `"${span}"`;
+    return `<li style="margin-bottom:6px">${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): ${body}${note ? `<br><strong style="color:#b45309">${escapeHtml(note)}</strong>` : ""}</li>`;
+  }).join("")}</ul>`;
 }
 
 function renderMissingEvidenceEmailHtml(browserReport) {
-  const queue = (browserReport.missing_evidence_queue || []).slice(0, 8);
-  const items = queue.length ? queue.map((item) => `${item.required_evidence_type}: ${item.missing_item}`) : boardroomMissingEvidenceItems(browserReport).slice(0, 8);
+  const fullQueue = browserReport.missing_evidence_queue || [];
+  const items = fullQueue.length
+    ? boardroomTruncateWithNotice_(fullQueue.map((item) => `${item.required_evidence_type}: ${item.missing_item}`), 8, "item")
+    : boardroomTruncateWithNotice_(boardroomMissingEvidenceItems(browserReport), 8, "item");
   if (!items.length) return "";
   return `<h2 style="font-size:18px;margin:18px 0 8px">Missing Evidence Request</h2><p style="margin:0 0 8px">Please submit corrected evidence against the same Constrovet job ID so the loop can rerun the review.</p><ul style="margin-top:0;padding-left:20px">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
 function boardroomMissingEvidenceItems(browserReport) {
   const honesty = browserReport.honesty_check || {};
-  return [
+  return actionableMissingEvidenceItems([
     ...(honesty.missing_evidence || []),
     ...(honesty.documents_not_processed || [])
-  ].filter(Boolean);
+  ]);
 }
 
 function boardroomIsIntakeException(browserReport) {
@@ -4880,8 +5762,18 @@ function boardroomBoardDecisionRequired(browserReport) {
   const findings = browserReport.findings || [];
   if (!findings.length) return "Do not take recovery or control action from this run. First resubmit structured evidence with cited budget, actual, delay, leakage, or ESG fields.";
   const actions = browserReport.top_5_actions || [];
-  const quantified = actions.find((action) => action.actionability === ACTION_RECOVERABLE && !/schedule impact/i.test(action.title || ""));
-  if (quantified) return `Approve quantified-exposure validation only: ${quantified.action || quantified.recommendation}`;
+  const quantifiedActions = actions.filter((action) => action.actionability === ACTION_RECOVERABLE && !/schedule impact/i.test(action.title || ""));
+  if (quantifiedActions.length > 1) {
+    // More than one quantified-recoverable finding: quoting just the first one's amount (as the
+    // single-action branch below does) understates what the board is actually being asked to
+    // approve. Found 1 Sept 2026 in real production data: the headline correctly totaled INR
+    // 37,655 "across 2 finding(s)" while this line, unfixed, quoted only the first finding's INR
+    // 37,620 -- a client-visible mismatch between two lines of the same "Board Decision Required"
+    // section. Use the same deterministic sum the headline uses instead.
+    const total = boardroomQuantifiedLeakageTotal(findings);
+    return `Approve quantified-exposure validation only: Approve validation of INR ${formatInr(total)} cited exposure across ${quantifiedActions.length} finding(s) against invoices, approvals, and BOQ support before any recovery or avoidance action.`;
+  }
+  if (quantifiedActions.length === 1) return `Approve quantified-exposure validation only: ${quantifiedActions[0].action || quantifiedActions[0].recommendation}`;
   const schedule = actions.find((action) => action.actionability === ACTION_RECOVERABLE);
   if (schedule) return `Approve schedule-impact validation only: ${schedule.action || schedule.recommendation}`;
   const followup = actions.find((action) => action.actionability === ACTION_EVIDENCE_FOLLOWUP);
