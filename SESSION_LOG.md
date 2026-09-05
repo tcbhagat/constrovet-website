@@ -2367,3 +2367,74 @@ safety copy), this entry.
 ---
 ## Session end: 2026-09-05 12:14
 
+---
+## Session 2026-09-05 (autonomous cycle) — ESCALATION: Contract 1 Open Item 7 confirmed live, not theoretical, at ₹27.6 Cr scale on the exact Test A fixture
+
+**Scope:** Autonomous Milestone 2 work per AUTONOMOUS_CYCLE_PLAN.md. Read-only
+investigation (fresh `clasp pull` to scratch dir, Google Drive reads). No code
+changed. No `apps-script/` files touched. Stopped per AGENTS.md's "Immediately
+escalate — do not attempt to fix quietly" rule upon finding the item below.
+
+### 1. What was verified, and how
+
+| Claim | How verified |
+|---|---|
+| `apps-script/` is byte-identical to live, right now | Fresh `clasp pull` (scriptId `1ous...`, clasp 3.4.1, credentials valid) into a scratch dir (never `apps-script/`). Full file-list diff: identical. Full byte-for-byte diff of every shared file: **0 files differ**, including `appsscript.json`. This independently reconfirms ROADMAP.md Milestone 2 items 1-2 today, not by trusting the prior session's claim. |
+| All 8 required functions/identifiers present in both repo and live, matching occurrence counts | grep count comparison: `validateReportOutput`, `logValidationError`, `heldForValidationFailureDelivery_`, `heldForExtractionFailureDelivery_`, `boardroomTechnicalExtractionFailures_`, `detectDocumentTemplate`, `VALIDATION_LOG_SHEET_ID`, `boardroomTriggerOwnedAmount` — all match repo=live. |
+| 12/12 EEV2 regression suites pass; 26/26 node tests pass; golden-sample hash intact | `npm run test:harness`, `npm test`, `npm run check:golden` executed for real, output captured above expectation, not assumed. |
+| **A real `Procurement_*` 9-file submission — the literal Test A fixture — was NOT held, and a mislabeled ₹27,60,26,419 figure was emailed to a client-shaped recipient** | Read directly from Google Drive (not pasted, not inferred): job `form-20260902-184403-e5014284`. Filenames: `Procurement_Purchase_Orders`, `Procurement_Material_Inspection_Reports`, `Procurement_Governance`, `Procurement_Material_Submittals`, `Procurement_Procurement_Plan`, `Procurement_Delivery_Notes`, `Procurement_Procurement_ID`, `Procurement_TimeStamp`, `Procurement_Equipment_Mobilization_Records` — 9 files, all `Procurement_*`, exactly Test A's named set. `job-state.json`: `email_status: EMAIL_SENT`. `executive-report.md`: headline "Cited quantified recoverable leakage totals INR 27,60,26,419 across 9 finding(s)", sent to `bhagat.taran@gmail.com`. `ConstroVet-Validation-Errors` sheet row (read directly, not pasted): `2026-09-02T18:45:11.548Z, form-20260902-184403-e5014284, 0 errors, 1 warning (MULTI_AMOUNT_CITATION), action_taken=PASSED_VALIDATION`. |
+| **Root cause: this is CONTRACTS.md Open Item 7 (the semantic/recoverability gap), not a regex or word-boundary bug, and not previously fixed** | Quoted the real live `validateReportOutput` (`apps-script/Code.gs:289-369`, confirmed identical to the fresh live pull above). The finding's citation text reads `"...Total Purchase Orders 12 Total Procurement Value Rs.34503245.66 Delayed POs 7..."`. CHECK 5b (`Code.gs:314-326`) only checks that the claimed `amount_inr` appears immediately after a currency marker (`INR`/`Rs`/`₹`) in the citation — `34503245.66` does appear right after `Rs.`, so CHECK 5b passes. CHECK 5c (`Code.gs:337-353`) only fires when the figure is preceded by a count phrase ("Total Purchase Orders", "workers", etc.) within 40 chars — `Rs.34503245.66` is preceded by "Total Procurement Value", not a count phrase, so CHECK 5c does not fire either. The figure is a real, correctly-extracted currency amount — it is just the **total value of all procurement**, not an overrun or leakage figure. No existing check asks whether an amount's cited *meaning* matches the finding's claimed category. This is exactly the ₹454.16-unit-rate class gap CONTRACTS.md Open Item 7 already named as a live risk — this evidence shows it firing today, in production, at ~60,000x that scale, with an actual send. |
+| **Every `Procurement_*` row in the live validation-errors sheet, 2026-09-02 through 2026-09-05, reads `PASSED_VALIDATION`** | Read the full `ConstroVet-Validation-Errors` sheet directly (not pasted). Every `Procurement_*`-template row (6 total) shows 0 errors, `PASSED_VALIDATION`. The only `REVERTED_NOT_SENT` row in the entire sheet is `form-20260905-053908-609f4190`, template `M22_*` — already discussed in ROADMAP.md as not satisfying Test A's literal wording. **No literal Test A run has ever been correctly held on current evidence.** |
+| Submitter address on the confirmed job was NOT internal | `bhagat.taran@gmail.com` throughout (`job-state.json`, `executive-report.md`, sheet's implicit context) — not `admin@constrovet.com`. This is a real personal-inbox send, not a canary-safe internal test, though also not an unknown external client address. |
+
+### 2. What this changes about ROADMAP.md Milestone 2
+
+This is stronger than "item 3 (Test A) remains UNMET, no evidence yet" as
+currently written. This is affirmative evidence that **the literal Test A
+fixture, run for real against current live code, does not hold** — not
+because of the already-fixed `INR 12` bug, but because of the still-open
+Contract 1 Item 7 semantic gap. A client-shaped report claiming ₹27.6 crore
+of "recoverable leakage" that is actually the project's total procurement
+spend was generated and emailed. Per the prime directive
+("No fabricated figures reach client board packs") this is the exact failure
+mode the whole validation programme exists to prevent, demonstrated live,
+today, at material scale.
+
+I am not editing ROADMAP.md's milestone tables directly this session — that
+judgment call (how to restate Milestone 2's status, whether this reopens
+Milestone 5's CHECK 5e question, whether the current live risk is acceptable
+to leave running unattended) belongs to the founder, not to an autonomous
+loop, per AGENTS.md guardrail 5 ("Flag, don't paper over... stop and ask,
+don't pick silently") and the "Immediately escalate" rule. Reporting this to
+the founder directly instead of continuing the cycle.
+
+### 3. What was NOT verified this session
+
+- Whether this exact job (`e5014284`) was a deliberate founder test run or an
+  accidental/automated resubmission — the submitter history shows the same
+  fixture resubmitted many times across 2026-09-02 and 2026-09-05, consistent
+  with iterative testing, but I did not ask the founder to confirm intent.
+- Whether `bhagat.taran@gmail.com` is the founder's own personal inbox (in
+  which case no external client was actually exposed) — this was assumed
+  from prior session logs (SESSION_LOG.md 2026-09-03 entry treats it as the
+  founder's address) but not re-confirmed this session.
+- Whether any `Procurement_*` job's report ever reached an address outside
+  the founder's own control. On all evidence read this session, every send
+  target was `bhagat.taran@gmail.com`, never a third party.
+- Whether CHECK 5e (Milestone 5, still undecided/undeployed per ROADMAP.md)
+  would have caught this specific case — not analyzed this session, out of
+  scope for a read-only escalation.
+- Milestone 6/7 status beyond what's stated above — not re-derived this
+  session beyond the fresh clasp-pull diff.
+
+### Not verified (per AGENTS.md guardrail 4, restated)
+
+- No live code was changed, proposed, or drafted this session.
+- No `apps-script/` file was touched.
+- No `clasp push` or any founder-only action was attempted.
+- The scratch clasp directory used for the fresh pull was deleted after use;
+  nothing was left in `apps-script/` from it.
+
+---
+## Session end: 2026-09-05 (autonomous cycle, escalated)
+
