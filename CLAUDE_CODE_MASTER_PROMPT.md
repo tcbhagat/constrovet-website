@@ -1,5 +1,11 @@
 # Master Prompt — Constrovet Production Recovery & Safe Autonomous Development
 
+**SUPERSEDED 2026-09-04.** Phases 0–5 of this prompt are now complete.
+See [ROADMAP.md](ROADMAP.md) (Phases 0–1 results) and [MILESTONE_PROMPT_SERIES.md](MILESTONE_PROMPT_SERIES.md) (Phases 2–5 as ready-to-paste prompts) instead.
+This file remains as a historical record.
+
+---
+
 Read AGENTS.md and CONTRACTS.md in full before anything below. If either
 file conflicts with an instruction here, AGENTS.md wins — this prompt
 operationalizes it, it doesn't override it.

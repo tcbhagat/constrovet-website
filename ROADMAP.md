@@ -15,6 +15,20 @@ easy — deploying before Phase 0/1 verification existed is precisely what cause
 the 2026-09-04 gate wipe. **Each session must state which milestone is active
 before doing anything else.**
 
+## Redundancy principle (added 2026-09-04, six-lens audit)
+
+**No safety-critical step in this roadmap may depend on exactly one load path.**
+Today, every control here terminates in "the founder reviews and acts" — one
+person, one attention span, the same condition that produced the 2026-09-04
+incident. A bridge with a single load path fails catastrophically and without
+warning the moment that one member fails (see: I-35W, 2007, a single
+undersized gusset plate with no redundant path for the load). A bridge with
+redundant paths sags and cracks *visibly* long before it would ever collapse.
+Every milestone below that introduces a new control must ask: **if the human
+step is skipped or fails, is there a second, independent path that still
+catches it?** Milestone 7's circuit-breaker requirement (added this same audit)
+is the first instance of applying this principle; it should not be the last.
+
 ## ACTIVE MILESTONE: 2
 
 ---
@@ -58,9 +72,32 @@ not a Node replay.
 **Then and only then:** Contract 1 moves from UNMET to met.
 
 **Materials ready:** `recovery-v11/Code.v11.js` (5,876 lines, validation layer
-intact, sha256 `c049a91156fcb749…`) and `recovery-v11/Code.v12-current-HEAD.js`.
+intact, sha256 `c049a91156fcb749713a6376caef014b906d15f3aded8c35f37598c7840f1b5a`) and `recovery-v11/Code.v12-current-HEAD.js`.
 Merge = V11 + the 94 EEV2-004 lines + milestone 3's fix. Rollback =
 `clasp pull --versionNumber 12`.
+
+**Golden-sample governance (added 2026-09-04, six-lens audit).**
+`recovery-v11/Code.v11.js` is now this project's golden sample — the physical,
+preserved known-good artifact everything else gets diffed against, the way a
+semiconductor fab diffs a production run against a preserved sample rather than
+an abstract spec (specs get misread; a sample can't be). **It may only be
+replaced by a deliberate, logged "this is now golden" decision — never
+overwritten as a side effect of another change.** If Milestone 2 lands a new
+verified-good state, that becomes the new golden sample via an explicit commit
+saying so, not a silent file edit. Enforced by `npm run check:golden`
+(`scripts/check-golden-sample.mjs`) — not yet wired into any gate, run
+manually. It already caught one accidental append to this exact file during
+its own build, seconds after being written — see SESSION_LOG.md.
+
+**STATUS 2026-09-04, later same day — candidate built and tested, NOT YET
+PUSHED.** `recovery-v11/Code.merged-candidate.js` exists: V11 (golden sample)
++ EEV2-004 + the Milestone 3 word-boundary fix + the Milestone 7 circuit-breaker
+(see below). Passes the full existing 12-suite harness in isolation, plus two
+new regression suites (EEV2-005, EEV2-006) written for the two fixes added this
+session. **This does not move Milestone 2 to done** — the pass test requires a
+real live Test A/B run (`MILESTONE_PROMPT_SERIES.md` Prompt 2), which has not
+happened. Founder action required: review `recovery-v11/Code.v11-to-candidate.diff`
+(170 lines), then push. See SESSION_LOG.md for the exact command list.
 
 ---
 
@@ -129,19 +166,59 @@ practice is the direct cause of the 2026-09-04 wipe.
 `apps-script/Code.gs` on the tracked branch, and `git log` shows the change that
 put it there. Re-checked at the start of every session; drift is a stop-and-report.
 
+**CAVEAT, added after a 2026-09-04 six-lens audit — do not treat this milestone
+as closing drift risk alone.** This check is git-mediated: it only ever sees
+code that went through `clasp push`. It has no visibility into a direct save
+inside the Apps Script browser editor (`script.google.com`), which writes to
+HEAD immediately with no review seam — the exact mechanism of the 2026-09-04
+incident. Milestone 6 closes the git-bypass path. It does not close the editor
+path. Only Milestone 7 does, because it observes runtime behavior regardless of
+how HEAD was mutated. **Both milestones are required together; neither is
+sufficient alone.**
+
 ---
 
-### Milestone 7 — Scheduled gate self-check (fast-follow, post-milestone 2)
+### Milestone 7 — Scheduled gate self-check (load-bearing, not a fast-follow)
 
 **Subgoal:** a future silent gate failure is caught in minutes, not discovered
 days later during an unrelated diagnostic.
 
 **Why:** the 2026-09-04 wipe was found by accident. Nothing would have reported it.
+It is sequenced after Milestone 2 for a technical reason only — you cannot check
+for the presence of a validation layer that doesn't exist yet — **not because it
+is lower priority than Milestone 6.** A 2026-09-04 audit (six-lens review, see
+SESSION_LOG.md) found this milestone is the only defense against the editor
+bypass Milestone 6 cannot see; downgrading it to "fast-follow" in an earlier
+draft of this document was itself an instance of the mistake it exists to catch.
 
-**Pass test:** a scheduled Apps Script function verifies the validation layer is
-present and was invoked on the most recent job, and emails
-`admin@constrovet.com` when either check fails. Proven by deliberately pointing
-it at a job with no validation row and confirming the alert fires.
+**Pass test — now two parts, not one:**
+1. **Detect:** a scheduled Apps Script function verifies the validation layer is
+   present and was invoked on the most recent job, and emails
+   `admin@constrovet.com` when either check fails. Proven by deliberately pointing
+   it at a job with no validation row and confirming the alert fires.
+2. **Circuit-breaker (new requirement):** on detecting failure, the function also
+   sets a kill-switch (a Script Property, e.g. `GATE_HEALTH = "FAILED"`) that the
+   send path checks before every delivery — not just an alert a human might miss,
+   but an automatic halt of all outbound reports until a human clears it. This
+   closes the single-load-path problem named in the same audit: today, "founder
+   reads the alert in time" is the *only* thing standing between a silent gate
+   failure and a delivered fabrication. This is a second, independent path that
+   does not depend on anyone's attention.
+   **BUILT 2026-09-04, later same day, in `recovery-v11/Code.merged-candidate.js`
+   — not yet live.** `GATE_HEALTH_PROPERTY` checked inside `sendReportEmail`
+   itself (one enforcement point covers all 5 call sites, not 5 separately-
+   maintained checks — applying this same audit's redundancy principle to its
+   own fix). `boardroomGateHealthCheck()` checks presence (5 required functions,
+   `typeof` checks) and invocation (was the validation layer exercised on the
+   most recent real job). `boardroomClearGateHealthKillSwitch_()` is the sole,
+   manual, human-only reset — never auto-clears. Regression suite: EEV2-006
+   (`apps-script/EEV2GateHealthCircuitBreakerRegression.gs`) — must be run in
+   the real Apps Script TEST project, since it exercises real PropertiesService/
+   MailApp that the local Node harness deliberately blocks; verified locally
+   with mocks in the meantime (7/7 checks pass). **Still needed before this is
+   live:** the founder must create the actual time-based trigger for
+   `boardroomGateHealthCheck` — that's a live change, founder-only. Interval
+   recommendation from the earlier hyperfocus pass stands: minutes, not daily.
 
 ---
 

@@ -42,10 +42,11 @@ When asked to diagnose "the physics" of a recurring failure:
 3.State the mechanism as one sentence.  
 4.Propose the smallest structural fix that closes that mechanism, not just the instance.  
 5.Write it up as a prescriptive .md (root cause → fix → regression test → what's still unverified), matching the format of existing files like eev2-003-amount-fabrication-fix-20260902.md.  
-Hard stops  
-·Do not deploy or merge — that decision is the founder's alone.  
-·Do not re-run initValidationErrorLog()-style one-time setup functions without explicit confirmation they haven't already run.  
-- ·Do not treat a prior AI agent's success claim as verified; re-check against the real artifact.  
+Hard stops — canonical list lives in CONTRACTS.md's "Hard stops" section.
+Read it there; do not maintain a second copy here. (A 2026-09-04 six-lens audit
+found this list duplicated word-for-word in both files with no cross-reference —
+exactly the kind of unverified-boundary drift this project has repeatedly paid
+for. One file now owns it.)
 Delegation boundaries (added 2026-09-04 after the Version 12 gate wipe)  
 These are permanent. They exist because a deployment went live without being
 diffed against a freshly-confirmed live state, and silently removed 864 lines

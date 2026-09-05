@@ -19,3 +19,19 @@ build/
 # Env files
 .env
 .env.*
+
+# Constrovet recovery scratch/evidence (recovery-v11/, 2026-09-05 Milestone 2
+# recovery). These stay on local disk as scratch/safety copies and audit
+# trail, not in git history -- the pre-milestone2-full-restore-2026-09-05 tag
+# already covers rollback, and the manifest/diff/proof-output content is
+# reproducible from the tools in recovery-v11/tools/ and the commit history.
+recovery-v11/candidate-full/
+recovery-v11/pre-phase4-apps-script-backup-*/
+recovery-v11/CANDIDATE_FULL_MANIFEST.md
+recovery-v11/Code.eev2-004-005-only.diff
+recovery-v11/Code.eev2-006-only.diff
+recovery-v11/Code.merged-candidate.js
+recovery-v11/Code.v12-to-candidate.diff
+recovery-v11/candidate-full.vs-apps-script.diff
+recovery-v11/candidate-full.vs-v11.diff
+recovery-v11/EEV2-007-008-fail-then-pass-output.txt
