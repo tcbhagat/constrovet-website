@@ -57,7 +57,25 @@ You may do autonomously, no check-in needed
 ·Producing diffs, inventories, and replays against real artifacts.  
 ·Writing to SESSION_LOG.md.  
 ·Flagging ambiguity, contradictions, or unverifiable claims.  
+·Committing changes that touch ONLY files outside `apps-script/` — docs such
+as `ROADMAP.md`, `SESSION_LOG.md`, and `README.md`-style files, `tests/`,
+`scripts/`, and similar non-Apps-Script project files — with a clear commit
+message, without waiting for per-instance approval. `CONTRACTS.md` is the one
+named exception: any wording change to it still needs separate written
+approval first (see below), unchanged by this line; once that approval is
+given, committing the already-approved wording falls under this same
+autonomous tier.
+Added 2026-09-05 to make explicit a tier this always fell under; it had been
+treated as a case-by-case decision, which this line ends. If several such
+changes land in one session, one batched commit at the end of the session is
+fine — this does not require a commit per file or per edit. **This does not
+touch the boundary below.** The moment a commit would include even one file
+under `apps-script/`, or involves `clasp` in any way, the review-and-approval
+tier applies to the whole commit — never split a commit to carve the
+`apps-script/` files out from under that requirement.  
 You may propose but must wait for explicit written approval  
+·Any commit that touches one or more files under `apps-script/`, for any
+reason, even alongside unrelated doc/test/script changes in the same commit.  
 ·Any change to a file that will be pushed live.  
 ·Any new regression suite becoming part of the release gate.  
 ·Any wording change to CONTRACTS.md.  

@@ -99,6 +99,77 @@ real live Test A/B run (`MILESTONE_PROMPT_SERIES.md` Prompt 2), which has not
 happened. Founder action required: review `recovery-v11/Code.v11-to-candidate.diff`
 (170 lines), then push. See SESSION_LOG.md for the exact command list.
 
+**STATUS 2026-09-05 — full multi-file candidate pushed to `apps-script/` and
+committed (SESSION_LOG.md, Phase 4). Pass test items 1 and 2 (HEAD contains
+the required functions and `boardroomTriggerOwnedAmount`) are MET — confirmed
+by a fresh `clasp pull`, not assumption, same-day. Items 3 (Test A) and 4
+(Test B) remain UNMET.** Assessed 2026-09-05 against real evidence supplied by
+the founder (job artifacts, an alert email, and sheet/job-state content) —
+**PARTIALLY MET, not closed. Do not round up.**
+
+*Item 3 (Test A) — a real submission WAS held correctly, but not the named
+fixture.* Job `form-20260905-053908-609f4190` (source template `M22_*`, per
+its VALIDATION_FAILED.json and the founder-pasted validation-errors sheet row
+— filenames include `M22_EnvCompliance_NORMAL`, `M22_EnergyConsumption_BAD`,
+`M22_WasteManagement_BAD`, and others, a synthetic GOOD/BAD/NORMAL fixture set,
+**not** the literal `Procurement_*` 9-file set this pass test names) was
+correctly withheld: `MISSING_AMOUNT` errors on two `STRUCTURED_ACTUAL_BUDGET`
+findings, `action_taken=REVERTED_NOT_SENT` on the validation-errors sheet, a
+`[VALIDATION FAILED]` alert to the internal address only — no client-facing
+send. This is real evidence the live gate works. **It does not satisfy this
+pass test's literal wording**, because `Procurement_*` is not an arbitrary
+stand-in: CONTRACTS.md ties that exact document set to the real 2026-09-02
+incident (the `INR 454.16` unit-rate-as-leakage false negative). Test A exists
+to prove the gate closes *that* specific hole; a different fixture tripping a
+different check is evidence the gate is live, not evidence it closes the hole
+Test A was written to test. CONTRACTS.md itself treats "Test A" as a named,
+specific test once introduced ("Re-run Test A (known-bad Procurement_* 9-file
+set)"), not a category. **Judgment call, stated plainly: this does not move
+item 3 to met.**
+
+Separately, even judged only against Contract 1's own four-artifact
+requirement (not Milestone 2's stricter fixture wording), two of the four
+artifacts have a real evidentiary gap on the evidence supplied so far:
+artifact 3 (`<job_id>-VALIDATION_FAILED.json` existing in the outputs folder)
+is referenced in the alert email's text but its presence was not
+independently confirmed in the outputs-folder listing given; artifact 4b (the
+**audit sheet's** `email_status=HELD_VALIDATION_FAILED` row, a specific
+sheet CONTRACTS.md names separately from 4a) has not been shown at all — only
+the job-state file's `metadata.email_status` field, a third, different file,
+carries that string. 4a (the validation-errors sheet row,
+`action_taken=REVERTED_NOT_SENT`) was pasted by the founder, not
+independently opened.
+
+*Item 4 (Test B) — UNMET, no evidence offered otherwise.* No submission
+matching the literal named fixture (`boardroom-professional-actions-delay-only.csv`)
+has been run. Roughly 11 clean submissions across several different document
+families (an `M07` set, several `OTHER`/unclassified/`cashflow_*`/`BOQ_*`
+templates, an `M11` set) were directly verified this session to show
+`INR 0` quantified leakage and no fabrication — real, useful evidence the
+gate does not false-positive on ordinary good-faith submissions in general —
+but none is the named CSV, and Contract 2's should-pass side is written
+around that one specific fixture the same way Contract 1's should-fail side
+is. Not treating "structurally similar, never run" as "met."
+
+**Also newly known and job-state.json (`609f4190`'s own copy, extracted from
+a real outputs-folder zip): the pre-existing top-level `job_state` mislabeling
+bug (`Code.gs:770` and 3 other call sites, `report.job_state` ignoring
+`emailDelivery.email_status`) is confirmed present in this exact job's real
+output — top-level `state` reads `ACTION_REPORT_SENT` while
+`metadata.email_status` correctly reads `HELD_VALIDATION_FAILED` in the same
+file. Not evidence against the hold; the email, the sheet row, and the
+metadata field all agree the hold happened. It is evidence the bug is live in
+production today, not just a Node-replay finding.**
+
+**Net: Milestone 2 stays ACTIVE, not DONE.** Items 1–2 met. Item 3 has real,
+positive evidence of a working gate but not the named fixture, plus two
+artifact-chain gaps worth closing on a future Test A run. Item 4 has no
+matching evidence at all. The next concrete step is unchanged from before
+this evidence arrived: run the literal Procurement_* 9-file set and the
+literal boardroom-professional-actions-delay-only.csv, both from an internal
+address, and check all four Contract 1 artifacts by hand on the two named
+sheets, not by pasted excerpt.
+
 ---
 
 ### Milestone 3 — `ld` / `late` word-boundary fix live, with its own fixture
