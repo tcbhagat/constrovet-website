@@ -56,7 +56,7 @@ function eev2RunControlledTestReleaseGate() {
   const auditRow = findLatestAuditRecordForJob(jobId);
 
   const checks = [
-    ["regression_10_of_10", regression.ok === true && regression.regression.suite_count === 10 && regression.regression.pass_count === 10],
+    ["regression_10_of_10", regression.ok === true && regression.regression.suite_count === 12 && regression.regression.pass_count === 12],
     ["three_reference_pdfs", documents.length === 3],
     ["executive_action_plan", browserReport.report_quality_status === REPORT_EXECUTIVE_ACTION_PLAN],
     ["all_findings_cited", findings.length > 0 && citations.length >= findings.length && citations.every(eev2ValidReleaseCitation)],

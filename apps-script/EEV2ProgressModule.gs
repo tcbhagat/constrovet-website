@@ -212,6 +212,23 @@ function eev2ExtractProgressEvidence(file, pageOrSheet, text) {
   };
 }
 
+// A missing variance must not render as the literal word "null" in a client
+// report. It also must not masquerade as a verbatim quotation -- this span is
+// assembled from the document's values, so it is flagged derived.
+// Used in the finding STATEMENT. The citation helper below covers the quoted
+// span; this one covers the sentence the client actually reads first.
+function eev2StatedVariancePhrase_(value) {
+  const formatted = eev2FormatStatedVariance_(value);
+  return formatted === "not stated in the document" ? "was not stated in the document" : `is ${formatted} points`;
+}
+
+function eev2FormatStatedVariance_(value) {
+  if (value === null || value === undefined || value === "") return "not stated in the document";
+  if (typeof value === "number" && !isFinite(value)) return "not stated in the document";
+  if (String(value).toLowerCase() === "null" || String(value).toLowerCase() === "nan") return "not stated in the document";
+  return `${value}%`;
+}
+
 function eev2ProgressEvidenceToFindings(evidence) {
   if (!evidence || evidence.document_type !== "PROGRESS_REPORT") return [];
   const findings = [];
@@ -220,7 +237,7 @@ function eev2ProgressEvidenceToFindings(evidence) {
 
   if (evidence.planned_progress_pct !== null && evidence.actual_progress_pct !== null) {
     findings.push({
-      statement: `Overall progress is ${evidence.actual_progress_pct}% actual versus ${evidence.planned_progress_pct}% planned. Source variance ${evidence.source_variance_pct_points}% points; recalculated from displayed rounded values ${evidence.recalculated_variance_pct_points}% points.`,
+      statement: `Overall progress is ${evidence.actual_progress_pct}% actual versus ${evidence.planned_progress_pct}% planned. Source variance ${eev2StatedVariancePhrase_(evidence.source_variance_pct_points)}; recalculated from displayed rounded values ${evidence.recalculated_variance_pct_points}% points.`,
       financial_category: "BASELINE_BUDGET",
       amount_inr: 0,
       exposure_amount_inr: 0,
@@ -228,7 +245,8 @@ function eev2ProgressEvidenceToFindings(evidence) {
       citations: [{
         file,
         page_or_sheet: page,
-        quoted_span: `Overall Project Progress: Planned = ${evidence.planned_progress_pct}% | Actual = ${evidence.actual_progress_pct}% | Variance = ${evidence.source_variance_pct_points}%`
+        derived: true,
+        quoted_span: `Overall Project Progress: Planned = ${evidence.planned_progress_pct}% | Actual = ${evidence.actual_progress_pct}% | Variance = ${eev2FormatStatedVariance_(evidence.source_variance_pct_points)}`
       }],
       calculation: {
         budget: evidence.planned_progress_pct,

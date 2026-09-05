@@ -20,6 +20,12 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
     .filter((item) => String((item || {}).eev2_semantic_classification || "").toUpperCase() === "EOT_STATUS")
     .map((item) => eev2EotFindingToLiveEntry(item));
 
+  // Aggregate variation order schedule days into client-caused delay.
+  // VO findings have days and category BASELINE_BUDGET, marking them as client-instructed/approved costs.
+  const voAggregation = eev2AggregateAndListVoScheduleDays(list);
+  const voScheduleDays = voAggregation.days;
+  const voEntries = voAggregation.entries;
+
   const reconciliation = eev2BuildCrossDocumentReconciliation({
     findings: list,
     progress_evidence: {
@@ -37,7 +43,7 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
       total_observed_delay_event_days: delayFinding ? Number(delayFinding.days || 0) : null,
       responsibility_summary: {
         contractor_non_excusable_days: responsibility.contractor_non_excusable_days,
-        client_days: responsibility.client_days,
+        client_days: responsibility.client_days + voScheduleDays,
         neutral_external_days: responsibility.neutral_external_days,
         unclassified_days: 0
       },
@@ -45,6 +51,10 @@ function eev2FindingsToLiveScheduleReconciliation(findings) {
       concurrency_status: "NOT_ESTABLISHED",
       float_impact_status: "NOT_ESTABLISHED",
       entitlement_status: "REQUIRES_CONTRACT_AND_SCHEDULE_REVIEW"
+    },
+    variation_order_evidence: {
+      entries: voEntries,
+      total_approved_schedule_impact_days: voScheduleDays
     },
     eot_evidence: {
       entries: eotEntries,
@@ -110,6 +120,40 @@ function eev2ParseDelayResponsibilityProfile(statement) {
     contractor_non_excusable_days: extract(/contractor\s+non[- ]?excusable\s+(\d+(?:\.\d+)?)\s+days?/i),
     client_days: extract(/client\s+(\d+(?:\.\d+)?)\s+days?/i),
     neutral_external_days: extract(/neutral\/external\s+(\d+(?:\.\d+)?)\s+days?/i)
+  };
+}
+
+function eev2AggregateAndListVoScheduleDays(findings) {
+  // Aggregate and list all variation order findings.
+  // VO findings are categorized as BASELINE_BUDGET and include days where approved/client-instructed.
+  // Returns: { days: sum of positive-days VOs, entries: all VOs with and without days for visibility }
+  // Zero-day VOs appear in entries for completeness but do not contribute to the sum.
+  const voFindings = (findings || []).filter((f) =>
+    String((f || {}).financial_category || "").toUpperCase() === "BASELINE_BUDGET"
+  );
+
+  const entries = voFindings.map((finding) => {
+    const statement = String((finding || {}).statement || "");
+    const voRef = (/\b(VO[-\s]?\d+(?:\/\d+)?)/i.exec(statement) || [])[1] || "";
+    const amount = Number((finding || {}).amount_inr || 0);
+    const days = Number((finding || {}).days || 0);
+    return {
+      vo_reference: voRef,
+      amount_inr: amount,
+      schedule_impact_days: days,
+      statement: statement,
+      has_schedule_impact: days > 0
+    };
+  });
+
+  const daysSum = voFindings.reduce((sum, finding) => {
+    const days = Number((finding || {}).days || 0);
+    return days > 0 ? sum + days : sum;
+  }, 0);
+
+  return {
+    days: daysSum,
+    entries: entries
   };
 }
 

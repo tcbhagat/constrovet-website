@@ -75,6 +75,14 @@ function eev2ScheduleEotPosition(eotEvidence) {
   };
 }
 
+function eev2ScheduleVariationOrderPosition(voEvidence) {
+  const v = voEvidence || {};
+  return {
+    entries: v.entries || [],
+    total_approved_schedule_impact_days: Number(v.total_approved_schedule_impact_days || 0)
+  };
+}
+
 function eev2BuildCrossDocumentReconciliation(input) {
   const source = input || {};
   const findings = source.findings || [];
@@ -82,6 +90,7 @@ function eev2BuildCrossDocumentReconciliation(input) {
   const progress = eev2ScheduleProgressPosition(source.progress_evidence);
   const delay = eev2ScheduleDelayPosition(source.delay_evidence);
   const eot = eev2ScheduleEotPosition(source.eot_evidence);
+  const variationOrders = eev2ScheduleVariationOrderPosition(source.variation_order_evidence);
 
   const hasCostExposure = cost.cumulative_adverse_variance_inr > 0 || cost.fac_forecast_exposure_inr > 0;
   const hasProgressSlippage = progress.planned_progress_pct !== null && progress.actual_progress_pct !== null && progress.actual_progress_pct < progress.planned_progress_pct;
@@ -107,6 +116,7 @@ function eev2BuildCrossDocumentReconciliation(input) {
     progress_position: progress,
     delay_position: delay,
     eot_position: eot,
+    variation_order_evidence: variationOrders,
     coexistence_signals: coexistenceSignals,
     relationship_statement: relationshipStatement,
     causal_link_status: "NOT_ESTABLISHED",
