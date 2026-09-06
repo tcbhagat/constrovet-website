@@ -368,6 +368,44 @@ function validateReportOutput(report, browserReport) {
     });
   });
 
+  // CHECK 5e: Aggregate/totals-value guard (CONTRACTS.md Open Item 7).
+  // A LEAKAGE_AND_OVERRUN finding with no real budget/actual math behind it
+  // (evidence_quality !== STRUCTURED_ACTUAL_BUDGET) can still pass CHECK 5b
+  // and 5c when its cited amount is a genuine currency figure that is
+  // immediately preceded by an aggregate/totals label — e.g. "Total
+  // Procurement Value Rs.34,50,32,45.66" — which is a spend total, not an
+  // overrun. Demonstrated live 2026-09-02 (job form-20260902-184403-e5014284):
+  // amount_inr=34503245.66 sourced from exactly that phrase, financial_category
+  // LEAKAGE_AND_OVERRUN, calculation.budget=0/actual=0, and it produced a
+  // ₹27.6 Cr client-facing "recoverable leakage" total across 8 near-identical
+  // findings. CHECK 5b passed (real currency marker next to the figure).
+  // CHECK 5c did not fire (the preceding phrase is a value label, not a count
+  // phrase). This check closes that specific gap: block, don't warn, since a
+  // client board pack citing a spend total as recoverable leakage is exactly
+  // the prime-directive failure this gate exists to prevent. Scoped narrowly
+  // to the exact phrase family seen in production, not a general "total ...
+  // value" pattern, to avoid false-flagging unrelated structured findings —
+  // extend this list only against another real, confirmed instance.
+  const AGGREGATE_VALUE_PHRASES = /total\s+(procurement|contract|project|estimated|boq)\s+(value|cost)\s*[:\-]?\s*(₹|\bINR\b|\bRs\b\.?)?\s*$/i;
+  findings.forEach((f, idx) => {
+    if (!(f.amount_inr > 0)) return;
+    if (f.evidence_quality === "STRUCTURED_ACTUAL_BUDGET") return;
+    if (f.financial_category !== "LEAKAGE_AND_OVERRUN") return;
+    const amountStr = String(f.amount_inr);
+    (f.citations || []).forEach(c => {
+      const text = (c.quoted_span || "");
+      let pos = text.indexOf(amountStr);
+      while (pos !== -1) {
+        const preceding = text.substring(Math.max(0, pos - 40), pos);
+        if (AGGREGATE_VALUE_PHRASES.test(preceding)) {
+          errors.push(`AGGREGATE_VALUE_READ_AS_LEAKAGE: Finding ${idx} claims INR ${amountStr} as LEAKAGE_AND_OVERRUN, but in the citation that figure follows an aggregate/totals label ("${preceding.trim().slice(-30)}") — this is a spend total, not recoverable leakage`);
+          return;
+        }
+        pos = text.indexOf(amountStr, pos + 1);
+      }
+    });
+  });
+
   // CHECK 6: Every finding must cite its source (file + quoted span).
   findings.forEach((f, idx) => {
     const cites = f.citations || [];
