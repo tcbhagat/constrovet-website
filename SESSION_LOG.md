@@ -2450,3 +2450,128 @@ the founder directly instead of continuing the cycle.
 ---
 ## Session end: 2026-09-05 13:39
 
+
+---
+## Session end: 2026-09-05 13:45
+
+
+---
+## Session 2026-09-06 — Open Item 7 fix scoped and built (CHECK 5e), NOT pushed, NOT clasp-tested
+
+**Scope:** Founder confirmed `bhagat.taran@gmail.com` is their own inbox (no
+external/client exposure in the 2026-09-05 escalation) and directed: fix
+CONTRACTS.md Open Item 7 first, before any further Test A/B submissions.
+Founder also shared a Drive folder (`1aSwKbwlgZBUIKnZb8N-ryBy31KPuHSNP`) as
+the recommended consistent test-data source; confirmed its `Procurement_Files_`
+subfolder is the source of the real Test A fixture already on record.
+
+### What was verified, and how
+
+- Downloaded the real production artifact for the escalated job
+  (`form-20260902-184403-e5014284-browser-report.json`, fileId
+  `175FxC-ZipDgeAswX1TlSUSekkryoihyh`) directly from Drive and decoded it
+  (base64, `download_file_content`). Read finding[0] in full: `financial_category:
+  "LEAKAGE_AND_OVERRUN"`, `amount_inr: 34503245.66`, `calculation: {budget:0,
+  actual:0}`, `evidence_quality: "CITED_AMOUNT"`, `recoverability_guardrail: ""`,
+  citation text `"...Total Purchase Orders 12 Total Procurement Value
+  Rs.34503245.66 Delayed POs 7..."`. This is real data, not reconstruction.
+- Confirmed against the live `validateReportOutput` (apps-script/Code.gs, read
+  before editing) that CHECK 5b passes this finding (real currency marker
+  adjacent to the figure) and CHECK 5c does not fire (preceded by "Total
+  Procurement Value", not a count phrase) — so no existing check catches it.
+  This project's own `EEV2AmountFabricationRegression.gs` (lines 43-50)
+  already documents extracting `34503245.66` from this exact string as
+  *correct* amount-extraction behavior — confirming the gap is one layer
+  above extraction, in categorization, not a regex bug.
+- **Built CHECK 5e** in `apps-script/Code.gs` (validateReportOutput): blocks
+  any `LEAKAGE_AND_OVERRUN` finding where `evidence_quality !==
+  STRUCTURED_ACTUAL_BUDGET` and the cited amount is immediately preceded
+  (40-char lookback, same window as CHECK 5c) by an aggregate/totals-value
+  label. Phrase scope, per founder's explicit choice (narrow over broad):
+  `/total\s+(procurement|contract|project|estimated|boq)\s+(value|cost)\s*[:\-]?\s*(₹|\bINR\b|\bRs\b\.?)?\s*$/i`
+  — the exact incident phrase family, not a general "total ... value" pattern.
+- **New regression suite** `apps-script/EEV2AggregateValueLeakageRegression.gs`
+  (EEV2-005), 8 checks: the real incident finding (must now hold), 4 phrase
+  variants (Contract/Project/BOQ/Estimated), a genuine `STRUCTURED_ACTUAL_BUDGET`
+  overrun (must still pass — not exempted by accident), the named NGT-penalty
+  false-positive control from ROADMAP.md Milestone 5 (must still pass), and a
+  `BASELINE_BUDGET`-category finding with the same phrase (out of scope by
+  design, must still pass). All 8 pass.
+- **Wired into the gate**: `EEV2FullRegressionGate.gs` suites array and
+  `eev2ResolveRegressionFunction` registry both updated (12 → 13 suites).
+  `EEV2ControlledTestReleaseGate.gs`'s hardcoded `suite_count === 12` check
+  updated to 13 (would otherwise have false-failed the controlled-TEST gate
+  on an unrelated, already-flagged fragility pattern). `tests/
+  eev2-evidence-harness.test.mjs`'s hardcoded assertions (12→13) updated to
+  match — this file is outside `apps-script/`, autonomous-tier per AGENTS.md.
+- Ran for real, in this order, all passing: `node scripts/run-eev2-harness.mjs`
+  → 13/13 suites, 0 external calls. `npm test` → 26/26. `node --check` on all
+  35 `.gs` files (via `.js`-named temp copies, the standing Node-24 caveat) →
+  all pass. `npm run check:golden` → unaffected, hash intact (this fix never
+  touches `recovery-v11/Code.v11.js`). `node
+  recovery-v11/tools/dangling-call-check.mjs` → 35 files, 395 defs, 225
+  distinct call tokens, zero dangling — confirms `eev2RunAggregateValueLeakageRegression`
+  is correctly defined, registered, and called end-to-end.
+- Directly re-tested, standalone, against the real finding shape: CHECK 5e
+  fires (`isValid=false`, `AGGREGATE_VALUE_READ_AS_LEAKAGE`) on the exact
+  incident data; a genuine `STRUCTURED_ACTUAL_BUDGET` overrun and the real
+  NGT-penalty citation both still pass unaffected.
+
+### What was NOT verified this session
+
+- **Not pushed. Not run in the Apps Script TEST project.** This is a working-
+  tree change only, per AGENTS.md's approval boundary for anything touching
+  `apps-script/`. No `clasp push`, no live mutation, attempted or possible
+  from here.
+- `node scripts/pre-push-check.mjs` was attempted for due diligence (read-only,
+  a fresh `clasp pull`) and **failed with `invalid_grant` / `invalid_rapt`** —
+  the clasp credential has expired again, the same known limitation AGENTS.md
+  documents (founder-only `clasp login` to renew). This means the live-drift
+  check could not run this session; it is not evidence of drift, only evidence
+  the check itself did not execute. Re-run it after `clasp login` and before
+  any push.
+- No real Test A or Test B submission was made this session (none was in
+  scope — founder's instruction was to fix Open Item 7 first, not to
+  resubmit yet).
+- **A separate, pre-existing gap noticed but deliberately NOT touched**:
+  `apps-script/EEV2LeakageWordBoundaryRegression.gs` (Milestone 3's word-
+  boundary fix, already committed from a prior session) exists as a file but
+  is NOT registered in `EEV2FullRegressionGate.gs`'s suites array or
+  resolver — it is dead code from the gate's perspective, never executed by
+  `eev2RunFullRegressionGate`. Flagging this per AGENTS.md guardrail 5
+  (flag, don't paper over) rather than bundling an unrelated fix into this
+  commit. Founder should decide whether to wire it in as its own change.
+- The narrow phrase list is deliberately incomplete by founder's own choice
+  — it will not catch an aggregate-value label using different wording
+  (e.g. "Total Purchase Value", "Cumulative Spend", a language variant).
+  This is a known, accepted scope boundary, not an oversight: extend only
+  against another real, confirmed instance, per the code comment.
+
+### Assumptions
+
+- Assumed the founder's Drive folder share
+  (`1aSwKbwlgZBUIKnZb8N-ryBy31KPuHSNP`) is meant as the standing source
+  for future Test A/B and fixture work generally (its `Procurement_Files_`
+  subfolder matches the on-record Test A set), not specific to this one fix.
+  Not yet asked which exact files within it map to which named test
+  fixtures beyond what SESSION_LOG.md already established.
+
+### Founder action required next
+
+1. **Review the diff** — `git diff -- apps-script/` (4 files: `Code.gs`,
+   `EEV2ControlledTestReleaseGate.gs`, `EEV2FullRegressionGate.gs`, plus new
+   `EEV2AggregateValueLeakageRegression.gs`). This is the load-bearing one:
+   CHECK 5e in `Code.gs` is the actual fix; the other three are wiring/count
+   updates required for it to be part of the gate correctly.
+2. **Approve the commit** (touches `apps-script/` — requires your explicit
+   sign-off per AGENTS.md, not autonomous).
+3. **Renew clasp** (`clasp login`) — expired again — before any push or
+   pre-push check.
+4. Once approved and pushed: re-run `node scripts/pre-push-check.mjs` for
+   real against the pushed state, then decide on the still-open
+   `EEV2LeakageWordBoundaryRegression.gs` wiring gap and on scheduling the
+   actual Test A/B run using the shared Drive folder's fixtures.
+
+---
+## Session end: 2026-09-06 11:27
+
