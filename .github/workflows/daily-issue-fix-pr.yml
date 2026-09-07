@@ -47,6 +47,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ISSUE_NUMBER: ${{ steps.pick.outputs.issue_number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::ANTHROPIC_API_KEY secret is not set. This workflow cannot invoke Claude until it is added (gh secret set ANTHROPIC_API_KEY). Stopping, not silently skipping."
