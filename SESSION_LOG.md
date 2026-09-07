@@ -2607,3 +2607,110 @@ subfolder is the source of the real Test A fixture already on record.
 ---
 ## Session end: 2026-09-07 13:13
 
+
+---
+## Session end: 2026-09-07 13:28
+
+
+---
+## Session 2026-09-07 — Daily Issue-fix-PR pipeline built, dry-run against EEV2-004 (known-answer trust test)
+
+**Scope:** first piece of the autonomous fix pipeline. Read a GitHub Issue
+-> root-cause against real code -> write fix + regression test -> run full
+suite -> open PR. Nothing deploys; nothing pushes to Apps Script; PR sits
+for founder review only. EEV2-004 used on purpose as a known-already-fixed
+case to test the pipeline's independent judgment, not to discover a new bug.
+
+### What was verified, and how
+
+- `claude/eev2-004-label-ownership-fix-20260904.md`, named in the original
+  task brief, **does not exist anywhere in this repo** (working tree or git
+  history, any branch) -- confirmed by search before proceeding, not
+  assumed. Founder redirected to use ROADMAP.md/SESSION_LOG.md's real
+  2026-09-04 EEV2-004 entry and `apps-script/EEV2ProximityRegression.gs` as
+  ground truth instead.
+- Zero GitHub Issues existed in this repo before this session (`gh issue
+  list --state all` returned empty). Created real Issue #15, describing
+  only the defect (no solution), matching the founder-chosen "cold review"
+  test design.
+- Built `.github/workflows/daily-issue-fix-pr.yml` (schedule: daily 03:00
+  UTC + workflow_dispatch), `scripts/pick-issue.mjs` (explicit picking
+  rule: bug-labeled issues only, oldest-first FIFO), `scripts/
+  autofix-issue.mjs` (real Messages API call, single-request, quotes real
+  source before proposing anything, fails closed on unparseable verdict),
+  `scripts/open-fix-pr.mjs` (opens PR, never merges, never invokes clasp).
+- Confirmed via fresh `grep`/`Read` against current `apps-script/Code.gs`
+  that `boardroomTriggerOwnedAmount` (line 2301) and its call site (line
+  2135, with an inline comment documenting the original EEV2-004 defect)
+  match the documented 2026-09-04 fix exactly -- no drift.
+- **First real workflow run (34099050359) failed for real, caught a real
+  bug**: `scripts/autofix-issue.mjs`'s "Invoke Claude" step called `gh
+  issue view` but its env block never set `GH_TOKEN` -- fixed (commit
+  9cbf281).
+- **Second real run (34099250030) got past that, reached the actual
+  Anthropic API, and failed on a real, correctly-formed billing error**:
+  `400 invalid_request_error: "Your credit balance is too low to access
+  the Anthropic API."` Founder attempted to add credit; payment method was
+  declined. Per founder's explicit direction, no workaround was attempted
+  for the billing block itself (there isn't a legitimate one) -- instead,
+  Claude (this session, already paid for) substituted for the literal HTTP
+  call, doing the identical task the script's prompt specifies. This
+  substitution is documented, not disguised, in `AUTOFIX_REPORT_ISSUE_15.md`
+  and in this entry.
+- Along the way, found and fixed a second real bug before the substitute
+  run: `open-fix-pr.mjs`'s `git checkout -b autofix/issue-N` would collide
+  on any second run against the same issue (as happened here, after PR #16
+  was still open from the first, also-substituted dry-run). Fixed by
+  timestamping branch names (commit 819e00c).
+- PR #16 (first substituted dry-run, before GH_TOKEN/branch fixes existed)
+  closed without merge, superseded, reason stated in the closing comment.
+  Its branch deleted. PR #17 (second substituted dry-run, after both real
+  bugs were fixed) is the one left open.
+- Ran the real regression suite both times: `npm run test:harness` ->
+  13/13 suites, `npm test` -> 26/26, zero regressions, both runs.
+
+### Comparison: this session's independent analysis vs the documented 2026-09-04 fix
+
+Same root cause (trigger-match is a boolean gate; amount independently
+scanned from character 0), same fix (`boardroomTriggerOwnedAmount`, 40-char
+label-ownership window), same rejected-alternative reasoning available in
+the code's own comments (proximity/distance was tried and rejected because
+the fabricated figure is closer to its trigger than the genuine one is).
+No new test written -- correctly, since the verdict was ALREADY_FIXED and
+the existing `EEV2ProximityRegression.gs` already covers this with real
+production fixtures from job form-20260902-184403-e5014284.
+
+### Not verified
+
+- **The literal Anthropic Messages API call was never successfully
+  completed this session** -- it reached the API (proving auth/GH_TOKEN
+  plumbing works) but failed on billing both times attempted. The
+  pipeline's genuine independent judgment via the real API is still
+  unproven end-to-end; both PRs (#16, #17) contain a human-substituted
+  analysis, clearly labeled as such, not a live model output.
+- Whether `autofix-issue.mjs`'s response-parsing (`VERDICT:` regex
+  extraction from a real API response) works correctly against actual API
+  output formatting -- untested, since no real response was ever received.
+- Whether the `schedule: cron` trigger fires correctly under GitHub's own
+  infrastructure -- not observable without waiting for a real scheduled
+  fire or more time on `main`.
+- The `NEEDS_FIX` code path (writing an actual diff, not just analysis) has
+  no real-world test yet -- deliberately narrower scope than the original
+  task brief's step 2c, flagged both when built and here again.
+- Real per-call token/API cost -- still not measured (no successful call to
+  measure), only the rough prompt-size estimate given previously.
+
+### Founder action required next
+
+1. Resolve Anthropic account billing (different payment method, or this
+   pipeline's live-API path stays blocked).
+2. Review and decide on PR #17 (https://github.com/tcbhagat/constrovet-website/pull/17)
+   -- documentation-only, no apps-script/ changes, safe to merge or close
+   at founder's discretion.
+3. Once billing is resolved, re-trigger (`gh workflow run
+   daily-issue-fix-pr.yml`) to get the first genuine, non-substituted
+   end-to-end run before trusting this pipeline for real daily use.
+
+---
+## Session end: 2026-09-07 13:44
+
