@@ -16,7 +16,15 @@ function eev2RunFullRegressionGate() {
     { id: "EEV2-002F-ROUTING", name: "Structured cost, delay and progress routing", fn: "eev2RunStructuredRoutingRegression" },
     { id: "EEV2-003", name: "Amount extraction word-boundary fabrication guard", fn: "eev2RunAmountFabricationRegression" },
     { id: "EEV2-004", name: "Trigger-term label ownership guard", fn: "eev2RunProximityRegression" },
-    { id: "EEV2-005", name: "Aggregate/totals-value read as leakage guard (Open Item 7)", fn: "eev2RunAggregateValueLeakageRegression" }
+    { id: "EEV2-005", name: "Aggregate/totals-value read as leakage guard (Open Item 7)", fn: "eev2RunAggregateValueLeakageRegression" },
+    // Gate id EEV2-006 -- note the suite's OWN internal ticket string (visible in
+    // its console output / result JSON) still reads "EEV2-005", set when it was
+    // authored on 2026-09-04, before this gate's EEV2-005 slot was taken by the
+    // aggregate-value-leakage guard above. Not renamed retroactively inside the
+    // file itself; this gate id is the one that actually guarantees uniqueness
+    // in eev2RunFullRegressionGate's own output. Flagged here so a future
+    // session doesn't read the mismatch as a copy-paste error.
+    { id: "EEV2-006", name: "Leakage-trigger word-boundary guard (Milestone 3, \\blate\\b)", fn: "eev2RunLeakageWordBoundaryRegression" }
   ];
 
   const results = [];
@@ -108,7 +116,8 @@ function eev2ResolveRegressionFunction(name) {
     eev2RunLiveScheduleBridgeRegression: typeof eev2RunLiveScheduleBridgeRegression === "function" ? eev2RunLiveScheduleBridgeRegression : null,
     eev2RunAmountFabricationRegression: typeof eev2RunAmountFabricationRegression === "function" ? eev2RunAmountFabricationRegression : null,
     eev2RunProximityRegression: typeof eev2RunProximityRegression === "function" ? eev2RunProximityRegression : null,
-    eev2RunAggregateValueLeakageRegression: typeof eev2RunAggregateValueLeakageRegression === "function" ? eev2RunAggregateValueLeakageRegression : null
+    eev2RunAggregateValueLeakageRegression: typeof eev2RunAggregateValueLeakageRegression === "function" ? eev2RunAggregateValueLeakageRegression : null,
+    eev2RunLeakageWordBoundaryRegression: typeof eev2RunLeakageWordBoundaryRegression === "function" ? eev2RunLeakageWordBoundaryRegression : null
   };
   return registry[name] || null;
 }
