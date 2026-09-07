@@ -24,7 +24,8 @@ function eev2RunFullRegressionGate() {
     // file itself; this gate id is the one that actually guarantees uniqueness
     // in eev2RunFullRegressionGate's own output. Flagged here so a future
     // session doesn't read the mismatch as a copy-paste error.
-    { id: "EEV2-006", name: "Leakage-trigger word-boundary guard (Milestone 3, \\blate\\b)", fn: "eev2RunLeakageWordBoundaryRegression" }
+    { id: "EEV2-006", name: "Leakage-trigger word-boundary guard (Milestone 3, \\blate\\b)", fn: "eev2RunLeakageWordBoundaryRegression" },
+    { id: "EEV2-007", name: "Crore/Lakh currency-context guard", fn: "eev2RunCroreLakhCurrencyRegression" }
   ];
 
   const results = [];
@@ -117,7 +118,8 @@ function eev2ResolveRegressionFunction(name) {
     eev2RunAmountFabricationRegression: typeof eev2RunAmountFabricationRegression === "function" ? eev2RunAmountFabricationRegression : null,
     eev2RunProximityRegression: typeof eev2RunProximityRegression === "function" ? eev2RunProximityRegression : null,
     eev2RunAggregateValueLeakageRegression: typeof eev2RunAggregateValueLeakageRegression === "function" ? eev2RunAggregateValueLeakageRegression : null,
-    eev2RunLeakageWordBoundaryRegression: typeof eev2RunLeakageWordBoundaryRegression === "function" ? eev2RunLeakageWordBoundaryRegression : null
+    eev2RunLeakageWordBoundaryRegression: typeof eev2RunLeakageWordBoundaryRegression === "function" ? eev2RunLeakageWordBoundaryRegression : null,
+    eev2RunCroreLakhCurrencyRegression: typeof eev2RunCroreLakhCurrencyRegression === "function" ? eev2RunCroreLakhCurrencyRegression : null
   };
   return registry[name] || null;
 }

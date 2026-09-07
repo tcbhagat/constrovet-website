@@ -322,6 +322,27 @@ function validateReportOutput(report, browserReport) {
         const windowText = text.substr(match.index, match[0].length + amountStr.length + 5);
         if (windowText.replace(/[,\s]/g, "").indexOf(amountStr) !== -1) return true;
       }
+      // Crore/Lakh fallback: extraction (boardroomTriggerOwnedAmount /
+      // boardroomFirstAmount / boardroomLastAmount) multiplies a unit-suffixed
+      // figure (e.g. "245 Crores" -> 2,450,000,000) before it ever reaches
+      // amount_inr, so the literal expanded number never appears verbatim in
+      // the source text -- only the pre-multiplication figure does. Without
+      // this, every genuine Crore/Lakh finding false-positives as
+      // UNVERIFIED_AMOUNT. Confirmed live 2026-09-07: "High-Level Budget:
+      // ₹ 245 Crores" correctly extracted as amount_inr=2450000000, held in
+      // error because "2450000000" is not substring-present near "₹" in a
+      // 5-crore-window search -- only "245" is. Reapplies the same
+      // crore/lakh/lac multiplier used at extraction, then compares against
+      // amount_inr instead of searching for the literal expanded digits.
+      const unitPattern = /(\bINR\b|\bRs\b\.?|₹)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)/gi;
+      let unitMatch;
+      while ((unitMatch = unitPattern.exec(text)) !== null) {
+        let value = Number(unitMatch[2].replace(/,/g, ""));
+        const unit = unitMatch[3].toLowerCase();
+        if (unit === "crore" || unit === "cr") value *= 10000000;
+        if (unit === "lakh" || unit === "lac") value *= 100000;
+        if (Math.abs(value - f.amount_inr) <= 1) return true;
+      }
       return false;
     });
     if (!hasCurrencyContext) {
