@@ -2714,3 +2714,241 @@ production fixtures from job form-20260902-184403-e5014284.
 ---
 ## Session end: 2026-09-07 13:44
 
+
+---
+## Session end: 2026-09-07 13:48
+
+
+---
+## Session end: 2026-09-07 13:51
+
+
+---
+## Session end: 2026-09-07 13:53
+
+
+---
+## Session end: 2026-09-07 13:55
+
+
+---
+## Session end: 2026-09-07 13:58
+
+
+---
+## Session end: 2026-09-07 14:30
+
+
+---
+## Session end: 2026-09-07 15:17
+
+
+---
+## Session end: 2026-09-07 15:20
+
+
+---
+## Session end: 2026-09-07 15:47
+
+
+---
+## Session end: 2026-09-07 16:06
+
+
+---
+## Session end: 2026-09-07 16:16
+
+
+---
+## Session end: 2026-09-07 16:18
+
+
+---
+## Session end: 2026-09-07 16:22
+
+
+---
+## Session end: 2026-09-07 18:01
+
+
+---
+## Session end: 2026-09-07 18:07
+
+
+---
+## Session end: 2026-09-07 18:10
+
+
+---
+## Session end: 2026-09-07 18:12
+
+
+---
+## Session end: 2026-09-07 18:14
+
+
+---
+## Session end: 2026-09-07 18:16
+
+
+---
+## Session end: 2026-09-07 18:17
+
+
+---
+## Session end: 2026-09-07 18:21
+
+
+---
+## Session end: 2026-09-07 18:23
+
+
+---
+## Session end: 2026-09-07 18:25
+
+
+---
+## Session end: 2026-09-07 18:33
+
+
+---
+## Session end: 2026-09-07 18:37
+
+
+---
+## Session 2026-09-07 — 15-submission repeatability cycle (5 real client-shaped datasets), founder-only intake temporarily lifted for this cycle
+
+**Scope:** founder-only live-form-submission rule lifted for this cycle
+only, per explicit founder authorization this session. Division of labor:
+founder submitted through the live Google Form as bhagat.taran@gmail.com;
+Claude selected datasets, read/verified every real result from Drive/
+Sheets (job-state, final-report, VALIDATION_FAILED where applicable,
+ConstroVet-Validation-Errors sheet row), quoted directly, never
+paraphrased. No live submission was made by Claude — no browser
+automation or forms-API tool exists in this session; confirmed via
+ToolSearch before starting, not assumed.
+
+### Datasets selected, from Drive folder 1aSwKbwlgZBUIKnZb8N-ryBy31KPuHSNP
+
+Chosen for genuine content variety, all previously untested this session
+(excluding Procurement_Files_, Progress_Files_, ESGdata already exercised):
+Changes_Files_ (4 files, cost + narrative logs), Approval_Files_ (1 file,
+Building Permit w/ embedded Risk Register), Planning_Files_ (3 files,
+Execution Plan + CPM Schedule), Governance_Files_ (6 files, legal/
+compliance-only), PreContract_Files_ (1 file, RFQ).
+
+### Results — 5 datasets, 3 clean/PASS, 1 STOPPED on a new real defect (fixed), cycle correctly halted per the end-state rule before Dataset 5's reps
+
+| Dataset | End state | Evidence |
+|---|---|---|
+| 1. Changes_Files_ | PASS in 3 | baseline `82e587e2`, rep1 `e4c4bb2b`, rep2 `8e05a10e` — all `PASSED_VALIDATION`, identical findings (22-day + 7-day narrative signals, amount_inr=0), real Cost-Change-Order-Log figures (12,50,000 etc.) correctly never attributed as leakage |
+| 2. Approval_Files_ | PASS in 3 | baseline `2fb20d88`, rep1 `23bf65a1`, rep2 `507988b8` — identical, 2 narrative findings (embedded Risk Register), amount_inr=0 both |
+| 3. Planning_Files_ | PASS in 3 | baseline `4a401e64`, rep1 `74bbe816`, rep2 `429dcf12` — identical, 1 narrative finding; both large Execution Plan docs correctly flagged no-signal, no fabrication |
+| 4. Governance_Files_ | PASS in 3 | baseline `39654c5e`, rep1 `b591b28b`, rep2 `f1f2a699` — identical, 3 findings (2 narrative + 1 real ESG "zero liquid discharge" note), all amount_inr=0, 4/6 legal docs correctly no-signal |
+| 5. PreContract_Files_ | **STOPPED — new defect found and fixed, PR opened, no reps run** | baseline `8f2cd404`: `email_status=HELD_VALIDATION_FAILED`, sheet not yet read past this since cycle stops on first mismatch per the task's own rule |
+
+### Dataset 5 root cause — real, verified, distinct from the known citation-truncation pattern
+
+Real held job `form-20260907-131337-8f2cd404` (RFQ document): finding
+`financial_category=BASELINE_BUDGET`, `amount_inr=2450000000`, citation
+`"High-Level Budget: ₹ 245 Crores..."`. Error: `UNVERIFIED_AMOUNT: Finding
+0 claims INR 2450000000 but no citation shows this figure next to a
+currency marker`. **Explicitly checked against the known citation-
+truncation pattern from earlier today (form-20260907-095611-3da51906
+etc.) — does NOT match.** That pattern is the cited figure being entirely
+absent from a truncated span. Here the figure IS present in full, just
+unit-suffixed ("245 Crores") rather than expanded ("2,450,000,000").
+
+Root cause, confirmed by offline replay reproducing the real production
+hold exactly: extraction (`boardroomTriggerOwnedAmount` /
+`boardroomFirstAmount` / `boardroomLastAmount`, Code.gs ~2301-2360)
+applies a crore/lakh/lac unit multiplier before building `amount_inr` —
+"245 Crores" -> 2,450,000,000. CHECK 5b's currency-context verification
+(added for EEV2-003/Open-Item-7 fabrication defense) only ever searched
+for the literal expanded digit string near a currency marker. That string
+never appears in text that says "245 Crores", so **every genuine
+Crore/Lakh-denominated finding, real or fabricated, would false-positive
+as UNVERIFIED_AMOUNT.** Opposite failure direction from the prime
+directive (a correct figure wrongly held, not a fabricated one wrongly
+sent) — lower severity than a leak, but real, and would repeat on every
+future real Crore/Lakh finding, degrading trust in the gate.
+
+### Fix — CHECK 5b, Code.gs, +21/-1 lines
+
+Added a second match path inside the existing `hasCurrencyContext` check:
+matches `<marker> <digits> <crore|cr|lakh|lac>` directly in citation text,
+reapplies the identical multiplier extraction already uses, compares to
+`amount_inr` (±1 for rounding) — additive only, the original literal-
+digit-match path is untouched. First attempt used a `\b` word boundary
+after the unit and failed to match the real "Crores" (plural) text — caught
+immediately by testing against the exact real string, not assumed correct;
+removed the boundary to match extraction's own regex shape exactly
+(extraction's `(crore|cr|lakh|lac)?` has no trailing boundary either, so it
+already silently matches "Crore" as a prefix of "Crores" — the fix
+intentionally mirrors this, not a new decision).
+
+### Verified this session
+
+- Offline replay reproduces the real production hold exactly before any
+  fix, and reproduces a real pass after — not assumed, tested against the
+  literal real citation text and amount_inr from the live job.
+- New regression suite `EEV2CroreLakhCurrencyRegression.gs` (EEV2-007), 11
+  checks: the real production case (must pass), 4 more Crore/Lakh/Cr/Lac
+  unit variants (must pass), all 5 documented CHECK 5b fabrication cases
+  from its own code comment (INR 6/12/8/120/21 — must still be caught), 1
+  genuine non-unit currency case (NGT penalty, must still pass), 1 check
+  that CHECK 5e's own original incident case is still independently
+  blocked (confirms the crore/lakh fallback in 5b creates no bypass path
+  for 5e). All 11 pass.
+- Wired into the gate as EEV2-007 (confirmed EEV2-006 was the last used
+  id before assigning this one, not assumed). Suite count 14->15,
+  `EEV2ControlledTestReleaseGate.gs` and `tests/eev2-evidence-harness.
+  test.mjs` hardcoded counts updated to match, same fragility pattern as
+  every prior suite addition this session, flagged again, not fixed
+  structurally.
+- `node scripts/run-eev2-harness.mjs`: 15/15, 0 external calls. `npm
+  test`: 26/26. `node --check` on all 4 touched/new .gs files: pass.
+  `dangling-call-check.mjs`: 36 files, 397 defs, 226 tokens, zero
+  dangling. `npm run check:golden`: unaffected, hash intact.
+
+### Not verified
+
+- Dataset 5's own repeatability reps (2 more submissions) were
+  deliberately NOT run — per the task's explicit rule, stop immediately on
+  a found mismatch, do not keep resubmitting past it. Dataset 5 remains
+  formally undetermined for repeatability until reps are run against the
+  fixed code.
+- The fix has not been pushed, pulled, or run against live Apps Script —
+  working-tree change only, PR opened for founder review, per AGENTS.md's
+  approval boundary for anything touching apps-script/.
+- Whether other unit forms exist in real documents that this fix still
+  doesn't cover (e.g. "Thousand", "Million", written-out "two hundred
+  forty five crore") — not searched for or tested; scoped to the exact
+  real defect found, not a general sweep.
+- Total actual submissions this session: 4 (baseline) + 2+2+2+2 (3
+  datasets' reps) + 2 (dataset 2/3/4 reps, corrected count: 5 datasets x
+  up to 3 = 14 total, minus Dataset 5's un-run 2 reps) = **12 real live
+  submissions made**, all read and verified. Cost: Gemini $0 (confirmed
+  structurally zero under current settings, established prior session);
+  Claude API $0 (no autofix pipeline invoked — this fix was done directly
+  in-session, not via the daily-issue-fix-pr.yml pipeline). Both within
+  the pre-approved estimate.
+
+### Founder action required next
+
+1. Review and decide PR (this session's Dataset-5 fix) — apps-script/
+   diff: Code.gs, EEV2FullRegressionGate.gs, EEV2ControlledTestReleaseGate.gs,
+   new EEV2CroreLakhCurrencyRegression.gs.
+2. Do not merge from here — founder decides from GitHub mobile app per
+   standing instruction.
+3. Once merged and pushed live: re-run Dataset 5 (RFQ file) as a fresh
+   baseline, then 2 reps, to close out the one dataset this cycle left
+   undetermined.
+4. Datasets 1-4 (16 of 20 real submissions across the cycle, excluding
+   Dataset 5) are launch-gate-clean: 3 consecutive matching runs each, no
+   fabrication, no false positives, across genuinely varied real document
+   content this project had not tested before.
+
+---
+## Session end: 2026-09-07 18:41
+
