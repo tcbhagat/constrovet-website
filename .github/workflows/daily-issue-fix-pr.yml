@@ -1,0 +1,67 @@
+name: Daily Issue Fix PR (autonomous, PR-only, no deploy)
+
+# Reads the oldest open bug-labeled Issue, asks Claude to root-cause and
+# fix it against real current apps-script/ source, runs the full existing
+# regression suite, and opens a PR for founder review. Nothing in this
+# workflow deploys or pushes to Apps Script — clasp is never invoked here,
+# and apps-script/-touching commits still require the founder's own
+# approval/merge from GitHub, per AGENTS.md's Delegation Boundaries.
+#
+# REQUIRES a repo secret named ANTHROPIC_API_KEY, which does not exist yet
+# as of this workflow's authoring (2026-09-07) -- confirmed via `gh secret
+# list` returning empty. Until that secret is added, the scheduled run will
+# fail at the "Invoke Claude" step with a clear "secret not set" error, not
+# silently no-op. Add it via: gh secret set ANTHROPIC_API_KEY
+
+on:
+  schedule:
+    # 03:00 UTC daily = 08:30 IST. Adjust if a different cadence is wanted.
+    - cron: "0 3 * * *"
+  workflow_dispatch: {} # manual trigger, for founder-run dry-runs
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  pick-and-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pick oldest open bug issue
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pick-issue.mjs
+
+      - name: Invoke Claude to root-cause and fix (requires ANTHROPIC_API_KEY)
+        if: steps.pick.outputs.issue_number != ''
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ISSUE_NUMBER: ${{ steps.pick.outputs.issue_number }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set. This workflow cannot invoke Claude until it is added (gh secret set ANTHROPIC_API_KEY). Stopping, not silently skipping."
+            exit 1
+          fi
+          node scripts/autofix-issue.mjs
+
+      - name: Run full regression suite
+        if: steps.pick.outputs.issue_number != ''
+        run: |
+          npm run test:harness
+          npm test
+
+      - name: Open PR
+        if: steps.pick.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/open-fix-pr.mjs
