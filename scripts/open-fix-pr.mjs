@@ -24,7 +24,13 @@ const issue = ghJson(["issue", "view", ISSUE_NUMBER, "--json", "title,number"]);
 const verdict = existsSync("autofix-verdict.txt") ? readFileSync("autofix-verdict.txt", "utf8").trim() : "UNKNOWN";
 const analysis = existsSync("autofix-output.txt") ? readFileSync("autofix-output.txt", "utf8") : "(no analysis output found)";
 
-const branch = `autofix/issue-${issue.number}`;
+// Branch name includes a run timestamp so a second run against the same
+// issue (e.g. a re-run after a prior run's PR is still open, or a fixed
+// bug in this pipeline itself) never collides with an existing branch --
+// `git checkout -b` on an already-existing branch name would otherwise
+// fail outright, as happened on this pipeline's own first real run.
+const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
+const branch = `autofix/issue-${issue.number}-${runStamp}`;
 execFileSync("git", ["checkout", "-b", branch]);
 
 const reportPath = `AUTOFIX_REPORT_ISSUE_${issue.number}.md`;
