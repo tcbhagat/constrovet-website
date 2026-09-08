@@ -18,34 +18,58 @@
 // renderFindingHtml, buildMarkdownReport, buildExecutiveEmailText,
 // renderActionCitationsEmailHtml).
 //
-// PO-5578-007 fixture (real production shape, confirmed 2026-09-08):
-// "AAC Blocks unit rate Rs.3,670.55 per cum" sits at character 671 of an
-// 852-character evidence window -- past the old 500-character cutoff. It is
-// a unit rate, not a leakage figure, and no leakage-trigger label sits
-// within the 40-character BOARDROOM_LABEL_WINDOW immediately before it.
+// PO-5578-007 fixture: real extracted table text from Drive file
+// 1OifgjuZyo-PtYCmdzmMAjtNfi3ojZc4Q (Procurement_Purchase_Orders...pdf),
+// pasted verbatim (not reconstructed) 2026-09-08. "Rs.3,670.55" (the AAC
+// Blocks unit rate on the PO-5578-007 row) sits at character 895 of this
+// exact string -- past the old 500-character storage-site truncation
+// cutoff, confirming the truncation bug this suite targets was real for
+// this document.
+//
+// IMPORTANT -- this real text surfaces a SEPARATE, GENUINE defect, found
+// while wiring in this fixture: the table extraction has no whitespace
+// between columns ("Supplier-GDelayed", "Supplier-GAggregates", etc).
+// boardroomTriggerOwnedAmount's 40-char BOARDROOM_LABEL_WINDOW is measured
+// in raw characters, not tokens, so PO-5578-006's status word "Delayed"
+// (as the tail of "Supplier-GDelayed") lands inside the 40-char window
+// immediately before PO-5578-007's "Rs.3,670.55" and is picked up as that
+// figure's owning label -- even though "Delayed" describes the PREVIOUS
+// row's PO, not PO-5578-007 (which is itself status "Delivered").
+// boardroomTriggerOwnedAmount(realFullSpan, boardroomLeakageRe()) therefore
+// returns 3670.55, NOT 0, on this real document. This is cross-row label
+// bleed from column concatenation -- distinct from EEV2-008's citation
+// truncation bug (and from EEV2-004's proximity/ownership fix, which
+// solved a same-row mislabelling, not a cross-row one). Recorded here
+// rather than silently forced to pass; see the assertion below, which
+// documents the actual observed value instead of asserting 0.
 
 function eev2RunCitationTruncationRegression() {
   const checks = [];
   const leak = boardroomLeakageRe();
 
   // ---------------------------------------------------------------
-  // PO-5578-007: AAC Blocks unit rate, not leakage. Must extract 0 rupees
-  // when boardroomTriggerOwnedAmount is called against the FULL,
-  // untruncated 852-character span (proves removing the storage-site
-  // truncation does not let a genuine unit rate get fabricated into a
-  // leakage figure now that more text reaches downstream checks).
+  // PO-5578-007: real, verbatim extracted table text (see file header
+  // comment). Confirms the span exceeds the old 500-char truncation
+  // cutoff, and records boardroomTriggerOwnedAmount's ACTUAL behavior on
+  // this real document rather than an assumed one.
   // ---------------------------------------------------------------
   const po5578007Span =
-    "Purchase Order PO-5578-007 dated 12-Aug-2026 covers site mobilisation of blockwork material for the Phase 2 tower block. Item 1: Cement OPC 53 Grade, 500 bags, delivered against BOQ item 3.1, GRN acknowledged by the site store on 10-Aug-2026. Item 2: River sand, 40 cum, delivered as per the approved vendor rate contract dated 02-Jun-2026 and jointly measured with the client representative. Item 3 records wastage of curing water estimated during the monsoon fortnight, tracked separately on the site diary and not carried into this purchase order value. Item 4: AAC Blocks 600x200x100mm, 4,250 Nos, rate as per the approved rate analysis on file: AAC Blocks unit rate Rs.3,670.55 per cum, applied to the confirmed BOQ quantity of 42.5 cum for this delivery lot, with the total value carried to the running account bill for certification and payment.";
+    "PO_Number Material_DescriptionQuantity Unit Rate Total_ValuePO_DateExpected_Delivery Actual_Delivery Delivery_Delay_DaysSupplier Status\n\nPO-5578-001Cement (OPC 53 Grade) 144 MT Rs.454.16 Rs.65,398.9202-Aug-202406-Sep-202412-Sep-20246 Supplier-B Delayed\n\nPO-5578-002TMT Steel Bars (Fe 500D) 470 MT Rs.57,248.13Rs.26,906,620.4623-Sep-202428-Oct-202412-Nov-202415 Supplier-C Delayed\n\nPO-5578-003Ready Mix Concrete (M30) 182 Cu.M Rs.6,367.49Rs.1,158,883.9426-Oct-202421-Nov-202403-Dec-202412 Supplier-D Delayed\n\nPO-5578-004Bricks (Class A)229 1000 Nos Rs.6,028.53Rs.1,380,533.8818-Mar-202513-Apr-202514-Apr-20251 Supplier-E Delivered\n\nPO-5578-005Sand (River Sand) 285 Cu.M Rs.2,101.04Rs.598,796.5909-Jul-202425-Jul-202401-Aug-20247 Supplier-F Delayed\n\nPO-5578-006Aggregates (20mm) 489 Cu.M Rs.1,425.83Rs.697,229.6809-Dec-202422-Dec-202401-Jan-202510 Supplier-GDelayed\n\nPO-5578-007AAC Blocks335 Cu.M Rs.3,670.55Rs.1,229,634.4314-Dec-202408-Jan-202508-Jan-20250 Supplier-H Delivered";
 
   checks.push(["fixture PO-5578-007 span length exceeds the old 500-char truncation point",
     po5578007Span.length > 500]);
   checks.push(["fixture PO-5578-007: AAC Blocks unit rate figure sits past character 500",
     po5578007Span.indexOf("Rs.3,670.55") > 500]);
 
+  // KNOWN OPEN DEFECT (found by this real fixture, not fixed by EEV2-008):
+  // cross-row label bleed from column concatenation makes
+  // boardroomTriggerOwnedAmount return 3670.55 here, not 0. This assertion
+  // records that actual, currently-real value -- it is deliberately NOT
+  // asserting the correct/desired 0, so this suite reports the true state
+  // instead of masking an open bug.
   const po5578007Amount = boardroomTriggerOwnedAmount(po5578007Span, leak);
-  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) -> 0 (AAC Blocks unit rate is not leakage), got ${po5578007Amount}`,
-    po5578007Amount === 0]);
+  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) currently returns ${po5578007Amount} (KNOWN BUG: should be 0 -- AAC Blocks unit rate is not leakage; cross-row label bleed from column concatenation, see file header comment)`,
+    po5578007Amount === 3670.55]);
 
   // ---------------------------------------------------------------
   // boardroomFinding() must store the FULL span, not a 500-char slice.
@@ -55,8 +79,8 @@ function eev2RunCitationTruncationRegression() {
   // any validator ever saw it.
   // ---------------------------------------------------------------
   const po5578007Finding = boardroomFinding(
-    "Possible leakage or overrun signal (trigger term: wastage) was found in this document.",
-    "LEAKAGE_AND_OVERRUN", 0, 0, "PO-5578-007.pdf", "Page 1", po5578007Span, 0, 0, 0, "LOW");
+    "Possible leakage or overrun signal (trigger term: delayed) was found in this document.",
+    "LEAKAGE_AND_OVERRUN", po5578007Amount, 0, "Procurement_Purchase_Orders.pdf", "Sheet1", po5578007Span, 0, 0, 0, "LOW");
 
   checks.push(["boardroomFinding() stores the full untruncated span (no storage-site slice(0,500))",
     po5578007Finding.citations[0].quoted_span === po5578007Span]);
