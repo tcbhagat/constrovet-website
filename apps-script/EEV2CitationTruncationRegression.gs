@@ -87,6 +87,26 @@ function eev2RunCitationTruncationRegression() {
   checks.push(["boardroomFinding() citation retains the AAC Blocks unit rate clause past character 500",
     po5578007Finding.citations[0].quoted_span.indexOf("Rs.3,670.55") > 500]);
 
+  // ---------------------------------------------------------------
+  // SEVERITY CHECK: does validateReportOutput actually catch the known
+  // label-bleed bug above, or would this mislabeled figure ship to a
+  // client board pack? Builds the finding exactly as the real pipeline
+  // would -- LEAKAGE_AND_OVERRUN, amount_inr = the ACTUAL buggy
+  // boardroomTriggerOwnedAmount result (3670.55, PO-5578-006's "Delayed"
+  // wrongly attributed to PO-5578-007's AAC Blocks unit rate) -- and runs
+  // it through validateReportOutput exactly like the genuine-leakage case
+  // below. Recorded plainly: this check passes if isValid is FALSE (the
+  // gate catches it) and is flagged FAILING if isValid comes back TRUE
+  // (the gate would ship it).
+  // ---------------------------------------------------------------
+  const buggyBrowserReport = {
+    analysis_generated: true,
+    findings: [po5578007Finding]
+  };
+  const buggyValidation = validateReportOutput({}, buggyBrowserReport);
+  checks.push([`SEVERITY: validateReportOutput.isValid for the buggy PO-5578-007 finding (amount_inr=${po5578007Finding.amount_inr}, mislabeled from PO-5578-006's "Delayed") = ${buggyValidation.isValid} -- errors: ${JSON.stringify(buggyValidation.errors)}`,
+    buggyValidation.isValid === false]);
+
   // normalizeFindingForVerification() had its own redundant re-slice --
   // must also preserve the full span now.
   const normalized = normalizeFindingForVerification(po5578007Finding);
