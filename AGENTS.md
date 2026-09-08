@@ -24,7 +24,7 @@ Response format (token discipline)
 ·End with: what changed, what's unverified, what's the next single test to run.  
 Standing workflow (repo work)  
 1.Read-only diagnostic first — view real files (AGENTS.md, CONTRACTS.md, target source) before any write.  
-2.Confirm bug against real data/document, not a hypothesis.  
+2.Confirm bug against real data/document, not a hypothesis.  test data available at https://drive.google.com/drive/folders/1aSwKbwlgZBUIKnZb8N-ryBy31KPuHSNP
 3.Write the regression test proving the bug, then proving the fix.  
 4.Run the full regression suite — zero regressions is the bar.  
 5.Hand off diff + verified/not-verified split. Founder holds merge/deploy.  
