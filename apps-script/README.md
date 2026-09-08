@@ -1,4 +1,4 @@
-# Constrovet Workspace Apps Script Processor
+![Constrovet Workspace Apps Script Processor](./readme-heading.svg)
 
 This script is the free-tier Workspace processor for `https://www.constrovet.com/app/`.
 It receives explicit user requests for Deep Analysis or report email, stores files
