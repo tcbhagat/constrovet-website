@@ -1,3 +1,4 @@
+<!-- tested from Claude Code web on 2026-09-08 -->
 # Constrovet Website
 
 Static HTML site for **constrovet.com** — hosted on GitHub Pages.
