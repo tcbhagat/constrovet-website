@@ -26,22 +26,30 @@
 // cutoff, confirming the truncation bug this suite targets was real for
 // this document.
 //
-// IMPORTANT -- this real text surfaces a SEPARATE, GENUINE defect, found
+// EEV2-009 (folded into this same file/suite, not a separate gate entry):
+// this real text originally surfaced a SEPARATE, GENUINE defect, found
 // while wiring in this fixture: the table extraction has no whitespace
 // between columns ("Supplier-GDelayed", "Supplier-GAggregates", etc).
-// boardroomTriggerOwnedAmount's 40-char BOARDROOM_LABEL_WINDOW is measured
+// boardroomTriggerOwnedAmount's 40-char BOARDROOM_LABEL_WINDOW was measured
 // in raw characters, not tokens, so PO-5578-006's status word "Delayed"
-// (as the tail of "Supplier-GDelayed") lands inside the 40-char window
-// immediately before PO-5578-007's "Rs.3,670.55" and is picked up as that
+// (as the tail of "Supplier-GDelayed") landed inside the 40-char window
+// immediately before PO-5578-007's "Rs.3,670.55" and was picked up as that
 // figure's owning label -- even though "Delayed" describes the PREVIOUS
-// row's PO, not PO-5578-007 (which is itself status "Delivered").
-// boardroomTriggerOwnedAmount(realFullSpan, boardroomLeakageRe()) therefore
-// returns 3670.55, NOT 0, on this real document. This is cross-row label
-// bleed from column concatenation -- distinct from EEV2-008's citation
-// truncation bug (and from EEV2-004's proximity/ownership fix, which
-// solved a same-row mislabelling, not a cross-row one). Recorded here
-// rather than silently forced to pass; see the assertion below, which
-// documents the actual observed value instead of asserting 0.
+// row's PO, not PO-5578-007 (which is itself status "Delivered"). A
+// SEVERITY check added here confirmed the consequence was real: building
+// the resulting mislabeled finding and running it through
+// validateReportOutput came back isValid=true, errors=[] -- the gate would
+// have shipped a fabricated leakage figure to a client board pack. This is
+// cross-row label bleed from column concatenation -- distinct from EEV2-
+// 008's citation truncation bug and from EEV2-004's proximity/ownership
+// fix (which solved a same-row mislabelling, not a cross-row one).
+//
+// FIX: boardroomTriggerOwnedAmount's label region is now also capped at
+// the nearest preceding newline (row boundary), in addition to the
+// existing 40-char window and previousEnd cap. Every other regression
+// fixture in this repo is a single-line string with no embedded newline,
+// so this only ever narrows the label window, and only when a genuine row
+// boundary sits inside it -- it cannot regress a same-row match.
 
 function eev2RunCitationTruncationRegression() {
   const checks = [];
@@ -61,15 +69,12 @@ function eev2RunCitationTruncationRegression() {
   checks.push(["fixture PO-5578-007: AAC Blocks unit rate figure sits past character 500",
     po5578007Span.indexOf("Rs.3,670.55") > 500]);
 
-  // KNOWN OPEN DEFECT (found by this real fixture, not fixed by EEV2-008):
-  // cross-row label bleed from column concatenation makes
-  // boardroomTriggerOwnedAmount return 3670.55 here, not 0. This assertion
-  // records that actual, currently-real value -- it is deliberately NOT
-  // asserting the correct/desired 0, so this suite reports the true state
-  // instead of masking an open bug.
+  // FIXED (row-boundary guard in boardroomTriggerOwnedAmount): must now
+  // extract 0 rupees. PO-5578-006's "Delayed" no longer bleeds across the
+  // row boundary into PO-5578-007's label window.
   const po5578007Amount = boardroomTriggerOwnedAmount(po5578007Span, leak);
-  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) currently returns ${po5578007Amount} (KNOWN BUG: should be 0 -- AAC Blocks unit rate is not leakage; cross-row label bleed from column concatenation, see file header comment)`,
-    po5578007Amount === 3670.55]);
+  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) -> 0 (row-boundary guard stops PO-5578-006's "Delayed" from bleeding into PO-5578-007's label window), got ${po5578007Amount}`,
+    po5578007Amount === 0]);
 
   // ---------------------------------------------------------------
   // boardroomFinding() must store the FULL span, not a 500-char slice.
@@ -79,7 +84,7 @@ function eev2RunCitationTruncationRegression() {
   // any validator ever saw it.
   // ---------------------------------------------------------------
   const po5578007Finding = boardroomFinding(
-    "Possible leakage or overrun signal (trigger term: delayed) was found in this document.",
+    boardroomSignalStatement_("LEAKAGE", po5578007Span, po5578007Amount, 0),
     "LEAKAGE_AND_OVERRUN", po5578007Amount, 0, "Procurement_Purchase_Orders.pdf", "Sheet1", po5578007Span, 0, 0, 0, "LOW");
 
   checks.push(["boardroomFinding() stores the full untruncated span (no storage-site slice(0,500))",
@@ -88,24 +93,28 @@ function eev2RunCitationTruncationRegression() {
     po5578007Finding.citations[0].quoted_span.indexOf("Rs.3,670.55") > 500]);
 
   // ---------------------------------------------------------------
-  // SEVERITY CHECK: does validateReportOutput actually catch the known
-  // label-bleed bug above, or would this mislabeled figure ship to a
-  // client board pack? Builds the finding exactly as the real pipeline
-  // would -- LEAKAGE_AND_OVERRUN, amount_inr = the ACTUAL buggy
-  // boardroomTriggerOwnedAmount result (3670.55, PO-5578-006's "Delayed"
-  // wrongly attributed to PO-5578-007's AAC Blocks unit rate) -- and runs
-  // it through validateReportOutput exactly like the genuine-leakage case
-  // below. Recorded plainly: this check passes if isValid is FALSE (the
-  // gate catches it) and is flagged FAILING if isValid comes back TRUE
-  // (the gate would ship it).
+  // SEVERITY CHECK: before the row-boundary guard, this exact finding
+  // carried amount_inr=3670.55 (PO-5578-006's "Delayed" wrongly attributed
+  // to PO-5578-007's AAC Blocks unit rate), and running it through
+  // validateReportOutput came back isValid=true, errors=[] -- CHECK 5b only
+  // confirms a claimed figure sits near a currency marker, it does not
+  // verify the label attributing it as leakage belongs to that figure's
+  // row. That meant the gate would have shipped a fabricated leakage
+  // figure to a client board pack. Now that the extractor itself no longer
+  // attributes PO-5578-006's "Delayed" to PO-5578-007's figure
+  // (amount_inr=0, asserted above), there is no fabricated amount for
+  // validateReportOutput to wrongly wave through -- confirmed here by
+  // running the SAME finding-construction path end to end and checking
+  // both the amount and the validation result explicitly, so this check
+  // fails again if the row-boundary guard ever regresses.
   // ---------------------------------------------------------------
   const buggyBrowserReport = {
     analysis_generated: true,
     findings: [po5578007Finding]
   };
   const buggyValidation = validateReportOutput({}, buggyBrowserReport);
-  checks.push([`SEVERITY: validateReportOutput.isValid for the buggy PO-5578-007 finding (amount_inr=${po5578007Finding.amount_inr}, mislabeled from PO-5578-006's "Delayed") = ${buggyValidation.isValid} -- errors: ${JSON.stringify(buggyValidation.errors)}`,
-    buggyValidation.isValid === false]);
+  checks.push([`SEVERITY: PO-5578-007 finding amount_inr=${po5578007Finding.amount_inr} (must be 0, not the mislabeled 3670.55) and validateReportOutput.isValid=${buggyValidation.isValid} with errors=${JSON.stringify(buggyValidation.errors)} -- no fabricated leakage figure reaches the gate`,
+    po5578007Finding.amount_inr === 0 && buggyValidation.isValid === true]);
 
   // normalizeFindingForVerification() had its own redundant re-slice --
   // must also preserve the full span now.
