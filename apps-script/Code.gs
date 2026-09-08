@@ -2326,7 +2326,17 @@ function boardroomTriggerOwnedAmount(text, keywordRegex) {
   let match;
   let previousEnd = 0;
   while ((match = currency.exec(source))) {
-    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW);
+    // Row-boundary guard (EEV2-009): a table row extracted without inter-
+    // column whitespace can put the PREVIOUS row's trigger word (e.g. a
+    // "Delayed" status) within the raw 40-char BOARDROOM_LABEL_WINDOW of
+    // THIS row's currency figure -- e.g. "...Supplier-GDelayed\n\nPO-5578-
+    // 007AAC Blocks335 Cu.M Rs.3,670.55" wrongly attributes the AAC Blocks
+    // unit rate to the prior row's delay. Every existing evidence window is
+    // a single line with no embedded newline, so capping the label region
+    // at the nearest preceding newline only ever narrows (never widens) the
+    // window, and only when a row boundary actually sits inside it.
+    const lineStart = source.lastIndexOf("\n", match.index - 1) + 1;
+    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW, lineStart);
     const labelRegion = source.slice(labelStart, match.index);
     previousEnd = match.index + match[0].length;
     if (!trigger.test(labelRegion)) continue;
