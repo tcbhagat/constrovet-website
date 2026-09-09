@@ -105,13 +105,44 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: BLOCKED — first real cycle attempted 2026-09-09, Test A FAILED.**
-Job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set) was sent, not held
-— see M3 above. Cannot resume clean-run counting until M3's real fix ships. Do not
-re-run Test A against unfixed code; it will just resend the same figure.
-**Acceptance criteria for DONE:** Test A (9-file Procurement, must-block) and Test B
-(delay-only CSV, must-pass) both run cleanly several consecutive times under
-post-M3 code.
+**State: BLOCKED — second real cycle attempted 2026-09-09, Test A FAILED again. Still
+0 of 3 consecutive clean cycles, not 1.**
+
+**First attempt** — job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set)
+was sent, not held. Root cause was EEV2-009's no-op newline row-boundary guard — see M3
+above. Fixed by EEV2-012 (merged `4201e86`, PR #36): OCR column-join veto, verified
+against this job's own real `quoted_span`.
+
+**Second attempt** — job `form-20260909-165508-4076a2ce` (same 9-file Procurement_* set,
+submitted after EEV2-012 shipped). **EEV2-012 confirmed working live**: the specific
+fabricated figure it targets came back `INR 0`, no fabrication — the row-boundary /
+OCR-column-join defect is closed for this document. **Test A still failed overall**,
+for a separate, still-open reason: the Procurement_* set is documented (per
+`validation-layer-audit-20260902.md`, a Drive doc not present in this repo — not
+independently re-verified here beyond what that doc is understood to specify) as a
+MUST-BLOCK submission in its own right, regardless of any single figure's correctness.
+No code in `apps-script/` implements that whole-submission gate — confirmed by search,
+zero hits for any Procurement_*-set-level block/reject mechanism. EEV2-004 through
+EEV2-012 have only ever fixed per-figure attribution bugs; none of them touch this
+separate, still-missing gate. So a submission with zero fabricated figures can still be
+exactly the submission that must never send, and today it isn't stopped.
+
+**Four-artifact status (Contract 1) for `form-20260909-165508-4076a2ce`: NOT run this
+session.** `eev2AuditJob(jobId)` exists (`EEV2AuditJob.gs`, on `main`) specifically to
+get this from a real function call instead of inferring it from the email alone, but
+neither of its two documented paths was available here: the Apps Script editor path
+(PLAN_01) needs an interactive, logged-in browser session this tool doesn't have, and
+running it via `clasp run` from this desktop Claude Code session would cross the exact
+tool-boundary `multi-tool-workflow.md` (added in this same PR) exists to prevent —
+`clasp run`/`clasp push` belong to Termux, not desktop Claude Code, even where `clasp`
+happens to be installed and authenticated locally. Still needs to be run for real,
+from Termux or the Apps Script editor, against this job id.
+
+**Acceptance criteria for DONE:** Test A (9-file Procurement_*, must-block **as a
+whole submission**, not just per-figure) and Test B (delay-only CSV, must-pass) both
+run cleanly 3 consecutive times under current code. The still-open MUST-BLOCK gate
+needs to be built before a third attempt has any chance of passing — re-running Test A
+against today's code will just repeat this same failure.
 
 ### M11 — Auto-push trust count
 **State: 0 of 5 cycles logged.** Cannot start meaningfully until M7 is live.
