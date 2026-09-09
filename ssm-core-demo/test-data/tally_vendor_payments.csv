@@ -1,4 +1,0 @@
-voucher_type,amount,branch,gst_rate,tds_rate,vendor_name,pan,gstin,email,phone,account_number,expected_result
-vendor_payment,249999,Pune,18,1,Demo Vendor Safe,DEMO-PAN-001,DEMO-GSTIN-001,DEMO-EMAIL-001,DEMO-PHONE-001,DEMO-ACCOUNT-001,approve_boundary
-vendor_payment,250000,Pune,18,1,Demo Vendor Block,DEMO-PAN-002,DEMO-GSTIN-002,DEMO-EMAIL-002,DEMO-PHONE-002,DEMO-ACCOUNT-002,block_DEMO-GST-PUNE-VENDOR-250K
-vendor_payment,300000,Mumbai,18,1,Demo Mumbai Vendor,DEMO-PAN-003,DEMO-GSTIN-003,DEMO-EMAIL-003,DEMO-PHONE-003,DEMO-ACCOUNT-003,approve_location_mismatch

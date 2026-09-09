@@ -1,5 +1,0 @@
-transaction type,gross_amount,city,professional_tax,gst_rate,employee_name,pan,email,phone,expected_result
-payroll,125000,Mumbai,200,,Demo Employee One,DEMO-PAN-101,DEMO-EMAIL-101,DEMO-PHONE-101,block_DEMO-LABOUR-MUMBAI-PAYROLL-100K
-payroll,99000,Mumbai,200,,Demo Employee Two,DEMO-PAN-102,DEMO-EMAIL-102,DEMO-PHONE-102,approve_boundary
-invoice,950000,Pune,,18,Demo Customer One,DEMO-PAN-103,DEMO-EMAIL-103,DEMO-PHONE-103,block_DEMO-HIGH-INVOICE-PUNE-900K
-invoice,75000,Mumbai,,18,Demo Customer Two,DEMO-PAN-104,DEMO-EMAIL-104,DEMO-PHONE-104,approve_clean_invoice
