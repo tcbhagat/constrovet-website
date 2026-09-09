@@ -22,13 +22,13 @@ create_milestone_if_missing() {
   local existing
   existing=$(gh api "repos/${REPO}/milestones?state=all" --jq ".[] | select(.title==\"${title}\") | .number" || true)
   if [ -n "$existing" ]; then
-    echo "Milestone '${title}' already exists (#${existing}), skipping creation."
+    echo "Milestone '${title}' already exists (#${existing}), skipping creation." >&2
     echo "$existing"
     return
   fi
   local number
   number=$(gh api "repos/${REPO}/milestones" -f title="${title}" -f description="${description}" --jq '.number')
-  echo "Created milestone '${title}' as #${number}"
+  echo "Created milestone '${title}' as #${number}" >&2
   echo "$number"
 }
 
@@ -36,7 +36,11 @@ create_tracking_issue() {
   local milestone_number="$1"
   local title="$2"
   local body="$3"
-  gh issue create --repo "${REPO}" --title "${title}" --body "${body}" --milestone "${milestone_number}"
+  # gh issue create --milestone takes a milestone NAME, not its numeric id --
+  # resolve the number back to its title first.
+  local milestone_title
+  milestone_title=$(gh api "repos/${REPO}/milestones/${milestone_number}" --jq '.title')
+  gh issue create --repo "${REPO}" --title "${title}" --body "${body}" --milestone "${milestone_title}"
 }
 
 echo "=== M3 — EEV2-008/009 fix (citation truncation + label bleed) ==="
