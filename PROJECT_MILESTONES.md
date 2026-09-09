@@ -138,11 +138,44 @@ tool-boundary `multi-tool-workflow.md` (added in this same PR) exists to prevent
 happens to be installed and authenticated locally. Still needs to be run for real,
 from Termux or the Apps Script editor, against this job id.
 
-**Acceptance criteria for DONE:** Test A (9-file Procurement_*, must-block **as a
-whole submission**, not just per-figure) and Test B (delay-only CSV, must-pass) both
-run cleanly 3 consecutive times under current code. The still-open MUST-BLOCK gate
-needs to be built before a third attempt has any chance of passing — re-running Test A
-against today's code will just repeat this same failure.
+**Blocked on EEV2-013** (`eev2-013-missing-must-block-gate-20260909.md`) — the missing
+whole-submission MUST-BLOCK gate identified above now has a founder decision and a
+diff, **not yet merged, pending review**:
+
+**Decision (founder, 2026-09-09): Option A.** If every finding in a report is
+narrative-only — no finding has complete, verified evidence — hold the report
+entirely instead of emailing it with caveats. Permanent behavior change for every
+future submission, not scoped to the Procurement_* set: a genuine first-time client
+submission whose every finding is narrative-only will also be held under this rule.
+
+Implemented as CHECK 8 in `validateReportOutput` (`apps-script/Code.gs`). "Verified"
+means `evidence_quality` is `STRUCTURED_ACTUAL_BUDGET`, `CITED_AMOUNT`, or
+`CITED_DAYS` — narrowed further to `STRUCTURED_ACTUAL_BUDGET` alone in an early draft,
+but that broke five distinct, pre-existing, deliberately-designed single-finding
+regression tests across three suites (EEV2-005, EEV2-007, EEV2-008), all asserting a
+lone, correctly-verified `CITED_AMOUNT` finding must still pass — widened to match the
+codebase's own established position instead of silently reversing it.
+
+Verified against three real jobs, not synthetic data: job
+`form-20260909-165508-4076a2ce` (second real attempt, all 9 findings narrative-only)
+is correctly held; job `form-20260902-065743-34adf820` (real GOOD/BAD/NORMAL reference
+set with 3 genuine `STRUCTURED_ACTUAL_BUDGET` findings, itself carrying an unrelated
+open evidence-gap item and legitimately sent) is correctly NOT held — the adversarial
+counter-example proving the gate keys off per-finding evidence, not the document-level
+`evidence_status` field (which would have wrongly held that legitimate job too). Job
+`form-20260909-072421-33a43b52` (first, pre-EEV2-012 attempt) is deliberately **not**
+re-caught by this check alone — its one fabricated `CITED_AMOUNT` finding is
+mechanically indistinguishable from a legitimate one at this layer; that specific
+fabrication path is EEV2-012's closed problem, not this gate's. Full harness 18/18
+(new suite `EEV2MustBlockGateRegression.gs`, EEV2-013), `check:fixtures` unaffected
+(same 7 pre-existing violations, zero new).
+
+**Not run this session:** `eev2AuditJob`'s four-artifact status for either real job —
+same tool-boundary limitation as before.
+
+**Acceptance criteria for DONE:** the EEV2-013 diff reviewed and merged; Test A
+(9-file Procurement_*, must-block **as a whole submission**) and Test B (delay-only
+CSV, must-pass) both run cleanly 3 consecutive times under the merged code.
 
 ### M11 — Auto-push trust count
 **State: 0 of 5 cycles logged.** Cannot start meaningfully until M7 is live.

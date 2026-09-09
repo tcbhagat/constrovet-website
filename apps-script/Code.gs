@@ -455,6 +455,66 @@ function validateReportOutput(report, browserReport) {
     });
   });
 
+  // CHECK 8: Whole-submission MUST-BLOCK gate (EEV2-013, founder decision
+  // 2026-09-09, Option A). If NO finding in the report has complete,
+  // verified evidence -- every single finding is narrative-only
+  // (evidence_quality CITED_NARRATIVE, or no citation at all) -- the report
+  // must be held, not emailed with caveats. This is a permanent behavior
+  // change for every future submission, not scoped to any one document
+  // set: chosen deliberately, with the understood consequence that a
+  // genuine first-time client submission whose every finding is
+  // narrative-only will also be held under this rule.
+  //
+  // "Verified" here means evidence_quality is STRUCTURED_ACTUAL_BUDGET,
+  // CITED_AMOUNT, or CITED_DAYS -- NOT narrowed to STRUCTURED_ACTUAL_BUDGET
+  // alone. An earlier draft of this check used the narrower definition and
+  // was caught by this file's OWN existing regression suite: EEV2-005's
+  // "NGT penalty false-positive control" and "BASELINE_BUDGET category ...
+  // still passes", EEV2-007's "245 Crores citation", four genuine Lakh/Cr
+  // unit cases, and its own NGT-penalty control, and EEV2-008's SEVERITY
+  // check finding -- five distinct, pre-existing, deliberately-designed
+  // single-finding tests, across three suites, all asserting that one
+  // legitimate CITED_AMOUNT finding (already verified by CHECK 5b's
+  // currency-marker check, CHECK 5c's count-phrase guard, and CHECK 5e's
+  // aggregate-value guard) must still pass on its own. That is the
+  // codebase's own established position: a CITED_AMOUNT finding that
+  // survives fabrication checking is not "no evidence" -- narrowing this
+  // gate to STRUCTURED_ACTUAL_BUDGET only would have reversed that
+  // position silently. Widened to match it instead.
+  //
+  // Deliberately per-finding (f.evidence_quality), NOT
+  // decision_pack.evidence_status === "CITED_WITH_OPEN_EVIDENCE_GAPS":
+  // that decision-pack field goes to CITED_WITH_OPEN_EVIDENCE_GAPS
+  // whenever missingEvidence is non-empty, REGARDLESS of whether some
+  // finding already has verified evidence -- confirmed against real job
+  // form-20260902-065743-34adf820, which has 3 STRUCTURED_ACTUAL_BUDGET
+  // findings (M20_CostEstimate_BAD.pdf) AND a non-empty
+  // missing_evidence_queue, and was correctly sent (EMAIL_SENT). Gating on
+  // the decision-pack field would have wrongly held that real, legitimate
+  // report.
+  //
+  // Confirmed this catches the real, CURRENT, still-open failure: job
+  // form-20260909-165508-4076a2ce (the second real Test A attempt, AFTER
+  // EEV2-012 shipped) has 9 real findings, all CITED_NARRATIVE, 0 verified
+  // -- held under this rule. Its first attempt, job
+  // form-20260909-072421-33a43b52 (BEFORE EEV2-012), is NOT re-caught by
+  // this check alone under the widened definition: that job's one
+  // CITED_AMOUNT finding (the fabricated PO-5578-007 figure) is
+  // mechanically indistinguishable, at the evidence_quality level, from a
+  // legitimate CITED_AMOUNT finding like the NGT-penalty control above --
+  // both survive CHECK 5b/5c/5e identically. That specific fabrication
+  // path is EEV2-012's job (the OCR column-join veto at extraction time),
+  // not this check's -- confirmed closed: resubmitting the identical
+  // Procurement_* document set under current code (job
+  // form-20260909-165508-4076a2ce) no longer produces that finding at all.
+  // This check is defense-in-depth for the case EEV2-012 does not cover --
+  // a submission with no verified finding whatsoever -- not a second,
+  // independent catch of every fabrication EEV2-012 already closes.
+  const UNVERIFIED_EVIDENCE_QUALITIES = ["CITED_NARRATIVE", "MISSING", ""];
+  if (findings.length > 0 && findings.every((f) => UNVERIFIED_EVIDENCE_QUALITIES.indexOf(f.evidence_quality || "") >= 0)) {
+    errors.push(`NO_VERIFIED_EVIDENCE: All ${findings.length} finding(s) are narrative-only (no STRUCTURED_ACTUAL_BUDGET, CITED_AMOUNT, or CITED_DAYS evidence) — report must be held per EEV2-013 (no finding has complete, verified evidence)`);
+  }
+
   return {
     isValid: errors.length === 0,
     errors: errors,

@@ -95,6 +95,13 @@ function eev2RunCitationTruncationRegression() {
   const po5578007Finding = boardroomFinding(
     boardroomSignalStatement_("LEAKAGE", po5578007Span, po5578007Amount, 0),
     "LEAKAGE_AND_OVERRUN", po5578007Amount, 0, "Procurement_Purchase_Orders.pdf", "Sheet1", po5578007Span, 0, 0, 0, "LOW");
+  // boardroomFinding() alone does not set evidence_quality -- that is
+  // scoreBoardroomFindings()'s job in the real pipeline, run once per
+  // batch after extraction. Compute it the same way here so this fixture
+  // matches what a real report actually carries by the time it reaches
+  // validateReportOutput, instead of leaving it undefined as an artifact
+  // of this test calling boardroomFinding() directly.
+  po5578007Finding.evidence_quality = boardroomEvidenceQuality(po5578007Finding);
 
   checks.push(["boardroomFinding() stores the full untruncated span (no storage-site slice(0,500))",
     po5578007Finding.citations[0].quoted_span === po5578007Span]);
@@ -112,18 +119,32 @@ function eev2RunCitationTruncationRegression() {
   // figure to a client board pack. Now that the extractor itself no longer
   // attributes PO-5578-006's "Delayed" to PO-5578-007's figure
   // (amount_inr=0, asserted above), there is no fabricated amount for
-  // validateReportOutput to wrongly wave through -- confirmed here by
-  // running the SAME finding-construction path end to end and checking
-  // both the amount and the validation result explicitly, so this check
-  // fails again if the row-boundary guard ever regresses.
+  // validateReportOutput to wrongly wave through.
+  //
+  // Updated for EEV2-013 (CHECK 8, added 2026-09-09): a report containing
+  // only this one finding, with amount_inr=0 and evidence_quality
+  // CITED_NARRATIVE (no other finding present to supply verified
+  // evidence), is now CORRECTLY held under the whole-submission MUST-BLOCK
+  // gate -- this is EEV2-013's intended behavior, not a regression. The
+  // real production data this fixture is modeled on (job
+  // form-20260909-165508-4076a2ce) has 9 such findings, all
+  // CITED_NARRATIVE, and is exactly the case CHECK 8 exists to hold. So
+  // this check now asserts two things separately: no fabricated amount
+  // (unchanged), and isValid=false for precisely the NO_VERIFIED_EVIDENCE
+  // reason -- not any fabrication-related error, proving EEV2-012's fix
+  // and EEV2-013's gate are each doing their own job, not masking one
+  // another.
   // ---------------------------------------------------------------
   const buggyBrowserReport = {
     analysis_generated: true,
     findings: [po5578007Finding]
   };
   const buggyValidation = validateReportOutput({}, buggyBrowserReport);
-  checks.push([`SEVERITY: PO-5578-007 finding amount_inr=${po5578007Finding.amount_inr} (must be 0, not the mislabeled 3670.55) and validateReportOutput.isValid=${buggyValidation.isValid} with errors=${JSON.stringify(buggyValidation.errors)} -- no fabricated leakage figure reaches the gate`,
-    po5578007Finding.amount_inr === 0 && buggyValidation.isValid === true]);
+  const buggyNonBlockErrors = (buggyValidation.errors || []).filter((e) => e.indexOf("NO_VERIFIED_EVIDENCE") !== 0);
+  checks.push([`SEVERITY: PO-5578-007 finding amount_inr=${po5578007Finding.amount_inr} (must be 0, not the mislabeled 3670.55) -- no fabricated amount reaches the gate`,
+    po5578007Finding.amount_inr === 0]);
+  checks.push([`SEVERITY: with EEV2-013 live, a lone CITED_NARRATIVE finding is correctly held (isValid=${buggyValidation.isValid}), and only for NO_VERIFIED_EVIDENCE -- no fabrication-related error also fired: ${JSON.stringify(buggyNonBlockErrors)}`,
+    buggyValidation.isValid === false && buggyNonBlockErrors.length === 0]);
 
   // normalizeFindingForVerification() had its own redundant re-slice --
   // must also preserve the full span now.
