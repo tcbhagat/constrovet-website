@@ -3082,5 +3082,104 @@ own author flagged as impossible in their environment (no `clasp` CLI, no
 
 
 ---
+## Session 2026-09-09 (cont'd) — M3 milestone closed with checksum evidence, then REOPENED same day on real Test A failure
+
+**Scope:** founder confirmed M3's live checksum
+(`6c6ef5dbf26c9121849388453dde52e4`) from his Ubuntu machine, independently
+re-verified this session, PROJECT_MILESTONES.md updated to DONE, GitHub
+milestone #1 and issue #24 closed. Then proceeded to M10: real Test A
+submission against the now-"fixed" pipeline — which failed for real.
+
+### M3 close-out — verified, not just trusted
+
+- `git log`/`gh pr view 32`: PR #32 confirmed `MERGED`.
+- Fresh `clasp pull` this session (`pre-push-check.mjs --keep-temp`):
+  live `Code.js` md5 = `6c6ef5dbf26c9121849388453dde52e4`, matching both the
+  founder's independently-reported value and the repo's tracked
+  `apps-script/Code.gs` — three-way agreement, not assumed.
+- PROJECT_MILESTONES.md updated (M3 DONE), pushed (`d4e292e`).
+- `gh issue close 24`, `gh api -X PATCH .../milestones/1 -f state=closed` —
+  both confirmed closed via a fresh API read afterward, not the command's
+  own echoed success.
+
+### M10 — real Test A submitted, FAILED for real
+
+Founder submitted the real 9-file Procurement_* set (from
+`bhagat.taran@gmail.com`, not `admin@constrovet.com` as Contract 5's canary
+rule specifies — flagged, no external exposure since it's the founder's own
+inbox either way). Real email received:
+`Job: form-20260909-072421-33a43b52`, **`email_status: EMAIL_SENT`**,
+`Cited quantified recoverable leakage totals INR 3,671 across 1 finding(s)`.
+
+Pulled the real `final-report.json` from Drive directly (not inferred from
+the email alone). Confirmed: `amount_inr: 3670.55`, `financial_category:
+LEAKAGE_AND_OVERRUN`, citation = `Procurement_Purchase_Orders...pdf` — this
+is the exact real AAC Blocks (PO-5578-007) unit-rate figure EEV2-009 (part
+of the M3 fix, checksum-confirmed live minutes earlier) was built to stop.
+
+**Root cause, confirmed by direct offline reproduction against the real
+citation text pulled from this exact job** (not a reconstructed fixture):
+
+```
+$ node -e '... boardroomTriggerOwnedAmount(realSpan, boardroomLeakageRe()) ...'
+contains newline: false
+length: 1619
+boardroomTriggerOwnedAmount result: 3670.55
+```
+
+EEV2-009's row-boundary guard (`source.lastIndexOf("\n", ...)`) only
+narrows the label window when a newline exists in the citation text. Real
+Gemini OCR extraction for this document has **no newlines at all** — one
+continuous string, `"...Supplier-GDelayed PO-5578-007AAC Blocks335 Cu.M
+Rs.3,670.55..."`. The EEV2-008/009 regression suite's own fixture used
+`\n\n` between table rows — a formatting choice made when the test was
+written, not copied from real extraction output — so the suite passed
+(16/16, still true right now) while the real-world case it was meant to
+represent was never actually covered. Measured gap on the real text: 34
+characters between "Delayed" and the figure, inside the existing 40-char
+`BOARDROOM_LABEL_WINDOW`.
+
+### Design proposal written, no code changed yet (per explicit founder instruction)
+
+Founder explicitly directed: don't reuse the `\n` approach, don't
+hardcode a per-document ID regex either (checked and rejected a
+`PO-\d{4}-\d{3}` pattern — would fix this one document family and leave
+every other tabular document exposed to the same mechanism, repeating this
+project's own recurring-failure pattern #5). Wrote
+`EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md`: two candidate approaches
+(Option A — nearest-trigger-occurrence + inter-row-signal check; Option B —
+reuse CHECK 5d's multi-currency-figure density signal as a second,
+independent veto on `boardroomTriggerOwnedAmount`), the exact real
+regression fixture text ready to use, and explicit non-recommendation
+between the two pending founder input.
+
+PROJECT_MILESTONES.md updated again: M3 moved from DONE back to REOPENED
+(checksum match stated as real and unaffected — it confirms deployment,
+not correctness); M10 moved from IN PROGRESS to BLOCKED, first real cycle
+recorded as a genuine FAIL, not rounded to a pass or silently retried.
+
+### Not verified
+
+- No code fix built or tested this session for the real gap — proposal
+  only, per explicit instruction.
+- Neither Option A nor Option B chosen.
+- Whether other real document families already tested this session (Change
+  Order logs, RFI trackers, Governance/Risk-Register docs) have the same
+  no-newline concatenation shape — assumed likely based on what's been
+  read this session, not exhaustively re-checked against every real file.
+- Test B was never run this cycle — Test A's failure stopped the cycle
+  before reaching it, per standing instruction not to keep resubmitting
+  past a found mismatch.
+
+### Founder action required next
+
+1. Review `EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md`, choose Option A,
+   Option B, or direct a different approach.
+2. Do not re-run Test A against current code — confirmed still broken.
+3. Once a fix is built, tested offline against the real fixture in that
+   doc, and reviewed/merged/pushed: re-run Test A as a fresh baseline
+   before resuming M10's clean-run counting.
+
+---
 ## Session end: 2026-09-09 12:40
 

@@ -13,10 +13,17 @@ mirrors the standard already used throughout this project's history (EEV2-004, E
 EEV2-009 were each independently re-verified before being trusted) — this doc makes it
 a formal, permanent requirement rather than something re-decided each session.
 
-## Drift flag — RESOLVED 2026-09-09
-Was: M3 (the actual production-safety fix) built and verified but left unmerged while
-lower-priority work (M4, M5, M6) proceeded and merged instead. Resolved: M3 merged
-(PR #32), pushed live, and checksum-verified — see M3 below. No longer blocking.
+## Drift flag, live as of 2026-09-09
+M3 was marked DONE earlier today on checksum verification alone, then reopened the
+same day when a real Test A submission proved the underlying defect is still live —
+the deployed code matched what was intended to ship, but that code doesn't actually
+close the bug in real conditions. This is exactly why this doc's governance rule
+requires a real artifact, not a summary: a checksum match confirms deployment, not
+correctness. See M3 below. M10 (launch-gate cycle counting) is blocked again until a
+real fix ships.
+
+Prior drift flag (M3 built-but-unmerged while M4/M5/M6 proceeded) was resolved earlier
+2026-09-09 by merging PR #32 — that specific drift is not the current issue.
 
 ## Milestones completed
 
@@ -41,19 +48,33 @@ traffic that doesn't exist) replaced with phases built around real test-coverage
 circuit breaker. Founder chose Path A (`clasp run` executed personally from Termux, not
 a stored CI credential) over Path B for the audit mechanism specifically.
 
+## Milestones in progress or blocked
+
 ### M3 — EEV2-008/009 fix (citation truncation + cross-row label bleed)
-**State: DONE**, verified by checksum. Merged to `main` via PR #32 (cherry-picked from
-`claude/eev2-008-citation-truncation-fix` commit `c0ba15d` onto current `main`, since
-that branch had gone stale behind everything merged since — a raw `git merge` would
-have deleted PROJECT_MILESTONES.md, the auto-push trust plan, EEV2-010, and
-`EEV2AuditJob.gs`). `clasp push` run by the founder. Live checksum
-`6c6ef5dbf26c9121849388453dde52e4` matches `main`'s `apps-script/Code.gs` — confirmed
-three ways: the founder's own check from his Ubuntu machine, an independent fresh
-`clasp pull` run in the same session that opened PR #32, and the repo's tracked file —
-all three agree exactly (2026-09-09). This closes a real path by which a mislabeled
-currency figure could reach a client report: the new suite's own `SEVERITY` check
-proved that, pre-fix, the exact real mislabeled finding passed `validateReportOutput`
-with `isValid=true` — a fabricated leakage figure would have shipped.
+**State: REOPENED 2026-09-09 — deployed correctly, but does not close the real defect.**
+Was marked DONE earlier the same day on checksum verification alone (merged via PR #32,
+`clasp push` run, live checksum `6c6ef5dbf26c9121849388453dde52e4` matched `main`'s
+`apps-script/Code.gs`, confirmed three independent ways). **That checksum match was
+real and remains true — the code that was intended to ship did ship.** What it did not
+confirm: whether that code actually closes the bug in real conditions. It does not.
+
+A real Test A submission the same day (job `form-20260909-072421-33a43b52`, the 9-file
+Procurement_* set, submitted from `bhagat.taran@gmail.com`) was **sent, not held** —
+`amount_inr=3670.55` (`INR 3,671`), the exact AAC Blocks unit-rate figure EEV2-009 was
+built to stop, shipped as `LEAKAGE_AND_OVERRUN`. Root cause: EEV2-009's row-boundary
+guard narrows `boardroomTriggerOwnedAmount`'s label window only when a newline (`\n`)
+is present in the citation text. Real Gemini OCR extraction for this document contains
+no newlines at all — the guard is a no-op in production. The EEV2-008/009 regression
+suite's own fixture used `\n\n` between table rows, a formatting choice made when
+building the test, not copied from a real extraction artifact — so the suite passed
+(16/16, still true) while the real-world case it represented was never actually
+covered. Full root-cause and two candidate fix approaches (neither built yet, pending
+review) in `EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md`.
+
+**Acceptance criteria for DONE, restated:** a fix chosen and built against the real
+`form-20260909-072421-33a43b52` citation text (not a reconstructed fixture), verified
+offline, merged, pushed, AND a fresh real Test A submission correctly held under the
+new code — checksum match alone is not sufficient, per this doc's own governance rule.
 
 ### M5 — EEV2-010 (currency symbol encoding)
 **State: DOCUMENTED, ROOT QUESTION UNRESOLVED.** Doc merged (PR #22), but the load-bearing
@@ -84,7 +105,10 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: IN PROGRESS — M3 shipped 2026-09-09, cycle counting starts now.**
+**State: BLOCKED — first real cycle attempted 2026-09-09, Test A FAILED.**
+Job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set) was sent, not held
+— see M3 above. Cannot resume clean-run counting until M3's real fix ships. Do not
+re-run Test A against unfixed code; it will just resend the same figure.
 **Acceptance criteria for DONE:** Test A (9-file Procurement, must-block) and Test B
 (delay-only CSV, must-pass) both run cleanly several consecutive times under
 post-M3 code.
