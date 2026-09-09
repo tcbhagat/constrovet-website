@@ -69,11 +69,20 @@ function eev2RunCitationTruncationRegression() {
   checks.push(["fixture PO-5578-007: AAC Blocks unit rate figure sits past character 500",
     po5578007Span.indexOf("Rs.3,670.55") > 500]);
 
-  // FIXED (row-boundary guard in boardroomTriggerOwnedAmount): must now
-  // extract 0 rupees. PO-5578-006's "Delayed" no longer bleeds across the
-  // row boundary into PO-5578-007's label window.
+  // CORRECTED 2026-09-09: this comment previously credited the EEV2-009
+  // newline row-boundary guard with fixing this. A real Test A submission
+  // (job form-20260909-072421-33a43b52) disproved that -- real Gemini OCR
+  // has no newlines, so the guard was a no-op in production and this exact
+  // figure shipped as INR 3,671 leakage. See fixture-provenance-pattern-
+  // 20260909.md and EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md. The fixture
+  // on this line is itself the Drive-shaped (not Gemini-shaped) text that
+  // caused the false pass -- left flagged red by check:fixtures on purpose,
+  // not silently justified. The value below is now correct for a REAL
+  // reason: EEV2-012's OCR-column-join veto in boardroomTriggerOwnedAmount,
+  // verified against the actual job's real quoted_span in
+  // EEV2RowBoundaryRegression.gs, not against this fixture.
   const po5578007Amount = boardroomTriggerOwnedAmount(po5578007Span, leak);
-  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) -> 0 (row-boundary guard stops PO-5578-006's "Delayed" from bleeding into PO-5578-007's label window), got ${po5578007Amount}`,
+  checks.push([`PO-5578-007: boardroomTriggerOwnedAmount(fullSpan) -> 0 (EEV2-012's OCR-column-join veto, not the EEV2-009 newline guard which this fixture cannot honestly test), got ${po5578007Amount}`,
     po5578007Amount === 0]);
 
   // ---------------------------------------------------------------

@@ -47,6 +47,14 @@ export function checkFileContent(filePath, content) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // Skip full-line comments -- a line whose first non-whitespace
+    // characters are "//" is prose describing the pattern (e.g. this
+    // script's own file header, or a regression suite's explanatory
+    // comments), not a fixture string literal. This does not skip a
+    // trailing "// comment" after real code on the same line, since the
+    // Drive-extraction tell can only appear inside a string literal earlier
+    // on that line, which is still scanned.
+    if (line.trim().startsWith("//")) continue;
     let searchFrom = 0;
     let idx;
     while ((idx = line.indexOf(DRIVE_TELL, searchFrom)) !== -1) {

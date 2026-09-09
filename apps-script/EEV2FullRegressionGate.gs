@@ -26,7 +26,8 @@ function eev2RunFullRegressionGate() {
     // session doesn't read the mismatch as a copy-paste error.
     { id: "EEV2-006", name: "Leakage-trigger word-boundary guard (Milestone 3, \\blate\\b)", fn: "eev2RunLeakageWordBoundaryRegression" },
     { id: "EEV2-007", name: "Crore/Lakh currency-context guard", fn: "eev2RunCroreLakhCurrencyRegression" },
-    { id: "EEV2-008", name: "Citation quoted_span truncation guard (display-only truncation)", fn: "eev2RunCitationTruncationRegression" }
+    { id: "EEV2-008", name: "Citation quoted_span truncation guard (display-only truncation)", fn: "eev2RunCitationTruncationRegression" },
+    { id: "EEV2-012", name: "Cross-row label bleed: OCR column-join veto (real Test A fix)", fn: "eev2RunRowBoundaryRegression" }
   ];
 
   const results = [];
@@ -121,7 +122,8 @@ function eev2ResolveRegressionFunction(name) {
     eev2RunAggregateValueLeakageRegression: typeof eev2RunAggregateValueLeakageRegression === "function" ? eev2RunAggregateValueLeakageRegression : null,
     eev2RunLeakageWordBoundaryRegression: typeof eev2RunLeakageWordBoundaryRegression === "function" ? eev2RunLeakageWordBoundaryRegression : null,
     eev2RunCroreLakhCurrencyRegression: typeof eev2RunCroreLakhCurrencyRegression === "function" ? eev2RunCroreLakhCurrencyRegression : null,
-    eev2RunCitationTruncationRegression: typeof eev2RunCitationTruncationRegression === "function" ? eev2RunCitationTruncationRegression : null
+    eev2RunCitationTruncationRegression: typeof eev2RunCitationTruncationRegression === "function" ? eev2RunCitationTruncationRegression : null,
+    eev2RunRowBoundaryRegression: typeof eev2RunRowBoundaryRegression === "function" ? eev2RunRowBoundaryRegression : null
   };
   return registry[name] || null;
 }
