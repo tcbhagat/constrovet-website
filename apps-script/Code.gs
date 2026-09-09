@@ -7,6 +7,13 @@ const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // (COUNT_PHRASES) already uses, so both layers agree on what "immediately
 // preceded by" means.
 const BOARDROOM_LABEL_WINDOW = 40;
+
+// EEV2-012: the signature of Gemini flattening a table -- a long digit run
+// welded to a word with no separator ("PO-5578-007AAC", "Blocks335").
+// Ordinary prose separates words from numbers; OCR column joins do not.
+// Thresholds (3 digits, 2 letters) chosen to clear real unit suffixes
+// ("120m3", "15no.") which are genuine and must keep being detected.
+const BOARDROOM_OCR_COLUMN_JOIN = /[0-9]{3,}[A-Za-z]{2,}|[A-Za-z]{2,}[0-9]{3,}/;
 const BOARDROOM_MAX_FILES = 10;
 const BOARDROOM_DEEP_ANALYSIS_MAX_FILES = 3;
 const DAILY_EMAIL_LIMIT = 5;
@@ -2322,7 +2329,7 @@ function boardroomLeakageRe() {
 function boardroomTriggerOwnedAmount(text, keywordRegex) {
   const source = String(text || "");
   const currency = /(?:₹|\bINR\b|\bRs\.?)\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(crore|cr|lakh|lac)?/ig;
-  const trigger = new RegExp(keywordRegex.source, "i");
+  const trigger = new RegExp(keywordRegex.source, "ig");
   let match;
   let previousEnd = 0;
   while ((match = currency.exec(source))) {
@@ -2334,12 +2341,29 @@ function boardroomTriggerOwnedAmount(text, keywordRegex) {
     // unit rate to the prior row's delay. Every existing evidence window is
     // a single line with no embedded newline, so capping the label region
     // at the nearest preceding newline only ever narrows (never widens) the
-    // window, and only when a row boundary actually sits inside it.
+    // window, and only when a row boundary actually sits inside it. Left in
+    // place (EEV2-011/EEV2-012): a no-op on newline-free OCR text, but
+    // correct and cheap when newlines do appear.
     const lineStart = source.lastIndexOf("\n", match.index - 1) + 1;
     const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW, lineStart);
     const labelRegion = source.slice(labelStart, match.index);
     previousEnd = match.index + match[0].length;
-    if (!trigger.test(labelRegion)) continue;
+
+    // EEV2-012: find the NEAREST trigger to the figure, not merely any
+    // trigger anywhere in the window -- ownership is about adjacency to
+    // the figure, not just co-occurrence in a 40-char span.
+    trigger.lastIndex = 0;
+    let hit = null;
+    let nearest = null;
+    while ((hit = trigger.exec(labelRegion))) nearest = hit;
+    if (!nearest) continue;
+
+    // EEV2-012: if an OCR column join sits between the trigger word and the
+    // figure, they are on different logical rows of a flattened table -- the
+    // trigger does not own this figure. Confirmed against the real citation
+    // text of job form-20260909-072421-33a43b52.
+    if (BOARDROOM_OCR_COLUMN_JOIN.test(labelRegion.slice(nearest.index + nearest[0].length))) continue;
+
     let value = Number(match[1].replace(/,/g, ""));
     const unit = (match[2] || "").toLowerCase();
     if (unit === "crore" || unit === "cr") value *= 10000000;
