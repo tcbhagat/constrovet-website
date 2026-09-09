@@ -13,10 +13,10 @@ mirrors the standard already used throughout this project's history (EEV2-004, E
 EEV2-009 were each independently re-verified before being trusted) — this doc makes it
 a formal, permanent requirement rather than something re-decided each session.
 
-## Drift flag, live as of 2026-09-08
-Milestone M3 (the actual production-safety fix) was built and verified but left
-unmerged while lower-priority work (M4, M5, M6) proceeded and merged instead. M3 takes
-priority over all open milestones below until it ships.
+## Drift flag — RESOLVED 2026-09-09
+Was: M3 (the actual production-safety fix) built and verified but left unmerged while
+lower-priority work (M4, M5, M6) proceeded and merged instead. Resolved: M3 merged
+(PR #32), pushed live, and checksum-verified — see M3 below. No longer blocking.
 
 ## Milestones completed
 
@@ -41,15 +41,19 @@ traffic that doesn't exist) replaced with phases built around real test-coverage
 circuit breaker. Founder chose Path A (`clasp run` executed personally from Termux, not
 a stored CI credential) over Path B for the audit mechanism specifically.
 
-## Milestones in progress or blocked
-
 ### M3 — EEV2-008/009 fix (citation truncation + cross-row label bleed)
-**State: BUILT AND VERIFIED, NOT MERGED.** Branch `claude/eev2-008-citation-truncation-fix`
-(commit `c0ba15d`), 16/16 harness suites and 26/26 tests independently re-run and
-confirmed passing. This is the highest-priority open item — it closes a real path by
-which a mislabeled currency figure could reach a client report.
-**Acceptance criteria for DONE:** merged to `main`, `clasp push` run, live checksum
-matches repo `Code.gs` (same method as M2).
+**State: DONE**, verified by checksum. Merged to `main` via PR #32 (cherry-picked from
+`claude/eev2-008-citation-truncation-fix` commit `c0ba15d` onto current `main`, since
+that branch had gone stale behind everything merged since — a raw `git merge` would
+have deleted PROJECT_MILESTONES.md, the auto-push trust plan, EEV2-010, and
+`EEV2AuditJob.gs`). `clasp push` run by the founder. Live checksum
+`6c6ef5dbf26c9121849388453dde52e4` matches `main`'s `apps-script/Code.gs` — confirmed
+three ways: the founder's own check from his Ubuntu machine, an independent fresh
+`clasp pull` run in the same session that opened PR #32, and the repo's tracked file —
+all three agree exactly (2026-09-09). This closes a real path by which a mislabeled
+currency figure could reach a client report: the new suite's own `SEVERITY` check
+proved that, pre-fix, the exact real mislabeled finding passed `validateReportOutput`
+with `isValid=true` — a fabricated leakage figure would have shipped.
 
 ### M5 — EEV2-010 (currency symbol encoding)
 **State: DOCUMENTED, ROOT QUESTION UNRESOLVED.** Doc merged (PR #22), but the load-bearing
@@ -80,8 +84,7 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: NOT STARTED** — meaningless to attempt until M3 ships, since Test A's real
-behavior depends on the fix M3 contains.
+**State: IN PROGRESS — M3 shipped 2026-09-09, cycle counting starts now.**
 **Acceptance criteria for DONE:** Test A (9-file Procurement, must-block) and Test B
 (delay-only CSV, must-pass) both run cleanly several consecutive times under
 post-M3 code.
