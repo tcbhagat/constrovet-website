@@ -1283,7 +1283,7 @@ function renderActionPlanHtml(report) {
     return `<div><h3>${escapeHtml(period.replace("_", " "))}</h3><ol class="actions">${items.length ? items.map((item) => `<li><strong>${escapeHtml(item.title || "Action")}:</strong> ${escapeHtml(item.recommendation || item.action || "")}<br><span class="muted">Owner: ${escapeHtml(item.owner_role || "Project Controls")} | Evidence: ${escapeHtml(item.evidence_status || "CITED_EVIDENCE_REVIEW_REQUIRED")} | Recovery-ready: ${item.blocked_by_missing_evidence ? "No" : "Yes"}</span></li>`).join("") : "<li class=\"muted\">No action produced for this horizon.</li>"}</ol></div>`;
   }).join("")}</div></section>`;
   const citations = decisionPack.citations || [];
-  const citationHtml = `<section class="section card"><h2>Citations Behind Actions</h2><ul class="actions">${citations.length ? citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</li>`).join("") : "<li class=\"muted\">No action citations were available.</li>"}</ul></section>`;
+  const citationHtml = `<section class="section card"><h2>Citations Behind Actions</h2><ul class="actions">${citations.length ? citations.map((citation) => `<li>${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(boardroomDisplaySpan(citation.quoted_span))}"</li>`).join("") : "<li class=\"muted\">No action citations were available.</li>"}</ul></section>`;
   return decisionHtml + actionHtml + citationHtml;
 }
 
@@ -1299,7 +1299,7 @@ function renderFindingHtml(finding, tagClass) {
     <h3>${escapeHtml(finding.statement || "")}</h3>
     <p class="muted">Amount: INR ${formatInr(finding.amount_inr || 0)} | Days: ${escapeHtml(finding.days || 0)} | Confidence: ${escapeHtml(finding.confidence || "LOW")}</p>
     ${calculation.formula ? `<p class="muted">Calculation: ${escapeHtml(calculation.formula)} = INR ${formatInr(calculation.difference || 0)}</p>` : ""}
-    <p class="quote">${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(citation.quoted_span || "")}"</p>
+    <p class="quote">${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): "${escapeHtml(boardroomDisplaySpan(citation.quoted_span))}"</p>
   </article>`;
 }
 
@@ -2326,7 +2326,17 @@ function boardroomTriggerOwnedAmount(text, keywordRegex) {
   let match;
   let previousEnd = 0;
   while ((match = currency.exec(source))) {
-    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW);
+    // Row-boundary guard (EEV2-009): a table row extracted without inter-
+    // column whitespace can put the PREVIOUS row's trigger word (e.g. a
+    // "Delayed" status) within the raw 40-char BOARDROOM_LABEL_WINDOW of
+    // THIS row's currency figure -- e.g. "...Supplier-GDelayed\n\nPO-5578-
+    // 007AAC Blocks335 Cu.M Rs.3,670.55" wrongly attributes the AAC Blocks
+    // unit rate to the prior row's delay. Every existing evidence window is
+    // a single line with no embedded newline, so capping the label region
+    // at the nearest preceding newline only ever narrows (never widens) the
+    // window, and only when a row boundary actually sits inside it.
+    const lineStart = source.lastIndexOf("\n", match.index - 1) + 1;
+    const labelStart = Math.max(previousEnd, match.index - BOARDROOM_LABEL_WINDOW, lineStart);
     const labelRegion = source.slice(labelStart, match.index);
     previousEnd = match.index + match[0].length;
     if (!trigger.test(labelRegion)) continue;
@@ -2391,13 +2401,27 @@ function boardroomFirstDays(text) {
   return match ? Number(match[1]) : 0;
 }
 
+// Display-only truncation for the stored quoted_span. The full, untruncated
+// span is what gets stored on the finding (extraction, verification, and the
+// deterministic-verifier's citation_required/currency-context/count-word/
+// aggregate-value checks all run against the same text they were computed
+// from). Truncating at storage time cut off genuine evidence past character
+// 500 before the verifier ever saw it, so a citation whose supporting
+// context sat beyond that point was reported as unsupported. Call this only
+// where quoted_span is rendered into report/email HTML or markdown.
+function boardroomDisplaySpan(text, limit) {
+  const span = String(text || "");
+  const max = Number(limit || 0) > 0 ? Number(limit) : 500;
+  return span.length > max ? `${span.slice(0, max)}...` : span;
+}
+
 function boardroomFinding(statement, category, amount, days, file, pageOrSheet, span, budget, actual, difference, confidence) {
   return {
     statement,
     financial_category: category,
     amount_inr: Number(amount || 0),
     days: Number(days || 0),
-    citations: [{ file, page_or_sheet: pageOrSheet, quoted_span: String(span || "").slice(0, 500) }],
+    citations: [{ file, page_or_sheet: pageOrSheet, quoted_span: String(span || "") }],
     calculation: {
       budget: Number(budget || 0),
       actual: Number(actual || 0),
@@ -2481,7 +2505,7 @@ function normalizeFindingForVerification(finding) {
     citations: [{
       file: String(citation.file || ""),
       page_or_sheet: String(citation.page_or_sheet || ""),
-      quoted_span: String(citation.quoted_span || "").slice(0, 500)
+      quoted_span: String(citation.quoted_span || "")
     }],
     calculation: {
       budget: Math.max(0, Number(calculation.budget || 0)),
@@ -4760,7 +4784,7 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
   });
   lines.push("## Citations Behind Actions", "");
   (decisionPack.citations || []).forEach((citation) => {
-    lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`);
+    lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${boardroomDisplaySpan(citation.quoted_span)}"`);
   });
   if (!((decisionPack.citations || []).length)) lines.push("- No action citations were available.");
   lines.push("## Gemini Deep Analysis", "", JSON.stringify(verifierResult, null, 2), "", "## Citations", "");
@@ -4769,7 +4793,7 @@ function buildMarkdownReport(payload, browserReport, verifierResult, savedFiles)
     lines.push(`### Finding ${index + 1}: ${finding.financial_category}`);
     lines.push(`- ${finding.statement}`);
     lines.push(`- Amount INR: ${finding.amount_inr || 0}; Days: ${finding.days || 0}; Confidence: ${finding.confidence || "LOW"}`);
-    lines.push(`- Citation: ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${citation.quoted_span || ""}"`);
+    lines.push(`- Citation: ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): "${boardroomDisplaySpan(citation.quoted_span)}"`);
     lines.push("");
   });
   lines.push("## Evidence Quality", "");
@@ -5473,8 +5497,8 @@ function buildExecutiveEmailText(jobId, report, resultUrl) {
     lines.push("", "Citations Behind Actions");
     (decisionPack.citations || []).slice(0, 6).forEach((citation) => {
       const body = citation.derived
-        ? `${citation.quoted_span || ""} (derived from document values, not a verbatim quote)`
-        : `"${citation.quoted_span || ""}"`;
+        ? `${boardroomDisplaySpan(citation.quoted_span)} (derived from document values, not a verbatim quote)`
+        : `"${boardroomDisplaySpan(citation.quoted_span)}"`;
       lines.push(`- ${citation.file || "unknown"} (${citation.page_or_sheet || "unknown"}): ${body}`);
       const note = boardroomCitationDisputeNote_(browserReport, citation);
       if (note) lines.push(`  ** ${note}`);
@@ -5754,7 +5778,7 @@ function renderActionCitationsEmailHtml(browserReport) {
   if (!citations.length) return "";
   return `<h2 style="font-size:18px;margin:18px 0 8px">Citations Behind Actions</h2><ul style="margin-top:0;padding-left:20px">${citations.map((citation) => {
     const note = boardroomCitationDisputeNote_(browserReport, citation);
-    const span = escapeHtml(citation.quoted_span || "");
+    const span = escapeHtml(boardroomDisplaySpan(citation.quoted_span));
     const body = citation.derived ? `${span} <span style="color:#66737d">(derived from document values, not a verbatim quote)</span>` : `"${span}"`;
     return `<li style="margin-bottom:6px">${escapeHtml(citation.file || "unknown")} (${escapeHtml(citation.page_or_sheet || "unknown")}): ${body}${note ? `<br><strong style="color:#b45309">${escapeHtml(note)}</strong>` : ""}</li>`;
   }).join("")}</ul>`;
