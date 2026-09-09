@@ -2984,3 +2984,91 @@ intentionally mirrors this, not a new decision).
 ---
 ## Session end: 2026-09-08 15:13
 
+
+---
+## Session 2026-09-09 — eev2AuditJob (PR #23) verification attempt: real progress, blocked on live deployment type, not code
+
+**Scope:** per auto-push-trust-plan-20260908.md's own stated next step
+("confirm eev2AuditJob works end-to-end against one real job ID before
+starting to count Phase A cycles"), attempted the verification PR #23's
+own author flagged as impossible in their environment (no `clasp` CLI, no
+`.clasprc.json`). This session has both.
+
+### What was verified
+
+- `git fetch`/`git log` confirmed `main` was synced with `origin/main`
+  (clean, no divergence) before starting.
+- Rebased and pushed `auto-push-trust-plan-20260908.md` (a real,
+  previously-uncommitted-to-origin file from an earlier point in this same
+  session) cleanly onto `origin/main`'s real merged history (PR #21, #22),
+  no conflicts. 15/15 regression suites, 26/26 tests green after rebase.
+- Checked out PR #23's real branch (`feat/eev2-audit-job-contract1`),
+  read the full `EEV2AuditJob.gs` (245 lines) directly, not summarized
+  from the PR description. Cross-checked every referenced identifier
+  against real `Code.gs` content: `CONSTROVET_ROOT_FOLDER`,
+  `CONSTROVET_PROJECTS_FOLDER`, `VALIDATION_LOG_SHEET_ID`,
+  `VALIDATION_ALERT_EMAIL`, `getAuditSheet()` — all four confirmed real,
+  matching what this session has independently read from the live sheet
+  all along (`VALIDATION_LOG_SHEET_ID` matches the exact sheet ID used in
+  every Drive verification this session). Design is genuinely read-only:
+  explicitly avoids `prepareJobFolders()` so a bad job_id reports "not
+  found" instead of fabricating an empty tree.
+- `node --check` on the file: pass. Full suite (`run-eev2-harness.mjs` +
+  `npm test`): 15/15, 26/26 — unaffected, as the PR claimed (not wired
+  into the regression gate).
+- **Attempted the real live test PR #23 couldn't run:**
+  `clasp run eev2AuditJob -p '["form-20260905-053908-609f4190"]'` (a real,
+  already-confirmed-held job_id from earlier session work) →
+  `Exception: We're sorry, a server error occurred while reading from
+  storage. Error code NOT_FOUND. []`
+- **Isolated whether this was eev2AuditJob-specific or systemic**: ran
+  `clasp run eev2RunFullRegressionGate` (a completely different,
+  long-established, definitely-live function) → **identical NOT_FOUND
+  error.** This confirms the blocker is deployment-type-wide, not a bug
+  in the new function — consistent with, though not 100% conclusive
+  proof of, the missing API-executable deployment PR #23's author
+  suspected but could not confirm from their environment.
+
+### Not verified
+
+- Whether the live Apps Script project has zero API-executable
+  deployments, or has one that's misconfigured/mismatched to this
+  `.clasp.json`'s scriptId — `clasp run`'s error message does not
+  distinguish these cases, and `clasp apis`/`clasp deployments` do not
+  unambiguously surface deployment *type* (Web App vs. API Executable)
+  in this clasp version (3.4.1). This is stated as the most likely
+  explanation, not a proven one.
+- Whether creating/changing an API-executable deployment is something
+  the founder can do directly in the Apps Script editor UI (Deploy >
+  Manage deployments) without further tooling — not attempted, since
+  deployment changes are founder-only per AGENTS.md regardless of
+  whether this session's `clasp` credentials could technically do it.
+- `eev2AuditJob`'s actual runtime correctness against a real job — still
+  unverified, since it was never actually executed. Code review and
+  identifier cross-checking are not the same as a real run, stated
+  explicitly per this project's own reporting standard.
+
+### Founder action required next
+
+1. In the Apps Script editor (script id
+   `1ous3k8pH6pwyH0g-O44nIvmcQTvr9pYuWSfn2apVlnLFRdPWhc5WWvbo`): Deploy >
+   Manage deployments. Confirm whether an **API executable** deployment
+   exists (distinct from any Web App deployment already in use for form
+   intake). If not, create one.
+2. Once confirmed/created, re-run `clasp run eev2AuditJob -p
+   '["form-20260905-053908-609f4190"]'` (from `apps-script/`) — this
+   session's own attempt is the exact command to retry.
+3. Compare the real JSON output's `artifact_4a`/`4b`/`contract_1_verdict`
+   fields against this job's already-known real values (validation-errors
+   sheet: `action_taken=REVERTED_NOT_SENT`, confirmed by hand earlier this
+   session) to complete the "confirm eev2AuditJob works end-to-end"
+   verification the trust plan requires before Phase A cycle-counting can
+   begin.
+4. PR #23 itself is unmerged — review/merge separately from this
+   verification, since the function's code correctness (reviewed, sound)
+   and its live-callability (blocked on deployment type) are separate
+   questions.
+
+---
+## Session end: 2026-09-09 11:11
+
