@@ -101,30 +101,45 @@ a stored CI credential) over Path B for the audit mechanism specifically.
 ## Milestones in progress or blocked
 
 ### M3 — EEV2-008/009 fix (citation truncation + cross-row label bleed)
-**State: REOPENED 2026-09-09 — deployed correctly, but does not close the real defect.**
-Was marked DONE earlier the same day on checksum verification alone (merged via PR #32,
-`clasp push` run, live checksum `6c6ef5dbf26c9121849388453dde52e4` matched `main`'s
-`apps-script/Code.gs`, confirmed three independent ways). **That checksum match was
-real and remains true — the code that was intended to ship did ship.** What it did not
-confirm: whether that code actually closes the bug in real conditions. It does not.
+**State: EEV2-012 FIX CONFIRMED LIVE; M3's own acceptance criteria still open pending a
+fresh whole-submission run.** This section previously read "REOPENED — deployed
+correctly, but does not close the real defect," describing the state on 2026-09-09
+*before* EEV2-012 existed. That framing is now stale — updated 2026-09-10 to reflect
+what has happened since, not to silently mark this DONE.
 
-A real Test A submission the same day (job `form-20260909-072421-33a43b52`, the 9-file
-Procurement_* set, submitted from `bhagat.taran@gmail.com`) was **sent, not held** —
-`amount_inr=3670.55` (`INR 3,671`), the exact AAC Blocks unit-rate figure EEV2-009 was
-built to stop, shipped as `LEAKAGE_AND_OVERRUN`. Root cause: EEV2-009's row-boundary
-guard narrows `boardroomTriggerOwnedAmount`'s label window only when a newline (`\n`)
-is present in the citation text. Real Gemini OCR extraction for this document contains
-no newlines at all — the guard is a no-op in production. The EEV2-008/009 regression
-suite's own fixture used `\n\n` between table rows, a formatting choice made when
-building the test, not copied from a real extraction artifact — so the suite passed
-(16/16, still true) while the real-world case it represented was never actually
-covered. Full root-cause and two candidate fix approaches (neither built yet, pending
-review) in `EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md`.
+**History:** was marked DONE on 2026-09-09 on checksum verification alone (merged via PR
+#32, `clasp push` run, live checksum matched `main`'s `apps-script/Code.gs`), then
+reopened the same day when a real Test A submission (job
+`form-20260909-072421-33a43b52`) shipped the exact fabricated AAC Blocks unit-rate
+figure (`amount_inr=3670.55`, `INR 3,671`) EEV2-009's row-boundary guard was supposed to
+stop. Root cause: that guard only narrows `boardroomTriggerOwnedAmount`'s label window
+when a newline is present; real Gemini OCR extraction contains no newlines at all, so
+the guard was a no-op in production, and the EEV2-008/009 regression suite's own `\n\n`
+fixture never actually exercised the real-world shape. Full root-cause in
+`EEV2_011_ROW_BOUNDARY_PROPOSAL_20260909.md`.
 
-**Acceptance criteria for DONE, restated:** a fix chosen and built against the real
-`form-20260909-072421-33a43b52` citation text (not a reconstructed fixture), verified
-offline, merged, pushed, AND a fresh real Test A submission correctly held under the
-new code — checksum match alone is not sufficient, per this doc's own governance rule.
+**What has since changed, real evidence:** EEV2-012 (merged `4201e86`, PR #36) replaced
+the newline guard with an OCR-column-join veto, built and verified against this exact
+job's own real `quoted_span`. A **second** real Test A submission (job
+`form-20260909-165508-4076a2ce`, same 9-file Procurement_* set, submitted after
+EEV2-012 shipped) confirmed it working live: the specific fabricated figure EEV2-012
+targets came back `INR 0` — no fabrication. **This specific defect (fabricated per-
+figure attribution via the row-boundary/newline gap) is closed and live-verified.**
+
+**Why this is not DONE yet:** that same second attempt still failed Test A **overall**,
+for a separate, unrelated reason — the missing whole-submission MUST-BLOCK gate (see
+M10), now closed by EEV2-013. No fresh real Test A submission has been run since
+EEV2-013 shipped to confirm the *whole* submission is correctly held under all current
+code together. M3's acceptance criteria was written as "a fresh real Test A submission
+correctly held under the new code" — that specific proof, at the whole-submission level,
+is M10's job to produce (the next clean-cycle attempt), not a fact M3 can claim on its
+own. Do not mark M3 DONE from this section alone; watch M10's next real cycle instead.
+
+**Acceptance criteria for DONE, restated:** the specific citation-truncation/row-
+boundary defect fix, verified offline and against two real jobs (done, above) — AND a
+fresh real Test A submission, run under all currently-merged fixes together, that comes
+back correctly held for the whole submission, not just this one figure. Checksum match
+alone is not sufficient, per this doc's own governance rule.
 
 ### M5 — EEV2-010 (currency symbol encoding)
 **State: DOCUMENTED, ROOT QUESTION UNRESOLVED.** Doc merged (PR #22), but the load-bearing

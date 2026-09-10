@@ -3611,3 +3611,43 @@ decision table (was: NOT APPROVED).
 ---
 ## Session end: 2026-09-10 21:10
 
+
+---
+## Session end: 2026-09-10 21:16
+
+
+---
+## Session end: 2026-09-10 21:23
+
+## Corrected M3's stale status in PROJECT_MILESTONES.md
+
+**Verified — how:** re-read `PROJECT_MILESTONES.md` fresh (not from memory).
+M3's section still described the 2026-09-09 "REOPENED — deployed correctly,
+but does not close the real defect" state, dated *before* EEV2-012 existed.
+M10's own section, written later the same day, already documents that
+EEV2-012 (merged `4201e86`, PR #36) was confirmed working live against a
+real second Test A attempt (`form-20260909-165508-4076a2ce`): the exact
+fabricated figure M3/EEV2-009 exists to stop came back `INR 0`. Confirmed
+`BOARDROOM_OCR_COLUMN_JOIN` and the EEV2-012 veto are present in `main`'s
+`apps-script/Code.gs`, which the doc's own "Deployed vs. main" table already
+verifies matches live byte-for-byte.
+- Rewrote M3's section to state plainly: the specific defect it tracks
+  (fabricated per-figure attribution via the row-boundary/newline gap) is
+  **closed and live-verified** — but M3's own literal acceptance criteria
+  ("a fresh real Test A submission correctly held") was not met by that
+  same second attempt, because it still failed Test A overall for a
+  *separate* reason (the missing MUST-BLOCK gate, EEV2-013 — see M10). No
+  fresh submission has run since EEV2-013 shipped to prove the *whole*
+  submission now holds correctly.
+- Deliberately did NOT mark M3 DONE — that proof belongs to M10's next real
+  cycle, not to a re-reading of two already-explained attempts. Left the
+  "Drift flag, live as of 2026-09-09" section untouched; it's accurate
+  history, not a live-state claim, and already points to "See M3 below."
+- `npm test` 33/33, `npm run check:fixtures` OK (23 files) — unaffected,
+  docs-only change.
+
+**NOT verified / NOT done this session:** no fresh Test A/B cycle run (needs
+the founder); PR #43 still `CONFLICTING` against current `main`, not
+rebased this session.
+
+
