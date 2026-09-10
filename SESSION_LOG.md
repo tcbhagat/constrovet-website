@@ -3651,3 +3651,33 @@ the founder); PR #43 still `CONFLICTING` against current `main`, not
 rebased this session.
 
 
+
+---
+## Session end: 2026-09-10 21:30
+
+## Rebased PR #43 (docs/agent-native-mechanize-20260910) onto current main
+
+**Verified — how:**
+- Dry-run (`git merge-tree`) before touching anything: only `AGENTS.md`
+  conflicted, as expected — main's flat-prose version (with the
+  terminal-handoff-protocol addition) vs. this branch's full structural
+  rewrite (frontmatter + headers), which already carries the same protocol
+  mirrored in from an earlier commit (`1109ebf`).
+- `git rebase origin/main` — 1 real conflict, in `AGENTS.md`, on the
+  rewrite commit (`0c29938`) itself. Resolved by taking the incoming
+  rewrite's content entirely (main's old flat content is what that commit
+  intentionally replaces) — confirmed the terminal-handoff-protocol section
+  survived intact in the new structured file after the rebase finished,
+  since the later mirror commit re-applied cleanly on top.
+- `git diff origin/main..HEAD -- apps-script/ CONTRACTS.md
+  PROJECT_MILESTONES.md` — empty, confirming zero drift into founder-gated
+  or already-corrected files.
+- `npm test` — 33/33. `npm run check:fixtures` — OK, 23 files.
+- Pushed (force, own branch, not `main`). PR #43 now `MERGEABLE`/`CLEAN`.
+
+**NOT verified / NOT done this session:** PR #43's CI run not yet observed
+on the rebased commit; the actual content/design of the new authority docs
+still needs founder review, not just mechanical compatibility.
+
+
+
