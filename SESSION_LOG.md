@@ -3350,3 +3350,37 @@ launch-bar updates, pending the security fix actually shipping.
 ---
 ## Session end: 2026-09-10 11:05
 
+## Phase 2 — live deploy verified (founder ran clasp push)
+
+**Verified by fresh clone + checksum, per multi-tool-workflow.md's post-push
+protocol** (a read-only `clasp pull` into a throwaway scratchpad folder, removed
+afterwards; `clasp push`/`clasp run` remain founder-only and were not run here):
+
+- **`Code.gs` live md5 = `d07fc530c10970f262dd18a7c7561cb6` = `main`. MATCH.**
+- **All 41 `.gs` files match live byte-for-byte.** File lists identical (42
+  pulled, incl. `appsscript.json`).
+- `appsscript.json` identical to repo.
+- EEV2-014 confirmed live and correctly positioned: `enforcePilotAllowlist` and
+  `enforceGlobalDailyJobLimit()` at lines 116-117 (before `prepareJobFolders`),
+  `enforceGeminiVerifierBudget()` at line 4497 (before the paid fetch).
+- EEV2-013 CHECK 8 (`NO_VERIFIED_EVIDENCE`) present. EEV2-012
+  (`BOARDROOM_OCR_COLUMN_JOIN`) present.
+
+**What this does NOT prove.** Per the M3 lesson, a checksum match confirms
+*deployment*, not *correctness*. The EEV2-014 caps remain **unexercised against
+a real request**: nothing has yet observed a POST past the limit being refused
+with no Drive folder created and no Gemini call made. Until that is observed,
+"the cap is live" is a statement about bytes, not behaviour.
+
+**Deployment posture unchanged and worth stating plainly:** the manifest still
+declares `access: ANYONE_ANONYMOUS` + `executeAs: USER_DEPLOYING`. That is
+expected — EEV2-014's caps are the mitigation, not a change to the access model
+— but it means those caps are the only thing between an anonymous caller and the
+deploying account's Gemini budget once the web app is republished. The
+deployment is still archived as of this entry.
+
+**Next, in order:** (1) republish the web app; (2) verify a POST past the cap
+refuses cleanly; (3) only then Phase 3 / M10 — 3 consecutive clean Test A/B
+cycles, count restarting at 0.
+
+

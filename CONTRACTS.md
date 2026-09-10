@@ -59,6 +59,23 @@ After ANY change to the intake/validation pipeline, before trusting it again:
 
 Do not onboard real clients until Test A has passed cleanly on multiple consecutive fresh runs (not once). A manual human review step on the first real client cohort's reports is recommended even after the gate passes.
 
+**Founder decision 2026-09-10 — "multiple consecutive" is fixed at 3.** This contract is
+held exactly as written; it was explicitly not relaxed for a friendly or trusted first
+client. Two real Test A attempts have failed to date, so the count stands at **0 of 3**
+and restarts under the currently deployed code.
+
+**Accepted-open, disclosed rather than blocking:** M8 (large/dense document) and M9
+(scanned/image PDF) have no real fixture anywhere in Drive, and manufacturing one is not
+a good use of the pre-launch window. They do **not** block Contract 4. They are to be
+disclosed to the pilot client as known-untested paths, with **scanned/image PDFs declared
+out of scope for v1**. This is a deliberate, recorded acceptance of open risk — not an
+oversight, and not a claim that those paths work.
+
+**Also required before the gate can even begin:** the web app deployment is archived as
+of 2026-09-10 pending EEV2-014 verification (see M13). Test A cannot run against an
+un-published endpoint, so republication and a confirmed cap-refusal precede the first of
+the 3 runs.
+
 ## Contract 5 — Ongoing canary (post-launch)
 
 Once live, periodically (weekly suggested) resubmit the known-bad Procurement_* set as a synthetic check. A gate that passed once can silently break again after an unrelated code change.

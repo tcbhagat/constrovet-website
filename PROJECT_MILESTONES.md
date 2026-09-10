@@ -13,6 +13,30 @@ mirrors the standard already used throughout this project's history (EEV2-004, E
 EEV2-009 were each independently re-verified before being trusted) — this doc makes it
 a formal, permanent requirement rather than something re-decided each session.
 
+## Deployed vs. main — check this FIRST, update on every deploy
+
+This block exists because its absence is what allowed M3's false-DONE: the repo
+and the live script can agree perfectly while the live script still fails in real
+conditions, and nobody could see at a glance which of those two things was being
+claimed.
+
+| | Value |
+|---|---|
+| `main` `apps-script/Code.gs` md5 | `d07fc530c10970f262dd18a7c7561cb6` |
+| **Live** `Code.js` md5 | `d07fc530c10970f262dd18a7c7561cb6` |
+| Status | **MATCH** — verified 2026-09-10 by fresh `clasp pull` into a throwaway folder |
+| Merged but NOT deployed | *(none)* |
+| Web app deployment | **ARCHIVED** — un-published 2026-09-10 pending EEV2-014 verification |
+
+All 41 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
+EEV2-012 (`BOARDROOM_OCR_COLUMN_JOIN`), EEV2-013 (CHECK 8 /
+`NO_VERIFIED_EVIDENCE`) and EEV2-014 (the global spend/abuse caps).
+
+**Read the governance rule before trusting this table.** A checksum match proves
+*deployment*, not *correctness*. EEV2-014's caps are live as bytes but remain
+**unexercised against a real request** — no POST past the limit has yet been
+observed being refused. Do not record that as verified until it is.
+
 ## Drift flag, live as of 2026-09-09
 M3 was marked DONE earlier today on checksum verification alone, then reopened the
 same day when a real Test A submission proved the underlying defect is still live —
@@ -140,7 +164,9 @@ from Termux or the Apps Script editor, against this job id.
 
 **Blocked on EEV2-013** (`eev2-013-missing-must-block-gate-20260909.md`) — the missing
 whole-submission MUST-BLOCK gate identified above now has a founder decision and a
-diff, **not yet merged, pending review**:
+diff. **MERGED 2026-09-09 as `9c868df` (committed directly to `main`, not via PR) and
+DEPLOYED 2026-09-10 — checksum-verified live.** (This line previously read "not yet
+merged, pending review", which contradicted `SESSION_LOG.md`; `git log` settled it.):
 
 **Decision (founder, 2026-09-09): Option A.** If every finding in a report is
 narrative-only — no finding has complete, verified evidence — hold the report
@@ -183,8 +209,46 @@ CSV, must-pass) both run cleanly 3 consecutive times under the merged code.
 where the automated verdict matched the real outcome.
 
 ### M12 — First real pilot client
-**State: NOT STARTED.** Depends on M8–M10 being closed or explicitly accepted open by
-the founder.
+**State: NOT STARTED.** Depends on M10 closing. **Founder decision 2026-09-10 on the
+launch bar:** Contract 4 is held **exactly as written** — no client is onboarded until
+Test A passes cleanly on 3 consecutive fresh runs, not once. **M8 (large/dense document)
+and M9 (scanned/image PDF) are ACCEPTED-OPEN**, not blockers: no real fixture exists in
+Drive for either, and manufacturing one is not a good use of the pre-launch window.
+They are to be disclosed to the pilot client as known-untested paths, with scanned/image
+PDFs declared out of scope for v1.
+
+### M13 — Endpoint security (EEV2-014)
+**State: DEPLOYED 2026-09-10, NOT YET EXERCISED.** Found during the pre-launch audit and
+not previously tracked: the web app deploys as `access: ANYONE_ANONYMOUS` +
+`executeAs: USER_DEPLOYING`, and the only limit — `enforceRateLimit()` — keyed on
+`payload.email`, a caller-supplied field, so it was bypassed by changing one string.
+`runGeminiVerifier`'s paid `gemini-2.5-pro` call had no cap at all. `GEMINI_DAILY_CALL_LIMIT`
+did not mitigate this: it gates only the `gemini-2.5-flash` relevance path, and that gate
+is off by default.
+
+Fixed by two global, date-keyed daily budgets that read no caller-supplied field
+(PR #38, `0b2a8ff`): the job cap runs before any Drive folder is created, the verifier cap
+before the paid fetch, both under a fail-closed `LockService` lock. Deployment was
+archived on discovery and remains archived.
+
+**Acceptance criteria for DONE:** web app republished, AND a real POST past the cap
+observed to refuse with **no Drive folder created and no Gemini call made**. A checksum
+match is explicitly not sufficient — see the Deployed vs. main block.
+
+### M14 — CI observability (EEV2-015)
+**State: DONE 2026-09-10**, verified on a live CI run. `eev2-harness-ci.yml` was a single
+fail-fast job with `check:fixtures` first, so one unrelated fixture violation silently
+skipped the harness and both test suites — confirmed across four consecutive commits on
+`main` (`580e779` → `0b2a8ff`), a window in which **EEV2-012 and EEV2-013 both merged
+without CI ever running their regression suites**. Fixed with `if: always()` on each
+independent step (PR #40, `999d2a3`); all four now report independently while the job
+still fails if any fail. See `eev2-015-ci-fail-fast-masking-20260910.md`.
+
+Related, closed the same day: Phase 4 tier-1 fixture-provenance cleanup (PR #39,
+`ff07d3b`) replaced the Drive-shaped `\n\n` fixture at
+`EEV2CitationTruncationRegression.gs:65` with the real Gemini `quoted_span` from job
+`form-20260909-072421-33a43b52`. Fixture violations **7 → 0**, fixed rather than silenced
+with a `KNOWN-SYNTHETIC` marker it did not deserve.
 
 ## Resolved, no longer tracked
 - PR #17 — confirmed merged (`e4fc9c5`) prior to this doc; earlier "parked" note is stale.
