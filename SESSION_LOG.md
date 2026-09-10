@@ -3346,3 +3346,7 @@ The EEV2-014 cap remains unexercised against a real request until deployed.
 **Still deliberately not written:** `PROJECT_MILESTONES.md` and `CONTRACTS.md`
 launch-bar updates, pending the security fix actually shipping.
 
+
+---
+## Session end: 2026-09-10 11:05
+
