@@ -760,6 +760,17 @@ function handleBoardroomFormSubmit(e) {
   const deepAnalysisEnabled = String(props.getProperty("ENABLE_BOARDROOM_DEEP_ANALYSIS") || "false").toLowerCase() === "true";
   const submitterEmailInfo = getBoardroomSubmitterEmailInfo(e);
   const submitterEmail = submitterEmailInfo.email;
+  // EEV2-016: doPost calls this before prepareJobFolders() (see line ~117); this
+  // form-trigger path was missing the same call, so a form submission never hit
+  // the global daily cap regardless of GLOBAL_DAILY_JOB_LIMIT. Placed here, at
+  // the same "before any Drive folder is created" point enforceGlobalDailyJobLimit
+  // itself documents, so a refused submission leaves nothing behind. Does NOT
+  // also call enforceGeminiVerifierBudget() here: the shared runGeminiVerifier()
+  // called below already enforces that budget internally (see its own EEV2-014
+  // comment), and this path calls the same single runGeminiVerifier as doPost --
+  // adding it here would double-consume the Gemini counter on every deep-analysis
+  // form submission.
+  enforceGlobalDailyJobLimit();
   const folders = prepareJobFolders(jobId);
   const formFiles = getBoardroomFilesFromEvent(e);
   writeJobState(folders, newJobState(jobId, JOB_STATE_INTAKE_RECEIVED, {
