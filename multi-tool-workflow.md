@@ -1,68 +1,104 @@
 ---
 name: multi-tool-workflow
-description: Protocol for working across Claude Cowork, Termux (mobile terminal), and Claude Code in VS Code (desktop terminal) on this project without losing thread or causing sync conflicts. Read this before starting any session in any of the three tools.
+description: Protocol for working across planning agents, coding agents, ChatGPT/GitHub, Termux, and desktop terminals without losing thread or causing sync conflicts. Owns cross-tool handoffs only; current project state lives in PROJECT_MILESTONES.md.
+status: canonical
+scope: repository-wide tool coordination
+state_authority: false
 ---
 
-# Multi-tool workflow — Cowork, Termux, Claude Code (VS Code)
+# Multi-tool workflow — one system, multiple interfaces
 
 ## The one rule everything else follows
-**`main` + `PROJECT_MILESTONES.md` + the Drive `PLAN_*` docs are the only sources of
-truth.** No tool carries private state between sessions. Every session starts by reading
-these three; every session ends by updating whichever ones it touched. This exists
-because it already failed once — a stale local clone caused a real push of pre-fix code
-(the M3 incident), and Cowork produced a full plan in Drive that this chat didn't know
-existed until told.
 
-## What each tool is actually for — don't blur these
-| Tool | Role | Writes to |
-|---|---|---|
-| **Claude Cowork** | Big-picture planning, multi-step analysis, proposal-writing (like `PLAN_00`–`PLAN_04`) | Drive docs — **not** the repo directly |
-| **Claude Code (VS Code, desktop)** | Real implementation: code, commits, branches, PRs | Git branches, opens PRs |
-| **Termux (mobile terminal)** | Same as VS Code's terminal, but mobile — primarily `clasp push`/`clasp run`, the founder-only deploy actions | Live Apps Script (via clasp), git branches when away from desktop |
-| **This chat** | Reviews and verifies claims against real artifacts, tracks milestones, catches drift | `PROJECT_MILESTONES.md`, this project's memory |
+Read `SYSTEM_INDEX.md` first. **No tool owns private project truth.** Durable truth must live in the canonical repository owner for its fact domain.
 
-Cowork's plans don't become code automatically — that's a manual handoff: read the
-Drive doc, then give Claude Code (or a terminal session) the concrete next action from
-it. Cowork does not push to git on its own.
+The authority split is:
 
-## Starting ANY session, in any of the three tools
-1. **`git pull` first, always** — before reading any code, before doing anything.
-   Assume your local clone is stale; it usually is if more than a few hours have passed.
-2. **Read `PROJECT_MILESTONES.md`** at repo root for real current milestone state.
-3. **Check Drive for the `PLAN_*` docs** (folder `0ANKQEZnWLkhxUk9PVA`) — if Cowork has
-   run since you last checked, there may be a newer plan superseding what you're about
-   to do.
-4. **Check CI status on `main`**, not just on your branch — a red `main` blocks every
-   new PR touching `apps-script/**`, and this has already happened invisibly once.
+- `AGENTS.md` — agent permissions and operating behavior.
+- `CONTRACTS.md` — definition of done, launch contracts, hard stops.
+- `PROJECT_MILESTONES.md` — current project/deployment state and blockers.
+- `REPO_MAP.md` — product/surface topology.
+- this file — cross-tool roles and handoffs.
+- `SESSION_LOG.md` — historical evidence, not current state.
+- Drive `PLAN_*` docs — proposals/work packets until their decisions or state changes are explicitly adopted into a canonical repo owner.
 
-## Ending ANY session
-1. Push real work, or state plainly what's staying local and why.
-2. If milestone state changed, update `PROJECT_MILESTONES.md` in the same PR — not a
-   separate follow-up that might not happen.
-3. Leave a one-line session-end note (matches the existing `SESSION_LOG.md`/timestamp
-   commit pattern already in use).
+This replaces the older rule that treated `main + PROJECT_MILESTONES.md + Drive PLAN_*` as co-equal “sources of truth.” A plan may be excellent and still be only a proposal. A stale plan must never silently outrank a later verified milestone state.
 
-## Terminal-specific hygiene (Termux and VS Code both)
-- **One dedicated, consistently-named folder per device for the production clone** —
-  never a throwaway folder, never a bare `.clasp.json` sitting in the home directory.
-  A stray `~/.clasp.json` from an old experiment already caused real confusion once
-  (blocked `clasp clone` silently, no useful error message).
-- Before any `clasp push`: `git pull`, then `md5sum apps-script/Code.gs` against what
-  you expect, **then** push. This is the exact sequence that would have caught the M3
-  incident before it happened, not after.
-- After any `clasp push`: verify with a fresh `clasp clone` into a throwaway folder and
-  checksum it against the repo — the standard already established for every fix in this
-  project's history (M2, M3).
+## Capability is observed, not assumed
+
+Different agent products change capabilities over time. Do not encode “tool X can never do Y” unless the restriction is a project governance rule rather than a product limitation.
+
+The permanent boundary is **surface-based**:
+
+| Surface/action | Default role |
+|---|---|
+| Read/search/diff/test local or repository artifacts | Any capable agent, autonomous within `AGENTS.md` |
+| Planning/design docs | Any capable planning/coding agent; durable decisions go to the canonical repo owner |
+| Non-`apps-script/` repo docs/scripts | May be committed through an available Git/GitHub-capable agent under `AGENTS.md` |
+| `apps-script/` changes | Agent may inspect, build, and test; approval boundary in `AGENTS.md` governs commit |
+| `clasp pull` / read-only live inspection | Allowed when capability/credentials exist, per `AGENTS.md` |
+| `clasp push`, deploy/version/trigger changes, `init*`, live sheet structure | Founder-only, regardless of which terminal/device can technically execute them |
+
+### Typical interfaces
+
+**Claude Code / coding agent:** primary implementation environment for multi-file code work, tests, branches, commits, and PRs.
+
+**ChatGPT with connected GitHub:** useful for repository-wide review, architecture/governance work, documentation changes, PR inspection, and other actions actually exposed by the connected GitHub surface. Do not infer live Apps Script access merely from GitHub access.
+
+**Planning/Cowork-style agent:** useful for broad analysis and proposal documents. Its output is not current project state until adopted into the relevant canonical repo document.
+
+**Termux/mobile terminal:** founder-controlled live Apps Script actions (`clasp push`, `clasp run` when required by the project's tool boundary) and git work while away from the desktop.
+
+**Desktop terminal/VS Code:** local deterministic tests, inspection, and coding. Presence of authenticated `clasp` does not move founder-only actions out of the founder-only tier.
+
+## Starting any session
+
+1. Refresh the repository view before reasoning from it (`git fetch`/`git pull` or connector-equivalent current `main`).
+2. Read `SYSTEM_INDEX.md`; then use `REPO_MAP.md` to select the correct product/surface.
+3. Read the deployed-vs-main block plus the relevant milestone section in `PROJECT_MILESTONES.md`.
+4. Run/read the session-context snapshot when available. A missing/expired credential means `NOT AVAILABLE`, never “healthy.”
+5. Read only the relevant contract/agent rule and target code/artifacts. Do not bulk-load `SESSION_LOG.md` or old phase plans.
+6. Check `main` CI when the work depends on CI or will touch a gated surface. Distinguish failed, skipped, and never-run checks.
+7. Check Drive `PLAN_*` only if the active milestone references one or a newer proposal may materially affect the task. Treat it as a proposal until adopted.
+
+## Ending any session
+
+1. Push/commit allowed work or state exactly what remains local and why.
+2. If current milestone/deployment state changed, update `PROJECT_MILESTONES.md` in the same reviewed change that establishes the evidence whenever practical.
+3. Record only a concise chronological evidence note in `SESSION_LOG.md`; do not use the log as a second status database.
+4. If a reusable failure mechanism was verified, add/update an `AGENT_EXPERIENCE.md` card or, preferably, an executable regression/check.
+5. State: what changed, what was verified, what was not verified, and the next single blocking action.
+
+## Terminal-specific hygiene
+
+Use one dedicated, consistently named production clone per device. Do not deploy from throwaway clones or stray `.clasp.json` files.
+
+Before any founder-run `clasp push`: refresh git, run the pre-push checks required by current governance, confirm the intended `apps-script/` tree and checksum/function inventory, then push only from the known production clone.
+
+After any `clasp push`: perform a fresh read into a throwaway location and compare the complete live deploy surface against the intended repo state. A successful command exit is not deployment verification; a checksum match is deployment verification but still not behavioral verification.
 
 ## When two tools might collide
-If Cowork is mid-analysis and you also want Claude Code to start implementing the same
-milestone: **don't run both at once on the same milestone.** Cowork's output is a
-proposal until a human (you) reads it and hands a concrete instruction to Claude Code —
-that handoff is the synchronization point, not simultaneous work. If in doubt, check
-the Drive `PLAN_*` docs' modified timestamps and this chat's memory before starting
-parallel work on the same item.
 
-## Not yet verified
-- Whether Claude Cowork has any direct git/GitHub write capability beyond Drive — 
-  observed behavior so far is Drive-only output. Worth confirming directly if this
-  changes, since it would change this protocol's handoff step.
+Parallelism is safe only when the work units are independent and their write surfaces do not overlap.
+
+Do not run two agents simultaneously on the same milestone/change surface unless one is explicitly read-only and both share the same fresh base state. The synchronization point is the durable artifact: branch/PR, canonical repo document, or founder-reviewed command result — not a private conversation summary.
+
+When one agent produces a Drive plan and another implements code, the plan must be referenced by identifier/date and reconciled against current `PROJECT_MILESTONES.md` before implementation. If they conflict, current canonical state wins and the plan must be revised or explicitly re-adopted.
+
+## Cross-tool handoff packet
+
+A handoff should be small and sufficient, not a transcript. Include:
+
+- product/surface;
+- milestone + exact acceptance criterion pointer;
+- current branch/SHA when relevant;
+- verified facts and artifact references;
+- unresolved hypothesis/blocker;
+- change-surface class and authority boundary;
+- next single action/test.
+
+The receiving agent must still re-check cheap volatile facts (repo freshness, branch, current milestone state) rather than trusting the packet blindly.
+
+## What this file deliberately does not own
+
+It does not own current live hashes, active milestone numbers, launch readiness, product contracts, or agent permissions. Those facts live in their canonical owners listed in `SYSTEM_INDEX.md`. Keeping this file narrow is a structural defense against cross-tool state drift.
