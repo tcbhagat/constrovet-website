@@ -3561,3 +3561,41 @@ decision table (was: NOT APPROVED).
 `docs/agent-native-system-20260910` still not rebased or merged.
 
 
+
+---
+## Session end: 2026-09-10 16:41
+
+## docs/agent-native-system-20260910 rebased onto main, PR #43 opened
+
+**Verified — how:**
+- Read all 9 commits' full content (not just file list) before rebasing:
+  `SYSTEM_INDEX.md`, `AGENT_SYSTEM_ARCHITECTURE.md`, `AGENT_EXPERIENCE.md`,
+  `AGENT_NATIVE_MIGRATION_PLAN.md`, and the rewritten `AGENTS.md`/`README.md`/
+  `REPO_MAP.md`/`multi-tool-workflow.md`/`BRAIN_ROADMAP.md`. Assessment: every
+  delegation boundary already in force (autonomous docs-only commits,
+  `apps-script/` approval gate, founder-only `clasp push`/deploy, stop-and-
+  report on live/repo drift) is preserved verbatim in substance in the
+  rewritten `AGENTS.md` — checked side by side against the pre-rebase text,
+  not assumed.
+- Created `docs/agent-native-mechanize-20260910` from the original branch tip,
+  `git rebase origin/main` — 9/9 commits replayed cleanly, **zero conflicts**.
+- `git diff origin/main..HEAD -- apps-script/ CONTRACTS.md` — empty both, confirming
+  the rebase touched neither founder-gated surface.
+- `npm test` — 33/33 pass on the rebased branch. `npm run check:fixtures` —
+  OK, 23 files, 0 violations.
+- Pushed as a new branch (did not force-push over the original
+  `docs/agent-native-system-20260910`, which is left untouched for
+  reference). Opened draft PR #43 into `main`
+  (https://github.com/tcbhagat/constrovet-website/pull/43).
+
+**NOT verified / NOT done this session:**
+- Founder has not yet reviewed the actual content/design of the new authority
+  docs — only their mechanical compatibility with the rebase and existing
+  rules was checked here.
+- M15 (Option A vs B) still undecided — explicitly held rather than guessed
+  at, since "go ahead" this turn was ambiguous between the two open items and
+  a security-relevant gate choice should not be picked silently.
+- PR #43 not merged; no CI run observed yet on this branch.
+
+
+
