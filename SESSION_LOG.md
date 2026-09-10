@@ -3489,3 +3489,54 @@ state — not the substantive CONTRACTS.md *wording* decision (D4) that remains
 founder-gated. If that boundary reading is wrong, both edits are easy to
 revert; they are additive/banner-style, not rewrites of existing claims.
 
+
+---
+## Session end: 2026-09-10 16:17
+
+
+---
+## Session end: 2026-09-10 16:23
+
+## Drafted CONTRACTS.md wording diff, read the docs branch fully, wrote M15 memo
+
+**Verified — how:**
+- Read all 9 commits' content on `docs/agent-native-system-20260910` in full
+  (not just the file list): `SYSTEM_INDEX.md`, `AGENT_SYSTEM_ARCHITECTURE.md`,
+  `AGENT_EXPERIENCE.md`, `AGENT_NATIVE_MIGRATION_PLAN.md`, and the diffs on
+  `AGENTS.md`/`README.md`/`REPO_MAP.md`/`multi-tool-workflow.md`/
+  `BRAIN_ROADMAP.md`. Assessment: faithful reorganization, not a redesign —
+  every delegation boundary (autonomous docs-only tier, `apps-script/`
+  approval gate, founder-only `clasp push`, stop-and-report on drift) is
+  preserved verbatim in substance in the rewritten `AGENTS.md`. The branch's
+  stat diff showing `Code.gs`/`EEV2GlobalDailyLimitFormPathRegression.gs`/
+  `PROJECT_MILESTONES.md` as "removed" is a direction artifact: the branch
+  forked before today's EEV2-016 merge and doc corrections landed on `main`,
+  it doesn't actually delete anything.
+- Drafted `CONTRACTS_wording_proposal_20260910.md`: the exact before/after
+  text for the two stale "808 lines ahead" blocks in `CONTRACTS.md`
+  (top-of-file ground-truth warning + Open Item 6), as a standalone proposal
+  file, NOT applied to `CONTRACTS.md` itself — that wording change is still
+  D4: NOT APPROVED.
+- Wrote `work_M15_decision_memo_20260910.md`: traced all 4 call sites of
+  `sendReportEmail` (`Code.gs:5116`) by reading code. Confirmed exactly 2 of
+  4 run `validateReportOutput` first (`doPost` at :209, `handleBoardroomForm
+  Submit` at :913/gate at :895) and 2 do not
+  (`rerunBoardroomJobWithCorrections` at :1111, reached only through
+  `onCorrectionFormSubmit` which has no installed trigger; `resendBoardroom
+  Report` at :5340, founder-manual-only, no route in `doPost`'s dispatch).
+  Wrote out Option A (single gate inside `sendReportEmail`, needs signature
+  changes at all 4 call sites) vs Option B (gate the 2 ungated callers only,
+  smaller diff, does not close the general caller-must-remember pattern) with
+  real tradeoffs, recommended A, left the decision to the founder.
+
+**NOT verified / NOT done this session:**
+- No `apps-script/` file was written. Both new files are proposals only.
+- The two ungated `sendReportEmail` paths were traced by reading code only,
+  never exercised with a real call.
+- The docs branch has not been merged, rebased onto current `main`, or acted
+  on in any way — read only, per the founder's "reconcile, don't write a
+  third competing doc set" instruction.
+- No decision yet from the founder on CONTRACTS.md wording or M15 option
+  A/B.
+
+
