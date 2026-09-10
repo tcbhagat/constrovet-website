@@ -50,6 +50,18 @@ const ACTION_MONITORING_CONTEXT = "MONITORING_CONTEXT";
 const DEEP_REVIEW_STATUS_READY = "READY_FOR_HUMAN_REVIEW";
 const DEEP_REVIEW_STATUS_NEEDS_EVIDENCE = "NEEDS_EVIDENCE_BEFORE_EXECUTIVE_USE";
 const DEEP_REVIEW_STATUS_BLOCKED = "BLOCKED_UNSUPPORTED_OR_NO_CITED_FINDINGS";
+// EEV2-014: global, identity-independent daily caps. The pre-existing
+// enforceRateLimit() keys on payload.email -- a caller-supplied field in the
+// request body -- so it is bypassed by sending a different string per request.
+// With webapp access ANYONE_ANONYMOUS + executeAs USER_DEPLOYING, that left an
+// anonymous caller able to drive unbounded Gemini spend and unbounded Drive
+// writes on the deploying account. These two counters take NO caller input:
+// the key is the UTC date alone, so there is nothing for a caller to vary.
+const GLOBAL_DAILY_JOB_LIMIT_PROPERTY = "GLOBAL_DAILY_JOB_LIMIT";
+const DEFAULT_GLOBAL_DAILY_JOB_LIMIT = 25;
+const GEMINI_VERIFIER_DAILY_LIMIT_PROPERTY = "GEMINI_VERIFIER_DAILY_LIMIT";
+const DEFAULT_GEMINI_VERIFIER_DAILY_LIMIT = 25;
+const PILOT_EMAIL_ALLOWLIST_PROPERTY = "PILOT_EMAIL_ALLOWLIST";
 const GEMINI_RELEVANCE_GATE_PROPERTY = "ENABLE_GEMINI_RELEVANCE_GATE";
 const GEMINI_RELEVANCE_MODEL_PROPERTY = "GEMINI_RELEVANCE_MODEL";
 const GEMINI_DAILY_CALL_LIMIT_PROPERTY = "GEMINI_DAILY_CALL_LIMIT";
@@ -98,6 +110,11 @@ function doPost(e) {
   try {
     const payload = parseRequest(e);
     validatePayload(payload);
+    // EEV2-014: these two run BEFORE prepareJobFolders() so a refused request
+    // creates no Drive folders and consumes no Gemini quota. Order matters:
+    // the global cap is checked before the bypassable per-email courtesy limit.
+    enforcePilotAllowlist(payload.email);
+    enforceGlobalDailyJobLimit();
     enforceRateLimit(payload.email);
     rememberLatestBoardroomJob(payload.job_id);
 
@@ -3721,6 +3738,12 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
+// COURTESY LIMIT, NOT A SECURITY CONTROL (EEV2-014).
+// This keys on `email`, which arrives in the caller's own POST body. Anyone can
+// bypass it by sending a different string per request. It is retained because it
+// gives an honest caller a clear, per-address message, but it must never be
+// relied on to bound cost or abuse -- that is enforceGlobalDailyJobLimit()'s and
+// enforceGeminiVerifierBudget()'s job, and those take no caller input at all.
 function enforceRateLimit(email) {
   const props = PropertiesService.getScriptProperties();
   const day = Utilities.formatDate(new Date(), "GMT", "yyyyMMdd");
@@ -3728,6 +3751,101 @@ function enforceRateLimit(email) {
   const count = Number(props.getProperty(key) || "0");
   if (count >= DAILY_EMAIL_LIMIT) throw new Error("Daily report request limit reached for this email.");
   props.setProperty(key, String(count + 1));
+}
+
+// EEV2-014 helpers -----------------------------------------------------------
+
+function eev2UtcDayStamp_() {
+  return Utilities.formatDate(new Date(), "GMT", "yyyyMMdd");
+}
+
+// Pure resolution of a raw property string to an effective limit. Kept free of
+// PropertiesService so the regression harness -- which deliberately blocks every
+// Apps Script service to guarantee zero external calls -- can exercise it directly.
+function eev2ResolveLimitValue_(raw, fallback) {
+  const value = Number(raw);
+  // An unset, blank, non-numeric or negative property must NOT silently become
+  // "unlimited" -- it falls back to the conservative default instead. 0 is
+  // honoured as a real value (a deliberate hard stop / maintenance mode).
+  if (raw === null || raw === undefined || String(raw).trim() === "" || !isFinite(value) || value < 0) return fallback;
+  return Math.floor(value);
+}
+
+// Pure budget decision: given the count already used and the effective limit,
+// may this request proceed? Separated from storage and locking for the same
+// harness-testability reason as above.
+function eev2IsWithinDailyBudget_(used, limit) {
+  return limit > 0 && Number(used || 0) < limit;
+}
+
+function eev2ReadLimitProperty_(propertyName, fallback) {
+  return eev2ResolveLimitValue_(PropertiesService.getScriptProperties().getProperty(propertyName), fallback);
+}
+
+// Pure allowlist decision, storage-free for harness testability.
+// Empty/blank raw property = open to all.
+function eev2IsEmailAllowed_(rawAllowlist, email) {
+  const raw = String(rawAllowlist || "").trim();
+  if (!raw) return true;
+  const allowed = raw.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+  if (!allowed.length) return true;
+  return allowed.indexOf(String(email || "").trim().toLowerCase()) >= 0;
+}
+
+// Consumes one unit of a global, date-keyed daily budget. Returns nothing on
+// success and throws when the cap is reached.
+//
+// Fails CLOSED, deliberately diverging from claimBoardroomSubmission_()'s
+// fail-open lock: that guard protects against duplicate processing, where the
+// safe default is to allow. This one bounds real money and real write volume on
+// the deploying account, where the safe default under contention is to refuse.
+function eev2ConsumeDailyBudget_(counterPrefix, limit, limitLabel) {
+  if (limit <= 0) throw new Error(`${limitLabel} is set to 0. Requests are disabled.`);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (err) {
+    throw new Error(`${limitLabel}: server busy verifying the daily budget. Please retry shortly.`);
+  }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const key = `${counterPrefix}:${eev2UtcDayStamp_()}`;
+    const used = Number(props.getProperty(key) || "0");
+    if (!eev2IsWithinDailyBudget_(used, limit)) {
+      throw new Error(`${limitLabel} of ${limit} reached for today. Please try again tomorrow.`);
+    }
+    props.setProperty(key, String(used + 1));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Call BEFORE any Drive folder is created, so a refused request leaves nothing behind.
+function enforceGlobalDailyJobLimit() {
+  eev2ConsumeDailyBudget_(
+    "global_jobs",
+    eev2ReadLimitProperty_(GLOBAL_DAILY_JOB_LIMIT_PROPERTY, DEFAULT_GLOBAL_DAILY_JOB_LIMIT),
+    "Daily submission limit"
+  );
+}
+
+// Call BEFORE the paid gemini-2.5-pro request in runGeminiVerifier.
+function enforceGeminiVerifierBudget() {
+  eev2ConsumeDailyBudget_(
+    "gemini_verifier",
+    eev2ReadLimitProperty_(GEMINI_VERIFIER_DAILY_LIMIT_PROPERTY, DEFAULT_GEMINI_VERIFIER_DAILY_LIMIT),
+    "Daily analysis budget"
+  );
+}
+
+// Optional pilot second layer. Empty/unset property = open to all (default).
+// This IS caller-supplied-email based and therefore bypassable on its own -- it
+// exists to keep a closed pilot tidy, never as the cost or abuse boundary.
+function enforcePilotAllowlist(email) {
+  const raw = PropertiesService.getScriptProperties().getProperty(PILOT_EMAIL_ALLOWLIST_PROPERTY);
+  if (!eev2IsEmailAllowed_(raw, email)) {
+    throw new Error("This address is not enrolled in the Constrovet pilot.");
+  }
 }
 
 function prepareJobFolders(jobId) {
@@ -4372,6 +4490,11 @@ function mimeTypeForName(name) {
 function runGeminiVerifier(browserReport) {
   const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured in Apps Script properties.");
+  // EEV2-014: the paid call. Charged against a global date-keyed budget that no
+  // caller-supplied field can vary. Consumed here rather than in doPost because
+  // DEEP_ANALYSIS can reach this path more than once per submission, so a
+  // per-job cap alone would not bound spend.
+  enforceGeminiVerifierBudget();
   const model = PropertiesService.getScriptProperties().getProperty("GEMINI_MODEL") || "gemini-2.5-pro";
   const safePayload = evidenceOnlyPayload(browserReport);
   const prompt = buildGeminiPrompt(safePayload);

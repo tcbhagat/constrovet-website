@@ -3230,3 +3230,66 @@ from earlier verification), not a real problem in the commit. Recorded
 here so this false alarm isn't rediscovered — the commit itself was
 correct throughout.
 
+
+---
+## Session end: 2026-09-10 (Phase 0 — EEV2-014 endpoint spend/abuse cap)
+
+**Found (pre-launch audit, not previously tracked in any doc):** the public
+endpoint is an unmetered anonymous door onto the deploying account.
+`appsscript.json` deploys as `access: ANYONE_ANONYMOUS` + `executeAs:
+USER_DEPLOYING`, and the only limit — `enforceRateLimit()`, `Code.gs:3727` —
+keys on `payload.email`, a caller-supplied field in the request body. Rotating
+one JSON string bypassed it entirely. Meanwhile `runGeminiVerifier`
+(`Code.gs:4372`, paid `gemini-2.5-pro`) had no counter or cap at all.
+
+**Corrected mid-session, on founder challenge:** an interim "lower
+`GEMINI_DAILY_CALL_LIMIT`" stopgap was proposed and is WRONG. That property IS a
+true global counter (its key, `Code.gs:4567`, is date-only and takes no caller
+input) — but it gates only the `gemini-2.5-flash` relevance path, never
+`runGeminiVerifier`, and that gate is off by default
+(`geminiRelevanceGateEnabled()` returns false unless explicitly "true"). Lowering
+it would have capped zero paid calls. Recorded so it is not re-proposed.
+
+**Built (EEV2-014):** global, date-keyed daily budgets that take no caller input
+— `enforceGlobalDailyJobLimit()` (called in `doPost` before `prepareJobFolders`,
+so a refused request creates no Drive folders) and `enforceGeminiVerifierBudget()`
+(called before the paid fetch, since DEEP_ANALYSIS can reach that path more than
+once per submission). Both consume through `eev2ConsumeDailyBudget_`, which takes
+a `LockService` script lock and **fails closed** — a deliberate divergence from
+`claimBoardroomSubmission_`'s fail-open lock (`Code.gs:706`), which guards against
+duplicate processing where allowing is safe; this one bounds real money, where
+refusing is safe. Unset/blank/non-numeric/negative properties fall back to the
+conservative default and never mean "unlimited"; an explicit `0` is honoured as a
+hard stop. `enforceRateLimit` retained but relabelled in-code as a UX courtesy
+limit, explicitly not a security control. Optional `PILOT_EMAIL_ALLOWLIST` added
+as a second layer, documented as bypassable on its own.
+
+**Verified (this working tree):** `npm test` 33/33 · harness **19/19** with
+`external_call_count: 0` · `check:fixtures` exactly 7 pre-existing violations,
+zero new (now across 22 files, up from 20). Attacker simulation confirms rotating
+the email field no longer buys quota. New suite
+`EEV2GlobalBudgetGateRegression.gs` asserts the pure budget logic AND the
+structural wiring (enforcement present, and ordered before the Drive write and
+before the paid fetch).
+
+**Bug found in my own new suite, fixed:** the ordering assertions used a naive
+`indexOf`, which matched my own explanatory comment mentioning
+`prepareJobFolders()` before the real call and reported the wrong order. Now
+strips comments first. Same false-positive class as the one
+`scripts/check-fixture-provenance.mjs` had to fix — prose mentioning a pattern is
+not an occurrence of it.
+
+**Not verified / not done:** no `clasp push`, no live checksum, no republish —
+all founder-only. `main`'s `Code.gs` is now md5
+`d07fc530c10970f262dd18a7c7561cb6`; production remains on pre-EEV2-012 code and
+is still **un-published pending founder action**. The cap is unproven against a
+real request until it is deployed and a POST past the limit is observed to refuse
+with no Drive folder created and no Gemini call made.
+
+**Founder decisions recorded, deliberately NOT yet written into
+PROJECT_MILESTONES.md / CONTRACTS.md** (per instruction: only after the security
+fix actually ships) — launch bar is Contract 4 held exactly as written, 3
+consecutive clean Test A/B runs; M8 (large/dense docs) and M9 (scanned/image
+PDFs) accepted as disclosed out-of-scope for v1 rather than blocking on fixtures
+that do not exist.
+
