@@ -22,15 +22,17 @@ claimed.
 
 | | Value |
 |---|---|
-| `main` `apps-script/Code.gs` md5 | `d07fc530c10970f262dd18a7c7561cb6` |
-| **Live** `Code.js` md5 | `d07fc530c10970f262dd18a7c7561cb6` |
-| Status | **MATCH** — verified 2026-09-10 by fresh `clasp pull` into a throwaway folder |
+| `main` `apps-script/Code.gs` md5 | `282d2e972aa29d20e63b939e1e2bb081` |
+| **Live** `Code.js` md5 | `282d2e972aa29d20e63b939e1e2bb081` |
+| Status | **MATCH** — verified 2026-09-10 by fresh `clasp pull` into a throwaway folder, then confirmed again after merging `fix/eev2-016-global-limit-form-path` (`d8f55c4`) into `main` the same day |
 | Merged but NOT deployed | *(none)* |
 | Web app deployment | **ARCHIVED** — un-published 2026-09-10 pending EEV2-014 verification |
 
-All 41 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
+All 42 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
 EEV2-012 (`BOARDROOM_OCR_COLUMN_JOIN`), EEV2-013 (CHECK 8 /
-`NO_VERIFIED_EVIDENCE`) and EEV2-014 (the global spend/abuse caps).
+`NO_VERIFIED_EVIDENCE`), EEV2-014 (the global spend/abuse caps), and EEV2-016
+(the same global daily job cap also enforced on the form-trigger path — was
+live and unmerged from 07:42Z to 16:13Z 2026-09-10; see the drift flag below).
 
 **Read the governance rule before trusting this table.** A checksum match proves
 *deployment*, not *correctness*. EEV2-014's caps are live as bytes but remain
@@ -48,6 +50,30 @@ real fix ships.
 
 Prior drift flag (M3 built-but-unmerged while M4/M5/M6 proceeded) was resolved earlier
 2026-09-09 by merging PR #32 — that specific drift is not the current issue.
+
+## Drift flag, resolved 2026-09-10 (EEV2-016)
+
+Between 2026-09-10T07:42:47Z and 16:13:47+05:30 (≈8.5 hours), the live script ran
+code (`Code.gs`, `EEV2FullRegressionGate.gs`, new
+`EEV2GlobalDailyLimitFormPathRegression.gs`) that had been pushed to Apps Script
+directly from the unmerged branch `fix/eev2-016-global-limit-form-path`
+(`6479ff2`), while `main` and this doc's checksum table still recorded the
+pre-EEV2-016 hash. During that window the "Deployed vs. main" table above was
+false. Two real Test A jobs exercised the fix live before the branch was merged.
+Resolved by merging `fix/eev2-016-global-limit-form-path` into `main` (`d8f55c4`,
+merge commit, no conflicts) and re-verifying the checksum table above against a
+fresh `clasp pull`. `npm test` (33/33) and `npm run check:fixtures` (OK, 23 files)
+both pass on the merged `main`.
+
+Separately, a same-day code trace (not yet a merged fix) found that
+`onCorrectionFormSubmit` rebuilds and emails a report without ever calling
+`validateReportOutput` — a client's own correction-form submission could bypass
+the gate if that trigger were installed. **Checked directly in the Apps Script
+Triggers UI, 2026-09-10: only one trigger exists, `onFormSubmit`. No
+`onCorrectionFormSubmit` trigger is installed.** So this bypass exists as R1
+(code exists) but is confirmed **not live** (no trigger fires it). Tracked as
+M15 below; not urgent, but should be fixed before any correction-form trigger
+is ever installed.
 
 ## Milestones completed
 
@@ -249,6 +275,33 @@ Related, closed the same day: Phase 4 tier-1 fixture-provenance cleanup (PR #39,
 `EEV2CitationTruncationRegression.gs:65` with the real Gemini `quoted_span` from job
 `form-20260909-072421-33a43b52`. Fixture violations **7 → 0**, fixed rather than silenced
 with a `KNOWN-SYNTHETIC` marker it did not deserve.
+
+### M16 — Global daily job cap on the form-trigger path (EEV2-016)
+**State: DONE 2026-09-10**, merged (`d8f55c4`) and confirmed live-deployed via checksum
+(see "Deployed vs. main" above and the drift flag). `enforceGlobalDailyJobLimit()` was
+called on the anonymous-endpoint (`doPost`) path but missing from the form-trigger path,
+so a form submission never hit `GLOBAL_DAILY_JOB_LIMIT` regardless of setting. Fix adds
+the same call at the same "before any Drive folder is created" point, before
+`prepareJobFolders()`. Regression suite `EEV2GlobalDailyLimitFormPathRegression.gs`
+registered in the gate. Live-exercised by two real Test A jobs before the branch was
+merged (see drift flag above for the deployed-before-merged timeline).
+
+### M15 — Correction-form report path bypasses the validation gate (EEV2-017, proposed)
+**State: NOT STARTED.** Found by code trace 2026-09-10: `onCorrectionFormSubmit` in
+`apps-script/Code.gs` rebuilds and emails a report on client-submitted correction
+evidence without ever calling `validateReportOutput`. Confirmed **not currently live** —
+the Apps Script Triggers UI shows only `onFormSubmit` installed, no
+`onCorrectionFormSubmit` row (checked directly by the founder, 2026-09-10). Also found:
+the manual `resendBoardroomReport` / `resendLatestBoardroomReportSmallThenFull` family
+reloads and emails `final-report.json` with no gate check — reachable today, but only by
+a founder manually invoking the function, not by any automated or client-facing path.
+Two fix options proposed (in an unmerged patch set, not yet in this repo — `work/M15.md`
+does not exist on `main` as of this writing): (A) one gate inside `sendReportEmail`
+covering every current and future sender — recommended, single choke point; (B) gate each
+caller individually. Needs founder decision + written approval before any `apps-script/`
+write, per this repo's founder-only production-mutation rule.
+Not urgent while the trigger stays uninstalled, but should close before
+`onCorrectionFormSubmit` is ever wired up live.
 
 ## Resolved, no longer tracked
 - PR #17 — confirmed merged (`e4fc9c5`) prior to this doc; earlier "parked" note is stale.

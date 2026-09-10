@@ -3384,3 +3384,108 @@ refuses cleanly; (3) only then Phase 3 / M10 — 3 consecutive clean Test A/B
 cycles, count restarting at 0.
 
 
+
+---
+## Session end: 2026-09-10 11:21
+
+
+---
+## Session end: 2026-09-10 13:01
+
+
+---
+## Session end: 2026-09-10 13:09
+
+
+---
+## Session end: 2026-09-10 15:54
+
+
+---
+## Session end: 2026-09-10 15:56
+
+
+---
+## Session end: 2026-09-10 16:00
+
+
+---
+## Session end: 2026-09-10 16:01
+
+
+---
+## Session end: 2026-09-10 16:02
+
+
+---
+## Session end: 2026-09-10 16:05
+
+
+---
+## Session end: 2026-09-10 16:07
+
+
+---
+## Session end: 2026-09-10 16:13
+
+## EEV2-016 deployed-not-merged drift closed; M15 correction-trigger check resolved
+
+**Verified — how:**
+- Fresh `clasp pull` into a throwaway scratchpad folder (scriptId recovered from
+  a mounted sibling checkout's `.clasp.json`, this session's own clasp login).
+  `Code.gs`, `EEV2FullRegressionGate.gs`, and new
+  `EEV2GlobalDailyLimitFormPathRegression.gs` were byte-identical to unmerged
+  `fix/eev2-016-global-limit-form-path` (`6479ff2`); no other file differed
+  from `main`. Live had been running this since 2026-09-10T07:42:47Z.
+- `git merge-tree` dry run confirmed the merge was conflict-free before asking
+  the founder to run it (merge to `main` is outside this session's write
+  authority; founder ran it at the terminal). Merge landed as `d8f55c4`,
+  no conflicts, matches the dry run exactly.
+- Post-merge: `main`'s `apps-script/Code.gs` md5 = `282d2e972aa29d20e63b939e1e2bb081`,
+  matching the pre-merge live md5 exactly. `npm test` **33/33**. `npm run
+  check:fixtures` **OK, 23 files, 0 violations**.
+- **Correction-form trigger check, founder-executed at the Apps Script Triggers
+  UI (screenshot reviewed directly):** only one trigger installed —
+  `onFormSubmit`. **No `onCorrectionFormSubmit` row exists.** This closes the
+  urgency question on the `onCorrectionFormSubmit`-bypasses-`validateReportOutput`
+  finding: the bypass is real in the code (confirmed by reading
+  `apps-script/Code.gs`) but is not reachable today because nothing installed
+  fires it.
+- `PROJECT_MILESTONES.md` updated: checksum table corrected to the real
+  post-merge hash (was still showing the stale pre-EEV2-016 value), drift flag
+  added documenting the ~8.5-hour deployed-before-merged window, M16 (EEV2-016)
+  added as DONE, M15 (EEV2-017 proposed, correction-form gate bypass) added as
+  NOT STARTED with the trigger-check result recorded.
+- `CONTINUATION_CONTRACT.md`'s "No validation gate is live" line (accurate for
+  the 2026-09-05 incident it documents, false today) flagged with a staleness
+  banner pointing to `PROJECT_MILESTONES.md`, rather than rewritten in place —
+  the surrounding ground-truth block is a historical incident record and
+  editing it in place would misrepresent what happened on 2026-09-05.
+
+**NOT verified / NOT done this session:**
+- `CONTRACTS.md`'s stale "808 lines ahead" ground-truth warning — **left
+  untouched on purpose.** This is the specific item a prior founder decision
+  marked "CONTRACTS.md wording: NOT APPROVED." Flagging it here rather than
+  editing it.
+- The `docs/agent-native-system-20260910` branch (9 commits, unread this
+  session) was not reconciled with any of the above. Still needs the founder
+  to point a session at it, or paste its content, before the `npm run
+  context` / structural-suites / M15-fix patch set gets applied anywhere.
+- M15's actual code fix (the `sendReportEmail` single-gate option) was **not**
+  written or applied — needs founder decision on option A vs B, plus written
+  approval, before any `apps-script/` write.
+- The manual-resend bypass (`resendBoardroomReport` family) was traced by
+  reading code only, never exercised with a real call.
+- No `clasp push`, no republish, no live mutation performed by this session —
+  the only live-affecting action was the founder-run `git merge`/`git push`
+  to `main`, which this session could not run itself (blocked by the
+  permission layer; asked the founder to run it verbatim instead of finding a
+  workaround).
+
+**Assumption made:** treated the two doc corrections (`PROJECT_MILESTONES.md`,
+`CONTINUATION_CONTRACT.md`) as within this session's own authority, since they
+are doc-only, factual corrections against a freshly-verified checksum/trigger
+state — not the substantive CONTRACTS.md *wording* decision (D4) that remains
+founder-gated. If that boundary reading is wrong, both edits are easy to
+revert; they are additive/banner-style, not rewrites of existing claims.
+

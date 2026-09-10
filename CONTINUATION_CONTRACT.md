@@ -1,5 +1,14 @@
 # CONTINUATION_CONTRACT.md — Constrovet, Fable 5.1 Era
 
+**STALE, corrected 2026-09-10.** The "No validation gate is live" line below
+was accurate for the 2026-09-05 incident this doc documents, but is false
+today: the gate (`validateReportOutput` and the rest of the validation
+layer) has been live and merged into `main` since PR #32 (2026-09-09), and
+`main`/live are confirmed matching by fresh `clasp pull` as of 2026-09-10
+(see PROJECT_MILESTONES.md, "Deployed vs. main"). Read PROJECT_MILESTONES.md
+for current state; treat the ground-truth block immediately below as a
+historical incident record, not present-day fact.
+
 Supersedes nothing — AGENTS.md and CONTRACTS.md remain canonical. This
 document is the handoff point: ground truth as of 2026-09-05, plus phased,
 token-optimized prompts for Claude Fable 5.1 in Claude Code. Paste one
