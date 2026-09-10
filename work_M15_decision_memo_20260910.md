@@ -123,7 +123,7 @@ live with zero additional code change.
 
 ## Founder decision needed
 
-- [ ] Option A (single gate in `sendReportEmail`)
+- [x] Option A (single gate in `sendReportEmail`) — **APPROVED 2026-09-10**
 - [ ] Option B (gate each caller individually)
 - [ ] Neither / different approach — specify
 - [ ] Defer — no action until [condition]
@@ -131,3 +131,48 @@ live with zero additional code change.
 Written approval on one of the above is required before any `apps-script/`
 write, per `AGENTS.md`'s "You may propose but must wait for explicit written
 approval" tier.
+
+## Implementation note, 2026-09-10 (EEV2-017)
+
+Built as approved, with one correction to this memo's own scope estimate:
+tracing `sendReportEmail`'s 4 callers further showed `report.browser_report`
+is already reliably populated at every call site via the shared `buildReport`
+factory (or, for `resendBoardroomReport`, the reloaded `final-report.json`
+which was itself produced by `buildReport`) — so the `validateReportOutput`
+argument needed **no signature change**. What did require a signature change,
+which this memo's Option A cost estimate under-scoped: `heldForValidationFailureDelivery_`
+needs a `folders`-shaped object (`.job`, `.outputs`) to write the
+`VALIDATION_FAILED.json` artifact and admin alert Contract 1 requires, and
+`sendReportEmail` did not receive one. Added `folders` as a 6th parameter;
+all 4 real call sites updated to pass it (3 already had `folders` in scope,
+`resendBoardroomReport` constructs `{ job, outputs }` inline from its own
+existing locals).
+
+Audit-sheet logging (`logValidationError`) was deliberately left exactly
+where it already runs for the 2 previously-gated callers, rather than moved
+inside `sendReportEmail` — moving it would have caused
+`handleBoardroomFormSubmit`'s extraction-failure branch (which never reaches
+`sendReportEmail` at all) to silently lose its existing audit-sheet row. The
+security-relevant property (no unvalidated report reaches a client) is fully
+centralized in `sendReportEmail`; audit-sheet-row cardinality for the 2
+already-verified paths is unchanged, avoiding a regression risk this memo
+did not originally flag.
+
+Regression: `apps-script/EEV2SendGateChokePointRegression.gs` (EEV2-017), a
+static source check following `EEV2GatePresenceRegression.gs`'s (EEV2-007)
+established pattern rather than calling `sendReportEmail` directly (which
+would immediately hit the Node harness's blocked-service proxy). Exercised
+by `tests/eev2-send-gate-chokepoint.test.mjs` against the real `Code.gs`
+(17/17 checks pass) and against a deliberately broken source tree (proves
+the checker can fail — the mutation-check CONTRACTS.md's own process
+requires). Real fixture: job `form-20260909-165508-4076a2ce`'s actual
+`job-state.json` (`email_status: EMAIL_SENT`) confirmed this exact gate was
+being bypassed in production; its findings (already captured as `job2Findings`
+in `EEV2MustBlockGateRegression.gs`) are reused, not re-pasted, and
+independently confirmed to still fail `validateReportOutput` via CHECK 8.
+
+Full verification: `npm test` 35/35 (was 33/33), `node scripts/run-eev2-harness.mjs`
+20/20 (unchanged — new suite deliberately not registered in
+`eev2RunFullRegressionGate`, matching `GatePresence`'s own orphan status;
+it is Node-safe unlike the other orphans, so it runs via `npm test`/CI
+without needing that registration), `npm run check:fixtures` OK (24 files).

@@ -3601,6 +3601,89 @@ decision table (was: NOT APPROVED).
 
 
 ---
+## Session end: 2026-09-10 16:45
+
+## EEV2-017 (M15 Option A) built, verified, ready for PR
+
+**Verified — how:**
+- Founder approved Option A. Re-traced all 4 `sendReportEmail` callers before
+  writing anything: `report.browser_report` is reliably populated at every
+  call site via the shared `buildReport` factory (or, for
+  `resendBoardroomReport`, the reloaded `final-report.json` that
+  `buildReport` itself produced) — so no signature change was needed for
+  `validateReportOutput`'s argument, correcting an assumption the M15 memo
+  didn't fully resolve. What DID require a signature change:
+  `heldForValidationFailureDelivery_` needs a `folders`-shaped object
+  (`.job`, `.outputs`) to write `VALIDATION_FAILED.json` and send the admin
+  alert — `sendReportEmail` didn't have one. Added `folders` as a 6th
+  parameter; quoted and updated all 4 real call sites
+  (`Code.gs:209/913/1111/5367`) — 3 already had `folders` in scope,
+  `resendBoardroomReport` builds `{job, outputs}` inline from its own
+  existing locals.
+- Sourced a real fixture from Drive rather than reconstructing one: searched
+  for `form-20260909-165508-4076a2ce` (the job named in this session's own
+  process instructions) and found its real `job-state.json` shows
+  `email_status: EMAIL_SENT` — but this job's real findings (already captured
+  as `job2Findings` in `EEV2MustBlockGateRegression.gs`, same provenance,
+  not re-pasted) make `validateReportOutput` return `isValid=false` via
+  CHECK 8 (`NO_VERIFIED_EVIDENCE`). Confirms the exact gate this fix adds was
+  reachable and bypassed in real production traffic.
+- New suite `apps-script/EEV2SendGateChokePointRegression.gs` (EEV2-017): a
+  static source check modeled on `EEV2GatePresenceRegression.gs`'s (EEV2-007)
+  established pattern, since calling `sendReportEmail` directly would
+  immediately hit the Node harness's blocked-PropertiesService proxy before
+  reaching any of the new logic (documented constraint, same as
+  `EEV2GateHealthCircuitBreakerRegression.gs`). Checks: (1) `sendReportEmail`
+  calls `validateReportOutput` before any `MailApp.sendEmail`; (2) all 4 real
+  callers pass 6 arguments (folders included), verified via a brace/string-
+  aware argument counter, not a naive regex; (3) the real JOB2 fixture
+  (cross-checked through `EEV2MustBlockGateRegression.gs`'s own result,
+  avoiding a second copy of a 9-finding real array) still fails
+  `validateReportOutput`.
+- New test `tests/eev2-send-gate-chokepoint.test.mjs`: loads the real
+  `Code.gs` + 2 dependency files into a `vm` context (mirroring
+  `scripts/run-eev2-harness.mjs`'s own loading approach, scoped to only the
+  3 files this check needs) and calls the checker directly. **17/17 checks
+  pass against the real, fixed `Code.gs`.** A second test proves the checker
+  can fail: a deliberately broken source tree (no `validateReportOutput`
+  call, `resendBoardroomReport` passing only 5 args) is correctly caught —
+  the mutation-check CONTRACTS.md's own process requires ("break it, watch
+  the test fail"), not asserted without proof.
+- `npm test` — **35/35** (was 33/33). `node scripts/run-eev2-harness.mjs` —
+  **20/20** (unchanged; new suite deliberately left unregistered in
+  `eev2RunFullRegressionGate`, matching `GatePresence`'s own orphan status —
+  it's Node-safe unlike the other 3 orphans, so it's already exercised via
+  `npm test`/CI without that registration). `npm run check:fixtures` — OK,
+  24 files.
+- Confirmed the 2 already-gated callers (`doPost`,
+  `handleBoardroomFormSubmit`) are unaffected: both only reach
+  `sendReportEmail` in the branch where their own pre-check already found
+  `isValid=true`, so the new internal re-check independently finds the same
+  (pure, deterministic function, same `report`/`browser_report` object
+  reference) and proceeds to the real send — no behavior change, no
+  double-alerting risk.
+- Deliberately did NOT move `logValidationError` (the audit-sheet row) inside
+  `sendReportEmail` — traced that this would have silently dropped the audit
+  row for `handleBoardroomFormSubmit`'s extraction-failure branch, which
+  never reaches `sendReportEmail` at all. Left audit-sheet logging exactly
+  where it already runs for the 2 pre-existing gated paths.
+- Decision memo (`work_M15_decision_memo_20260910.md`) updated: Option A
+  checkbox marked approved/built, implementation note added explaining the
+  scope correction above.
+
+**NOT verified / NOT done this session:**
+- No live/Apps-Script-TEST-project execution — this is Node-only static +
+  unit verification, per the established constraint that `sendReportEmail`
+  cannot be called end-to-end outside real Apps Script services. The
+  founder-only next step (see CONTRACTS.md's own process) is running this in
+  the Apps Script TEST project against a real submission before any
+  `clasp push` to production.
+- Not merged, not pushed to a PR yet at the point of this log entry.
+- M15's `PROJECT_MILESTONES.md` entry not yet updated to reflect this
+  closure (still says NOT STARTED as of the last doc-reconcile commit).
+
+
+---
 ## Session end: 2026-09-10 17:02
 
 

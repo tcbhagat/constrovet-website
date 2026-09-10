@@ -206,7 +206,7 @@ function doPost(e) {
 
     let emailDelivery = emptyEmailDelivery(payload.email, payload.job_id);
     try {
-      emailDelivery = sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url);
+      emailDelivery = sendReportEmail(payload.email, payload.job_id, report, markdownFile.getBlob(), report.result_url, folders);
     } catch (error) {
       emailDelivery = failedEmailDelivery(payload.email, payload.job_id, error);
     }
@@ -910,7 +910,7 @@ function handleBoardroomFormSubmit(e) {
     emailDelivery = heldForValidationFailureDelivery_(jobId, submitterEmail, validationResult, folders);
   } else if (isValidEmail(submitterEmail)) {
     try {
-      emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url);
+      emailDelivery = sendReportEmail(submitterEmail, jobId, report, markdownFile.getBlob(), report.result_url, folders);
     } catch (error) {
       emailDelivery = failedEmailDelivery(submitterEmail, jobId, error);
     }
@@ -1108,7 +1108,7 @@ function rerunBoardroomJobWithCorrections(jobId, correctionFiles, recipientEmail
   let emailDelivery = missingUserEmailDelivery(cleanedJobId);
   if (isValidEmail(recipient)) {
     try {
-      emailDelivery = sendReportEmail(recipient, cleanedJobId, report, markdownFile.getBlob(), report.result_url);
+      emailDelivery = sendReportEmail(recipient, cleanedJobId, report, markdownFile.getBlob(), report.result_url, folders);
     } catch (error) {
       emailDelivery = failedEmailDelivery(recipient, cleanedJobId, error);
     }
@@ -5113,7 +5113,7 @@ function buildIntakeExceptionMarkdown(payload, browserReport, verifierResult, sa
   return lines.join("\n");
 }
 
-function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
+function sendReportEmail(email, jobId, report, markdownBlob, resultUrl, folders) {
   if (PropertiesService.getScriptProperties().getProperty(GATE_HEALTH_PROPERTY) === "FAILED") {
     throw new Error(
       "GATE_HEALTH_FAILED: automated sending is halted because boardroomGateHealthCheck() " +
@@ -5121,6 +5121,33 @@ function sendReportEmail(email, jobId, report, markdownBlob, resultUrl) {
       "Run boardroomClearGateHealthKillSwitch_() manually after the problem is fixed."
     );
   }
+
+  // EEV2-017 (M15, Option A): single choke point. doPost and
+  // handleBoardroomFormSubmit already validate before calling this function
+  // (this re-check is redundant but harmless for them -- validateReportOutput
+  // is pure/deterministic). rerunBoardroomJobWithCorrections and
+  // resendBoardroomReport previously called this function with NO validation
+  // at all -- a held/invalid report reached the client on the correction and
+  // manual-resend paths. Confirmed against the real job
+  // form-20260909-165508-4076a2ce: validateReportOutput returns isValid=false
+  // (NO_VERIFIED_EVIDENCE) for it, yet its own job-state.json shows
+  // email_status=EMAIL_SENT -- this gate was reachable and being bypassed in
+  // production. `folders` is optional only for backward compatibility with
+  // any caller that cannot supply it; passing it is required to also emit
+  // the VALIDATION_FAILED.json artifact and admin alert Contract 1 requires.
+  const browserReportForGate = report.browser_report || {};
+  const gateValidation = validateReportOutput(report, browserReportForGate);
+  if (!gateValidation.isValid) {
+    if (folders && folders.outputs) {
+      folders.outputs.createFile(
+        `${jobId}-VALIDATION_FAILED.json`,
+        JSON.stringify({ validation: gateValidation, report: report }, null, 2),
+        MimeType.PLAIN_TEXT
+      );
+    }
+    return heldForValidationFailureDelivery_(jobId, email, gateValidation, folders || { job: { getUrl: () => "" }, outputs: { getUrl: () => "" } });
+  }
+
   if (!isValidEmail(email)) throw new Error("Valid user email is required before sending the executive report.");
   const recipient = String(email).trim();
   const cc = boardroomAdminCc(recipient);
@@ -5337,7 +5364,7 @@ function resendBoardroomReport(jobId, recipientEmail) {
   report.documents_with_no_signal = (report.browser_report || {}).documents_with_no_signal || 0;
   report.markdown = buildMarkdownReport(report, report.browser_report || {}, report.gemini_verifier_result || {}, report.saved_files || []);
   const markdownBlob = loadMarkdownBlobForJob(outputs, jobId, report);
-  const delivery = sendReportEmail(recipient, jobId, report, markdownBlob, report.result_url || buildResultUrl(jobId, report.result_access_key || ""));
+  const delivery = sendReportEmail(recipient, jobId, report, markdownBlob, report.result_url || buildResultUrl(jobId, report.result_access_key || ""), { job: job, outputs: outputs });
   report.email_delivery = delivery;
   report.email_delivery.resend = true;
   report.source_job_id = jobId;
