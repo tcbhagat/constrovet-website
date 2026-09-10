@@ -121,6 +121,10 @@ Added 2026-09-05 to make explicit a tier this always fell under; it had been tre
 - Anything altering the structure of the live Validation-Errors or Audit sheets.
 - Any `init*` function.
 
+### Founder terminal handoff protocol
+
+Standing rule, added 2026-09-10. Whenever an action is blocked — founder-only per the list above, or blocked by the permission layer for any other reason (e.g. `git merge` to `main`) — hand the founder a complete, clean, copy-paste-ready bash command sequence, not a description of what to do. The founder is a non-coder who can follow exact terminal instructions but cannot debug an ambiguous or partial one. Prefer a plain one-line `-m "message"` over a heredoc where a one-line message will do — an unclosed heredoc `EOF` block has already once left a terminal hanging mid-command. After the founder reports the sequence is done, verify independently (re-check the git hash/mergeability, re-run a fresh `clasp pull` and checksum, re-run tests) rather than trusting the report at face value — the same discipline this file already requires for every other live/deployment claim.
+
 ### Immediately escalate — do not attempt to fix quietly
 
 - Any discovery that live code does not match what a prior session believed was live. This line exists because of the 2026-09-04 incident; treat it as a stop-and-report, not a thing to reconcile in passing.
