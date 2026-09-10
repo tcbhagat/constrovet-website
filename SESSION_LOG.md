@@ -3540,3 +3540,24 @@ revert; they are additive/banner-style, not rewrites of existing claims.
   A/B.
 
 
+
+---
+## Session end: 2026-09-10 16:32
+
+## CONTRACTS.md wording approved and applied (D4 closed)
+
+**Verified — how:** founder replied "approved" to the drafted diff in
+`CONTRACTS_wording_proposal_20260910.md`. Applied both blocks to
+`CONTRACTS.md` verbatim, exactly as proposed and previously reviewed: the
+top-of-file ground-truth warning (lines 5-7) and Open Item 6 (line 103) both
+now read as resolved, pointing to `PROJECT_MILESTONES.md`'s "Deployed vs.
+main" block as the live source of truth rather than repeating a stale
+808-line/21-function gap that closed with PR #32 and today's EEV2-016
+checksum reconfirmation. Proposal file deleted now that its content is
+folded into the canonical document. This closes D4 from the founder's
+decision table (was: NOT APPROVED).
+
+**NOT verified / NOT done this session:** M15 option A/B still undecided;
+`docs/agent-native-system-20260910` still not rebased or merged.
+
+

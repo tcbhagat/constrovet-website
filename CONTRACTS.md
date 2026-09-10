@@ -4,7 +4,7 @@ This is the formal spec any agent or contributor must satisfy before saying "the
 
 ## Ground-truth warning (read before trusting anything below)
 
-As of 2026-09-03, the **live** Apps Script project (Code.js, 5,876 lines) is 808 lines ahead of the **repo's** apps-script/Code.gs (5,068 lines) — 21 functions, including the entire validation layer (`validateReportOutput`, `logValidationError`, `initValidationErrorLog`, `heldForValidationFailureDelivery_`, and 17 others) exist ONLY live and are invisible to anyone reading the repo. Any agent reasoning from the repo alone will reach wrong conclusions about whether a gate exists. Until the repo is synced (see Open Item 6), verify against a fresh clasp pull, not against git.
+**Historical note, resolved 2026-09-10.** As of 2026-09-03 the live Apps Script project was 808 lines / 21 functions ahead of the repo, including the entire validation layer. That gap closed when the validation layer merged via PR #32 (2026-09-09), and repo/live parity has been reconfirmed by fresh `clasp pull` checksum multiple times since, most recently 2026-09-10 after the EEV2-016 merge (`d8f55c4`) — see `PROJECT_MILESTONES.md`'s "Deployed vs. main" block for the current hash and verification date. **A checksum match proves deployment, not correctness** — do not read a MATCH as proof the gate behaves correctly on real jobs; that requires the real-artifact evidence this file's contracts below actually specify. If you find repo/live diverging again, treat that as the stop-and-report condition in `AGENTS.md` ("Immediately escalate"), not as a return to this historical gap.
 
 ## Contract 1 — The gate must produce four artifacts on a should-fail case
 
@@ -100,7 +100,7 @@ Therefore: **pin the canary submission's respondent/submitter address to an inte
    - **8 of 9 CAUGHT** — every `INR 12` finding trips two errors each (`UNVERIFIED_AMOUNT` + `COUNT_READ_AS_AMOUNT`).
    - **1 of 9 NOT CAUGHT** — finding [3], `INR 454.16` from `Procurement_Purchase_Orders`, produces **zero errors**; only a `MULTI_AMOUNT_CITATION` warning, which does not affect `isValid`. See Open Item 7 — this is no longer a hypothetical.
 
-6. **New — repo sync.** The repo is 808 lines / 21 functions behind the live project (full inventory in SESSION_LOG.md, Addendum 2). Until reconciled, treat git-based reasoning about this pipeline as unreliable. This blocks AGENTS.md guardrail #4 (file disambiguation) from being satisfiable by default — a fresh clasp pull is required before any code-reading session, not a repo checkout.
+6. **RESOLVED 2026-09-09/10 — repo sync.** The 808-line/21-function gap (full inventory in SESSION_LOG.md, Addendum 2) closed when the validation layer merged via PR #32, and repo/live parity has been independently reconfirmed since, most recently after the EEV2-016 merge (`d8f55c4`, 2026-09-10). AGENTS.md guardrail #4 no longer needs a mandatory `clasp pull` before every code-reading session as a blanket rule — but any session making a live-behavior claim should still confirm current parity against `PROJECT_MILESTONES.md`'s "Deployed vs. main" block first, since that block is the single source of truth for whether this holds *right now*, not a permanent guarantee.
 
 7. **Carried from 2026-09-02 audit — semantic risk. NO LONGER HYPOTHETICAL; the gate does not cover it.** The regex fix corrects which digit gets treated as currency, and the validator catches figures that are not currency at all. Neither addresses whether a *correctly extracted* rupee figure should be called "recoverable leakage."
 
