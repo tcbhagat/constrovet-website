@@ -3195,3 +3195,38 @@ recorded as a genuine FAIL, not rounded to a pass or silently retried.
 ---
 ## Session end: 2026-09-09 23:01
 
+---
+## Session end: 2026-09-10
+
+**Verified:** Re-ran all three checks against the actual clean working
+tree (not a contaminated local copy) for the EEV2-013 MUST-BLOCK gate
+commit (`9c868df`, direct commit to `main`):
+- `npm test` — 33/33 pass.
+- `node scripts/run-eev2-harness.mjs` — 18/18 regression suites pass.
+- `npm run check:fixtures` — exactly 7 violations, all pre-existing at
+  `EEV2CitationTruncationRegression.gs:65`, zero new.
+- CHECK 8 (`EEV2MustBlockGateRegression.gs`) logic re-verified against
+  its own real fixtures: correctly blocks the real all-narrative failure
+  (job `...4076a2ce`), correctly does not block the real legitimate
+  report (`M20_CostEstimate_BAD.pdf`), edge cases (empty findings, single
+  verified finding) handled correctly, historical fabrication case
+  correctly scoped out (that's EEV2-012's job, not CHECK 8's).
+
+**Not verified:** No `clasp push` to the Apps Script TEST project yet;
+no live checksum verification. Per standing instruction, that stays
+founder-only and has not been attempted here.
+
+**Fixed:** One stale hardcoded assertion in
+`tests/eev2-evidence-harness.test.mjs` (`17` → `18`) — the new suite was
+correctly wired into the gate, but this one test file's suite-count
+assertion hadn't been bumped. Mechanical, not a logic defect; same
+pattern as prior sessions.
+
+**Assumption:** An initial pass of these same checks in this session
+showed 9 fixture violations and a 17/17 harness count, which looked like
+real regressions. Re-run from a clean clone showed those numbers were
+caused by contamination in a local working copy (leftover staged changes
+from earlier verification), not a real problem in the commit. Recorded
+here so this false alarm isn't rediscovered — the commit itself was
+correct throughout.
+
