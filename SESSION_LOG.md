@@ -3293,3 +3293,56 @@ consecutive clean Test A/B runs; M8 (large/dense docs) and M9 (scanned/image
 PDFs) accepted as disclosed out-of-scope for v1 rather than blocking on fixtures
 that do not exist.
 
+
+---
+## Session end: 2026-09-10 (PR #38 + #39 merged; EEV2-015 logged)
+
+**Merged:**
+- **PR #38** (`0b2a8ff`) — EEV2-014 global spend/abuse cap, merged on the
+  inherited red as directed. Closes the anonymous-endpoint exposure: two global
+  date-keyed budgets that read no caller-supplied field, job cap before any
+  Drive write, verifier cap before the paid `gemini-2.5-pro` fetch, fail-closed
+  lock.
+- **PR #39** (`ff07d3b`) — Phase 4 tier-1 fixture cleanup. Replaced the
+  Drive-shaped `\n\n` fixture at `EEV2CitationTruncationRegression.gs:65` with
+  the real Gemini `quoted_span` from job `form-20260909-072421-33a43b52`'s own
+  `final-report.json`. Fixture violations **7 → 0**, fixed rather than silenced.
+
+**Verified on `main` after both merges:** `check:fixtures` OK across 22 files ·
+harness **19/19**, `external_call_count: 0` · `npm test` **33/33** · CI green
+(run 34441306959) — the first passing run of this gate since PR #34.
+
+**Found and logged as EEV2-015** (`eev2-015-ci-fail-fast-masking-20260910.md`):
+`eev2-harness-ci.yml` is a single fail-fast job with `check:fixtures` as step 1,
+so one unrelated fixture violation silently skipped the harness and both test
+suites. Confirmed across four consecutive commits on `main`
+(`580e779` → `0b2a8ff`) where `test:harness` never executed. **EEV2-012 and
+EEV2-013 both merged inside that window** — two validation-layer changes whose
+regression suites CI never ran. Both are believed correct (verified locally),
+but CI contributed nothing to that confidence.
+
+Severity: not a product defect (no wrong figure reached a client; local gates
+held). It is a trust defect of the same shape as EEV2-009's false pass — a
+signal that did not mean what it appeared to mean.
+
+**Fix applied:** `if: always()` on each of the four independent steps. Every
+check runs and reports; the job still fails if any fail. Rejected two
+alternatives: splitting `check:fixtures` into a non-blocking job (weakens a gate
+that exists because bad fixtures shipped EEV2-005/008/009/010) and reordering
+(only relocates the masking to whichever step ends up last).
+
+**Verification of the fix — reproduced the masking, did not just reason about
+it.** Injected a Drive-shaped fixture to force `check:fixtures` to fail, then
+ran both behaviours: old fail-fast skipped the harness entirely; with
+`if: always()`, `check:fixtures` still exits 1 (job still fails) while
+`test:harness` and both test files run and report green. Probe fixture removed
+and `check:fixtures` re-confirmed clean.
+
+**Not verified / not done:** no `clasp push`, no live checksum, no republish —
+still founder-only, still un-published. `main`'s `Code.gs` remains md5
+`d07fc530c10970f262dd18a7c7561cb6`; production is still on pre-EEV2-012 code.
+The EEV2-014 cap remains unexercised against a real request until deployed.
+
+**Still deliberately not written:** `PROJECT_MILESTONES.md` and `CONTRACTS.md`
+launch-bar updates, pending the security fix actually shipping.
+

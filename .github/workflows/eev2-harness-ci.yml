@@ -32,7 +32,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm run check:fixtures
-      - run: npm run test:harness
-      - run: node --test tests/eev2-evidence-harness.test.mjs
-      - run: node --test tests/check-fixture-provenance.test.mjs
+      # EEV2-015: every check below is independent -- none consumes another's
+      # output -- so each runs even when an earlier one fails, and the job still
+      # fails if ANY of them fail. Without `if: always()` this job is fail-fast:
+      # between 580e779 and 0b2a8ff (four commits on main), check:fixtures failed
+      # on a single known unrelated fixture violation and SILENTLY SKIPPED the
+      # harness and both test suites. The evidence gate was masking the very
+      # regression suites it exists to protect, and a green-to-red flip told
+      # nobody which layer had actually broken.
+      #
+      # `if: always()` is deliberate and NOT a weakening: check:fixtures stays a
+      # blocking gate (it guards against the fixture-shape defect that shipped
+      # EEV2-005/008/009/010 to production). This only stops one failure from
+      # hiding the others. Do not "simplify" these away.
+      - name: Fixture provenance gate
+        if: always()
+        run: npm run check:fixtures
+      - name: Evidence harness (all regression suites)
+        if: always()
+        run: npm run test:harness
+      - name: Harness contract test
+        if: always()
+        run: node --test tests/eev2-evidence-harness.test.mjs
+      - name: Fixture provenance checker test
+        if: always()
+        run: node --test tests/check-fixture-provenance.test.mjs
