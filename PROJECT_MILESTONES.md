@@ -195,8 +195,9 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: BLOCKED — second real cycle attempted 2026-09-09, Test A FAILED again. Still
-0 of 3 consecutive clean cycles, not 1.**
+**State: 1 of 3 consecutive clean cycles — first genuinely clean cycle 2026-09-11, see
+"Third attempt" below.** Two earlier real attempts (2026-09-09) each failed for a
+reason since fixed (EEV2-012, then EEV2-013).
 
 **First attempt** — job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set)
 was sent, not held. Root cause was EEV2-009's no-op newline row-boundary guard — see M3
@@ -268,6 +269,60 @@ same tool-boundary limitation as before.
 **Acceptance criteria for DONE:** the EEV2-013 diff reviewed and merged; Test A
 (9-file Procurement_*, must-block **as a whole submission**) and Test B (delay-only
 CSV, must-pass) both run cleanly 3 consecutive times under the merged code.
+
+**Third attempt, 2026-09-11 — FIRST GENUINELY CLEAN CYCLE. State: 1 of 3.**
+
+Real submissions through the live form, both independently cross-checked against Drive
+artifacts (not inferred from the delivery email alone):
+
+- **Test A** — job `form-20260911-061501-26ea1f28`, the real 9-file Procurement_* set.
+  Correctly held. `${jobId}-VALIDATION_FAILED.json` confirmed to exist in the outputs
+  folder (fetched directly, 2026-09-11): `isValid: false`, error
+  `NO_VERIFIED_EVIDENCE: All 9 finding(s) are narrative-only ... report must be held
+  per EEV2-013`. `[VALIDATION FAILED]` alert email confirmed received. This is the
+  first real cycle run since EEV2-012, EEV2-013, and EEV2-016 were all simultaneously
+  live — the first attempt with every known prior defect already fixed.
+- **Test B** — job `form-20260911-071426-312a19d8`, the delay-only CSV. Correctly sent.
+  `job-state.json` confirmed (fetched directly): `email: "bhagat.taran@gmail.com"`,
+  `email_status: "EMAIL_SENT"`, `state: "ACTION_REPORT_SENT"`. The real executive-report
+  email was received and its content matches the real evidence (14 cited delay days,
+  correct citations, correct 7/30/90 action plan).
+
+**A genuine, real defect surfaced and was fixed mid-cycle, unrelated to the pipeline
+logic itself.** The first Test B attempt (job `form-20260911-070443-5185abcf`) used a
+mistyped recipient email (`bhagat.taran@gmail.co`, missing the final "m") in the test
+form submission. `isValidEmail()` correctly accepted it as syntactically valid — a
+format-only check cannot catch a wrong-but-valid-shaped domain — so the pipeline
+correctly validated, generated, and attempted delivery (`email_status: EMAIL_SENT`),
+but the report went to a nonexistent inbox, not a real one. This was a test-data-entry
+error, not a pipeline defect; re-submitted with the correct address and confirmed
+delivered.
+
+**Also surfaced, real and separate: the daily cap conflicts with the testing
+protocol.** `GLOBAL_DAILY_JOB_LIMIT=1` (its value before and after this session's
+testing) allows only one form submission per calendar day — but one Test A/B cycle
+needs two submissions same day. A same-day Test B attempt at limit=1 was correctly
+refused (`Daily submission limit of 1 reached for today`, thrown from
+`eev2ConsumeDailyBudget_` before any job id/Drive folder existed for that attempt —
+consistent with EEV2-016's designed "before any Drive folder is created" placement).
+**Founder decision 2026-09-11:** raise the cap temporarily (to exactly the number of
+planned same-day submissions, no more) for testing days only, then revert immediately
+after — not a permanent change to the production value. Cap was raised 1→2→3 across
+this session's attempts and confirmed reverted to 1 immediately after the final real
+Test B send.
+
+**Incidentally, real evidence toward M13:** the daily-cap refusal above is the first
+real observation of `enforceGlobalDailyJobLimit_`/`eev2ConsumeDailyBudget_` correctly
+refusing a real over-cap submission in production — but via the **form-trigger path**
+(`onFormSubmit`), not the anonymous public endpoint (`doPost`) M13's own acceptance
+criteria specifically names, since the web app deployment is still archived and
+`doPost` cannot be reached at all right now. Real, valuable, but does **not** by
+itself close M13 — that still needs the web app republished and a real POST against
+that specific path.
+
+**2 of 3 cycles remaining** to close M10. Given the daily-cap constraint, each future
+cycle needs the same temporary-raise-then-revert handling unless the cap's real
+long-term production value is reconsidered separately (not decided this session).
 
 ### M11 — Auto-push trust count
 **State: 0 of 5 cycles logged.** Was blocked on M7; M7 is now DONE (2026-09-11,

@@ -3959,3 +3959,80 @@ throughout. This is a plan, not a completed action.
 
 
 
+
+---
+## Session end: 2026-09-11 11:34
+
+
+---
+## Session end: 2026-09-11 11:54
+
+
+---
+## Session end: 2026-09-11 12:39
+
+
+---
+## Session end: 2026-09-11 12:45
+
+## M10 cycle 1 of 3: first genuinely clean real Test A/B cycle
+
+**Verified — how:**
+- Pulled in PR #44's merge (`3d90693`, EEV2-017/M15) via `git pull` after
+  discovering `main` was 2 commits behind origin — founder had merged it
+  on GitHub. Confirmed EEV2-017 is merged to `main` but **not yet pushed
+  live** (fresh `clasp pull` checksum still showed the pre-EEV2-017 hash,
+  `282d2e97...`) — this matters because it rules out EEV2-017 as a factor
+  in anything observed this session.
+- Founder ran a real Test A submission (9-file Procurement_* set), job
+  `form-20260911-061501-26ea1f28`. Independently confirmed via Drive
+  (fetched directly, not inferred from the alert email alone):
+  `${jobId}-VALIDATION_FAILED.json` exists, `isValid: false`,
+  `NO_VERIFIED_EVIDENCE` — correctly held.
+- A real second submission attempt hit `GLOBAL_DAILY_JOB_LIMIT=1` and was
+  refused (`Daily submission limit of 1 reached for today`, thrown from
+  `eev2ConsumeDailyBudget_`). Diagnosed as a genuine structural conflict:
+  the cap allows only 1 submission/day, but one Test A/B cycle needs 2
+  same-day. Founder decided: temporarily raise the cap for testing days,
+  revert immediately after — confirmed both the raise and the revert
+  actually happened (asked directly, not assumed).
+- First Test B attempt (job `form-20260911-070443-5185abcf`) used a
+  mistyped recipient email (`bhagat.taran@gmail.co`, missing "m") in the
+  test submission itself. Diagnosed via Drive: `isValidEmail()` correctly
+  accepted the syntactically-valid-but-wrong domain, so the pipeline
+  correctly validated/generated/attempted delivery
+  (`email_status: EMAIL_SENT`) — real pipeline behavior was correct, but
+  the report went nowhere real. A test-data-entry error, not a code
+  defect; found by independently searching Drive for the job's real
+  artifacts rather than accepting "no email received" without
+  investigation.
+- Founder resubmitted Test B with the corrected address, cap raised to 3.
+  Job `form-20260911-071426-312a19d8`: real email received and pasted in
+  full; independently cross-checked against Drive's `job-state.json`
+  (`email: "bhagat.taran@gmail.com"`, `email_status: "EMAIL_SENT"`,
+  `state: "ACTION_REPORT_SENT"`) — matches exactly.
+- Cap confirmed reverted to 1 immediately after (asked directly).
+- `PROJECT_MILESTONES.md` M10 updated: **1 of 3 consecutive clean cycles**
+  — the first real cycle run with EEV2-012, EEV2-013, and EEV2-016 all
+  simultaneously live. Noted plainly that the daily-cap refusal is real,
+  valuable evidence toward M13 but does not itself close M13, since it
+  fired on the form-trigger path (`onFormSubmit`), not the anonymous
+  public endpoint (`doPost`) M13's acceptance criteria specifically names
+  — the web app is still archived, so `doPost` cannot be reached at all
+  yet.
+- `npm test` 35/35 (now includes EEV2-017's suite, pulled in from the
+  merge), `npm run check:fixtures` OK (24 files) — unaffected, docs-only.
+
+**NOT verified / NOT done this session:**
+- `eev2AuditJob`'s full four-artifact check was not re-run against either
+  of today's real jobs via the diagnostic wrapper (only artifacts
+  2 and 3 were independently confirmed directly via Drive search for Test
+  A; artifacts 1, 4a, 4b were not separately checked this session).
+- EEV2-017 not yet pushed live (`clasp push` not run this session).
+- 2 more clean cycles still needed for M10 DONE.
+- The daily cap's real long-term production value was not reconsidered —
+  temporary raise/revert was used each time rather than deciding whether
+  1/day is the right permanent number.
+
+
+
