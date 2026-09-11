@@ -4079,3 +4079,48 @@ production value still not reconsidered.
 
 
 
+
+---
+## Session end: 2026-09-11 13:21
+
+## M10 DONE: 3 of 3 consecutive clean cycles. M12 now startable.
+
+**Verified — how:**
+- Founder ran cycle 3's Test A and Test B before asking me to check.
+  Independently confirmed both via Drive, not the forwarded emails alone:
+  Test A (job `form-20260911-081331-0a29b962`) has a real
+  `VALIDATION_FAILED.json`, `isValid: false`, `NO_VERIFIED_EVIDENCE`,
+  checked at `08:14:32Z`; Test B (job `form-20260911-081530-57fe6f84`) has
+  `job-state.json` showing `email: "bhagat.taran@gmail.com"`,
+  `email_status: "EMAIL_SENT"`, `state: "ACTION_REPORT_SENT"`.
+- Caught and corrected a potential misread: the session-start hook's
+  `clasp` file listing showed `EEV2SendGateChokePointRegression.gs` as
+  live-tracked, which could have been misread as "EEV2-017 is live now."
+  Ran a fresh, independent `clasp pull` myself rather than trusting that
+  listing: the file does not actually exist in the real live pull, and
+  live `Code.js` md5 is still `282d2e972aa29d20e63b939e1e2bb081` (the
+  pre-EEV2-017 hash) against `main`'s `daad4bef6424c22cc07059c6c74aa6b0`.
+  EEV2-017 is confirmed still not live.
+- `PROJECT_MILESTONES.md` updated: **M10 marked DONE** — 3 of 3
+  consecutive clean cycles, all real, all independently verified. Noted
+  explicitly what this closure does and does not prove: it validates the
+  pipeline against the same two known fixtures repeated 3 times, not
+  against untried document shapes (M8/M9, still accepted-open), and none
+  of the 3 cycles exercised EEV2-017's new internal gate specifically,
+  since the pre-existing `handleBoardroomFormSubmit` gate (unchanged by
+  EEV2-017) is what actually handled every one of the 6 real submissions.
+- **M12 (first pilot client) moved from NOT STARTED to STARTABLE** — its
+  own work (identifying/onboarding a client) has not begun, only its
+  blocking dependency (M10) is now satisfied. Added a note recommending
+  EEV2-017 go live before a real client's correction-form or manual-
+  resend paths could be reached, since M10's cycles never exercised it.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files) — unaffected,
+  docs-only.
+
+**NOT verified / NOT done this session:** EEV2-017 still not pushed live;
+M12's actual pilot-client work not started; the daily cap's permanent
+production value still not reconsidered (each of the 3 cycles used the
+same temporary-raise-then-revert pattern).
+
+
+

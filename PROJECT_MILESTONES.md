@@ -195,10 +195,11 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: 2 of 3 consecutive clean cycles — both real cycles 2026-09-11, see "Third
-attempt" and "Fourth attempt" below.** Two earlier real attempts (2026-09-09) each
-failed for a reason since fixed (EEV2-012, then EEV2-013). One more clean cycle
-closes M10.
+**State: DONE 2026-09-11 — 3 of 3 consecutive clean cycles**, all real, all
+independently verified against Drive artifacts (not inferred from delivery emails
+alone). See "Third attempt," "Fourth attempt," and "Fifth attempt" below. Two earlier
+real attempts (2026-09-09) each failed for a reason since fixed (EEV2-012, then
+EEV2-013) — those do not count toward the 3 consecutive clean cycles required.
 
 **First attempt** — job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set)
 was sent, not held. Root cause was EEV2-009's no-op newline row-boundary guard — see M3
@@ -336,9 +337,32 @@ form, cap raised 1→2 then reverted to 1 immediately after (confirmed both ways
 No new defects surfaced this cycle — clean on the first attempt, no resubmission
 needed.
 
-**1 of 3 cycles remaining** to close M10. Given the daily-cap constraint, the final
-cycle needs the same temporary-raise-then-revert handling unless the cap's real
-long-term production value is reconsidered separately (not decided this session).
+**Fifth attempt (cycle 3 of 3), 2026-09-11 — CLEAN. M10 CLOSES.**
+
+- **Test A** — job `form-20260911-081331-0a29b962`, the real 9-file Procurement_* set.
+  Correctly held. `${jobId}-VALIDATION_FAILED.json` confirmed to exist (fetched
+  directly, 2026-09-11): `isValid: false`, `NO_VERIFIED_EVIDENCE`, identical shape to
+  cycles 1 and 2.
+- **Test B** — job `form-20260911-081530-57fe6f84`, the delay-only CSV. Correctly
+  sent. `job-state.json` confirmed (fetched directly): `email:
+  "bhagat.taran@gmail.com"`, `email_status: "EMAIL_SENT"`, `state:
+  "ACTION_REPORT_SENT"`.
+
+No new defects — clean on the first attempt, same as cycle 2. **3 of 3 consecutive
+clean cycles achieved.** Contract 4's launch gate (founder decision 2026-09-10: held
+exactly as written, no relaxation) is satisfied. M10 is DONE.
+
+**What M10's closure does and does not establish:** every submission in all 3 cycles
+used the same two real fixtures (the 9-file Procurement_* set, the delay-only CSV).
+This proves the pipeline handles these two known, well-characterized cases correctly
+and repeatedly — it does not by itself prove correctness against document shapes not
+yet tried (see M8/M9, accepted-open) or against EEV2-017's own send-gate choke point,
+which is merged to `main` but **not yet pushed live** (confirmed by fresh `clasp pull`
+immediately after this cycle: live `Code.js` md5 still `282d2e972aa29d20e63b939e1e2bb081`,
+the pre-EEV2-017 hash; `main` is at `daad4bef6424c22cc07059c6c74aa6b0`). None of these
+3 cycles exercised EEV2-017's new internal gate in `sendReportEmail`, since the
+already-existing `handleBoardroomFormSubmit` gate (unchanged by EEV2-017) is what
+actually held/sent each of these 6 real submissions.
 
 ### M11 — Auto-push trust count
 **State: 0 of 5 cycles logged.** Was blocked on M7; M7 is now DONE (2026-09-11,
@@ -348,13 +372,21 @@ been logged yet.
 where the automated verdict matched the real outcome.
 
 ### M12 — First real pilot client
-**State: NOT STARTED.** Depends on M10 closing. **Founder decision 2026-09-10 on the
-launch bar:** Contract 4 is held **exactly as written** — no client is onboarded until
-Test A passes cleanly on 3 consecutive fresh runs, not once. **M8 (large/dense document)
-and M9 (scanned/image PDF) are ACCEPTED-OPEN**, not blockers: no real fixture exists in
-Drive for either, and manufacturing one is not a good use of the pre-launch window.
-They are to be disclosed to the pilot client as known-untested paths, with scanned/image
-PDFs declared out of scope for v1.
+**State: STARTABLE — M10 closed 2026-09-11 (3 of 3 clean cycles).** Not yet started;
+this milestone's own work (identifying and onboarding a real pilot client) has not
+begun. **Founder decision 2026-09-10 on the launch bar:** Contract 4 is held **exactly
+as written** — 3 consecutive fresh clean cycles required, now satisfied. **M8
+(large/dense document) and M9 (scanned/image PDF) are ACCEPTED-OPEN**, not blockers: no
+real fixture exists in Drive for either, and manufacturing one is not a good use of the
+pre-launch window. They are to be disclosed to the pilot client as known-untested
+paths, with scanned/image PDFs declared out of scope for v1.
+
+**Also worth deciding before onboarding a real client:** EEV2-017 (the send-gate choke
+point, M15) is merged to `main` but not yet pushed live — M10's 3 clean cycles did not
+exercise it, since the pre-existing `handleBoardroomFormSubmit` gate (unchanged by
+EEV2-017) is what handled all 6 real submissions. Worth pushing EEV2-017 live and
+re-verifying before a real client's correction-form submissions or any manual resend
+could reach the paths it specifically closes.
 
 ### M13 — Endpoint security (EEV2-014)
 **State: DEPLOYED 2026-09-10, NOT YET EXERCISED.** Found during the pre-launch audit and
