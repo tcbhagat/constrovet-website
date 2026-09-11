@@ -433,14 +433,27 @@ registered in the gate. Live-exercised by two real Test A jobs before the branch
 merged (see drift flag above for the deployed-before-merged timeline).
 
 ### M15 — Correction-form report path bypasses the validation gate (EEV2-017)
-**State: MERGED AND LIVE 2026-09-11 — DEPLOYED, NOT YET EXERCISED.** Merged via PR #44
+**State: DONE 2026-09-11 — merged, live, and exercised for real.** Merged via PR #44
 (`3d90693`), pushed live by the founder 2026-09-11, confirmed via fresh `clasp pull`:
 live `Code.js` md5 `daad4bef6424c22cc07059c6c74aa6b0` matches `main` exactly, zero
-drift across all 43 `.gs` files, manifest byte-identical. **Not yet exercised**: the two
-paths this fix specifically closes (`onCorrectionFormSubmit`/`rerunBoardroomJobWithCorrections`
-and `resendBoardroomReport`) have not been triggered with a real call since going live —
-M10's 3 clean cycles all went through the pre-existing `handleBoardroomFormSubmit` gate,
-unchanged by EEV2-017. Found by code trace 2026-09-10: `onCorrectionFormSubmit`
+drift across all 43 `.gs` files, manifest byte-identical.
+
+**Real exercise, 2026-09-11:** `resendBoardroomReport` (one of the two paths this fix
+closes) was called for real via a founder-approved temporary wrapper
+(`eev2ResendDiagnosticRun`), resending job `form-20260911-081530-57fe6f84` (M10 cycle
+3's Test B, already known-correct). Independently confirmed via Drive (fetched the real
+`final-report.json`, not the execution log's ambiguous "started/completed" alone —
+that log showed no error but also no return value, and the founder's own Cloud Logging
+screen showed an unrelated audit entry, not this run's real output): `email_delivery:
+{email_to: "bhagat.taran@gmail.com", email_status: "EMAIL_SENT", resend: true}`,
+`email_source_mode: "MANUAL_EXACT_JOB_RESEND"`, sent at `2026-09-11T08:38:08.186Z`.
+EEV2-017's new internal gate correctly let this legitimate resend through — did not
+wrongly hold it. `onCorrectionFormSubmit`/`rerunBoardroomJobWithCorrections` remains
+unexercised (that path additionally needs the correction-form trigger installed, which
+it is not) — not a blocker, since `resendBoardroomReport`'s real pass proves the shared
+`sendReportEmail` gate mechanism itself works correctly for a real caller.
+
+Found by code trace 2026-09-10: `onCorrectionFormSubmit`
 in `apps-script/Code.gs` rebuilds and emails a report on client-submitted correction
 evidence without ever calling `validateReportOutput`. Confirmed **not currently live** —
 the Apps Script Triggers UI shows only `onFormSubmit` installed, no
@@ -465,14 +478,16 @@ already runs via `npm test`, deliberately not added to the release-gate registry
 `check:fixtures` OK (24 files). Full detail in `work_M15_decision_memo_20260910.md`'s
 "Implementation note."
 
-**Acceptance criteria for DONE:** merged (done, PR #44) and deployed (done,
-2026-09-11) — still needs a real exercise of at least one of the 2 previously-ungated
-paths under the live code, since verification to date is Node-only static/unit
-(`sendReportEmail` cannot be called end-to-end outside real Apps Script services, same
-documented constraint as `EEV2GateHealthCircuitBreakerRegression.gs`). The `resendBoardroomReport`
-path is the easier of the two to exercise for real (founder-manual-invocation only, no
-trigger install needed) — `onCorrectionFormSubmit` additionally needs that trigger
-installed, which it is not, per M10/M13's earlier finding.
+**Acceptance criteria for DONE, met 2026-09-11:** merged (PR #44), deployed (checksum-
+verified live), and exercised for real (`resendBoardroomReport` resend of a known-
+correct job, confirmed via Drive — see above). `onCorrectionFormSubmit` remains
+unexercised, since it needs a trigger that is not installed — tracked as a follow-up
+if/when that trigger is ever installed, not a blocker to closing M15 now.
+
+**Cleanup remaining:** `eev2ResendDiagnosticRun()` (`Code.gs`) is a temporary wrapper,
+same disposition as `eev2AuditJobDiagnosticRun()` — kept per founder decision until the
+client-facing production deployment launches and runs one full month of successful real
+client testing, not deleted now.
 
 ## Resolved, no longer tracked
 - PR #17 — confirmed merged (`e4fc9c5`) prior to this doc; earlier "parked" note is stale.

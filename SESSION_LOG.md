@@ -4163,3 +4163,59 @@ no trigger install needed).
 
 
 
+
+---
+## Session end: 2026-09-11 13:57
+
+
+---
+## Session end: 2026-09-11 14:03
+
+
+---
+## Session end: 2026-09-11 14:05
+
+
+---
+## Session end: 2026-09-11 14:06
+
+## M15 DONE: EEV2-017 exercised for real via resendBoardroomReport
+
+**Verified — how:**
+- Founder ran `eev2ResendDiagnosticRun()` from the Apps Script editor
+  (after `clasp push`, independently confirmed live via fresh `clasp
+  pull` before asking the founder to run it).
+- Execution log showed only "started/completed," no return value or
+  error visible. The founder separately pasted a "Cloud log" entry that
+  turned out to be an unrelated GCP audit event from 2026-09-08 (a
+  `SearchProjects` call) — recognized as not this run's actual output
+  rather than treated as evidence, and said so plainly rather than
+  quietly working around the mismatch.
+- Verified the real effect directly via Drive instead: fetched job
+  `form-20260911-081530-57fe6f84`'s `final-report.json` (saved locally
+  due to size, read in full, unescaped the markdown-escaped underscores).
+  `email_delivery` shows `resend: true`, `email_status: "EMAIL_SENT"`,
+  `email_to: "bhagat.taran@gmail.com"`, `email_source_mode:
+  "MANUAL_EXACT_JOB_RESEND"`, sent at `2026-09-11T08:38:08.186Z` — matches
+  the founder's action time (14:08 IST) exactly. Confirms
+  `resendBoardroomReport` genuinely ran under the live EEV2-017 code and
+  its new internal gate correctly let a legitimate resend through rather
+  than wrongly holding it.
+- `PROJECT_MILESTONES.md` M15 updated to **DONE**: merged, live, and now
+  exercised for real. `onCorrectionFormSubmit` remains unexercised (needs
+  an uninstalled trigger) — explicitly not treated as a blocker, since
+  the real pass on `resendBoardroomReport` proves the shared
+  `sendReportEmail` gate mechanism itself works for a real caller.
+- Updated `eev2ResendDiagnosticRun()`'s own code comment to match the
+  same founder decision already applied to `eev2AuditJobDiagnosticRun()`
+  — kept deliberately, not deleted, until the production deployment
+  launches and runs a full clean month.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files).
+
+**NOT verified / NOT done this session:** `onCorrectionFormSubmit` path
+still unexercised (blocked on trigger installation, tracked as follow-up
+only); neither diagnostic wrapper deleted yet, per standing founder
+decision.
+
+
+
