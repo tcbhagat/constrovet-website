@@ -328,22 +328,38 @@ the same call at the same "before any Drive folder is created" point, before
 registered in the gate. Live-exercised by two real Test A jobs before the branch was
 merged (see drift flag above for the deployed-before-merged timeline).
 
-### M15 — Correction-form report path bypasses the validation gate (EEV2-017, proposed)
-**State: NOT STARTED.** Found by code trace 2026-09-10: `onCorrectionFormSubmit` in
-`apps-script/Code.gs` rebuilds and emails a report on client-submitted correction
+### M15 — Correction-form report path bypasses the validation gate (EEV2-017)
+**State: BUILT, NOT LIVE-DEPLOYED.** Found by code trace 2026-09-10: `onCorrectionFormSubmit`
+in `apps-script/Code.gs` rebuilds and emails a report on client-submitted correction
 evidence without ever calling `validateReportOutput`. Confirmed **not currently live** —
 the Apps Script Triggers UI shows only `onFormSubmit` installed, no
 `onCorrectionFormSubmit` row (checked directly by the founder, 2026-09-10). Also found:
 the manual `resendBoardroomReport` / `resendLatestBoardroomReportSmallThenFull` family
 reloads and emails `final-report.json` with no gate check — reachable today, but only by
 a founder manually invoking the function, not by any automated or client-facing path.
-Two fix options proposed (in an unmerged patch set, not yet in this repo — `work/M15.md`
-does not exist on `main` as of this writing): (A) one gate inside `sendReportEmail`
-covering every current and future sender — recommended, single choke point; (B) gate each
-caller individually. Needs founder decision + written approval before any `apps-script/`
-write, per this repo's founder-only production-mutation rule.
-Not urgent while the trigger stays uninstalled, but should close before
-`onCorrectionFormSubmit` is ever wired up live.
+Confirmed against a real production job (`form-20260909-165508-4076a2ce`'s own
+`job-state.json`, `email_status: EMAIL_SENT`) that this exact gap was reachable and
+bypassed at least once already.
+
+Founder approved **Option A** (2026-09-10): single gate inside `sendReportEmail`,
+covering every current and future sender. Built: `sendReportEmail` now runs
+`validateReportOutput` internally before any `MailApp.sendEmail` call, on any caller;
+on failure it writes `VALIDATION_FAILED.json` (when a `folders` argument is supplied)
+and returns the same `HELD_VALIDATION_FAILED` shape the 2 already-gated callers already
+produce. All 4 real callers updated to pass `folders`. New suite
+`EEV2SendGateChokePointRegression.gs` + `tests/eev2-send-gate-chokepoint.test.mjs`
+(17/17 checks pass against real `Code.gs`; a mutation-check proof confirms the checker
+can fail). `npm test` 35/35, harness 20/20 (unchanged — new suite is Node-safe and
+already runs via `npm test`, deliberately not added to the release-gate registry),
+`check:fixtures` OK (24 files). Full detail in `work_M15_decision_memo_20260910.md`'s
+"Implementation note."
+
+**Acceptance criteria for DONE:** merged; exercised in the Apps Script TEST project
+against a real submission through at least one of the 2 previously-ungated paths (this
+was Node-only static/unit verification — `sendReportEmail` cannot be called end-to-end
+outside real Apps Script services, same documented constraint as
+`EEV2GateHealthCircuitBreakerRegression.gs`); `clasp push` and deploy remain
+founder-only.
 
 ## Resolved, no longer tracked
 - PR #17 — confirmed merged (`e4fc9c5`) prior to this doc; earlier "parked" note is stale.
