@@ -22,18 +22,21 @@ literal gate (3 clean cycles, live endpoint verified) is satisfied.
 
 ## Open technical items before a real client should be invited
 
-1. **`GLOBAL_DAILY_JOB_LIMIT` is still `1`** (left from M10/M13 testing). Recommended
-   for a month of real pilot use: **`10`**. Reasoning: below the code's own built-in
+1. **`GLOBAL_DAILY_JOB_LIMIT`** — **DONE, set to `10`** (founder action, confirmed via
+   Script Properties screenshot, 2026-09-11). Reasoning: below the code's own built-in
    default (`25`), generous enough for one real client to genuinely exercise the tool
    multiple times a day without feeling throttled, bounded enough to keep worst-case
-   cost/abuse exposure on the anonymous endpoint small and easy to sanity-check
-   against the founder's own ~2 hrs/week review cadence. Not yet changed — founder
-   action, Script Properties.
+   cost/abuse exposure on the anonymous endpoint small and easy to sanity-check against
+   the founder's own ~2 hrs/week review cadence. Note: today's real counter
+   (`global_jobs:20260911`) was already at `9` from testing at the time the cap was
+   raised, so only 1 more submission was possible that same day — resets fresh on the
+   next UTC day, not a lasting issue.
 2. **`GEMINI_VERIFIER_DAILY_LIMIT`** (separate cap, paid `gemini-2.5-pro` calls
-   specifically) also defaults to `25` if unset. If the pilot will use `DEEP_ANALYSIS`
-   mode, recommend setting this to the same `10` so it doesn't become an unexpected
-   bottleneck or, worse, stay effectively unbounded relative to the job cap. Not yet
-   set — founder action.
+   specifically) — **not set**, confirmed absent from Script Properties, so it falls
+   back to the code's default of `25`. Currently harmless: `ENABLE_BOARDROOM_DEEP_ANALYSIS`
+   is `false`, so this path isn't reachable. If Deep Analysis mode is enabled for the
+   pilot, set this explicitly to `10` first, matching the job cap. Not yet set —
+   founder action, only needed if/when Deep Analysis is enabled.
 3. **Contract 5's weekly canary has no automation.** It is a fully manual practice
    today (resubmit the known-bad Procurement_* set weekly, pinned to an internal
    address). Worth deciding now, before go-live, not after a gap is discovered the
@@ -50,6 +53,11 @@ literal gate (3 clean cycles, live endpoint verified) is satisfied.
 5. **The other deployment accidentally bumped to `@14`** during M13's troubleshooting
    (unnamed, not referenced by the real website) was left as-is — harmless but unused.
    Not a blocker; noted for completeness.
+6. **`EEV2_ENVIRONMENT: TEST`** (visible in Script Properties) — checked directly: only
+   read by `eev2RunControlledTestReleaseGate()` (`EEV2ControlledTestReleaseGate.gs`),
+   a separate diagnostic function whose own header comment says it "never sends
+   email." No effect on `doPost`, `handleBoardroomFormSubmit`, or any real
+   client-facing path. **Confirmed not a blocker** — no action needed.
 
 ## Proposed CONTRACTS.md correction (not applied — needs founder approval)
 

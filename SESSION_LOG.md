@@ -4417,3 +4417,37 @@ work done (explicitly out of scope for this document).
 
 
 
+
+---
+## Session end: 2026-09-11 20:51
+
+## Confirmed GLOBAL_DAILY_JOB_LIMIT=10 set; checked EEV2_ENVIRONMENT is harmless
+
+**Verified — how:**
+- Founder shared a real Script Properties screenshot showing
+  `GLOBAL_DAILY_JOB_LIMIT: 10` already set — matches the earlier
+  recommendation exactly. Updated `work_M12_launch_plan_20260911.md` to
+  reflect this as done, not just proposed, including the note that
+  today's real counter was already at 9 when the cap was raised (only 1
+  more slot today, resets fresh next UTC day — not a lasting issue).
+- Noticed `EEV2_ENVIRONMENT: TEST` in the same screenshot and checked it
+  directly rather than assuming it was fine or flagging it unverified:
+  `grep`'d every reference in `apps-script/*.gs` — only read by
+  `eev2RunControlledTestReleaseGate()`, a separate diagnostic function
+  whose own header comment says it never sends email. Confirmed zero
+  effect on `doPost`/`handleBoardroomFormSubmit`/any real client path.
+  Recorded as confirmed-not-a-blocker in the plan doc.
+- Confirmed `GEMINI_VERIFIER_DAILY_LIMIT` is genuinely absent from the
+  real properties list (not just unset by omission from memory) —
+  currently harmless since `ENABLE_BOARDROOM_DEEP_ANALYSIS=false`, but
+  flagged as needing an explicit value before Deep Analysis mode is ever
+  enabled.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files).
+
+**NOT done this session:** `GEMINI_VERIFIER_DAILY_LIMIT` not set (only
+needed if/when Deep Analysis is enabled); CONTRACTS.md correction still
+not applied (needs approval); Contract 5 canary automation decision still
+not made.
+
+
+
