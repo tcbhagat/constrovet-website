@@ -5405,6 +5405,17 @@ function resendBoardroomReport(jobId, recipientEmail) {
   };
 }
 
+// TEMPORARY DIAGNOSTIC — delete once M15's real-exercise gap is closed.
+// resendBoardroomReport(jobId, recipientEmail) requires arguments the Apps
+// Script editor's Run button cannot supply -- same limitation as
+// eev2AuditJob (see EEV2AuditJob.gs). Resends job
+// form-20260911-081530-57fe6f84 (M10 cycle 3's Test B, already confirmed
+// correctly sent) to prove EEV2-017's new internal gate in sendReportEmail
+// does not wrongly hold a legitimate resend. Founder-approved 2026-09-11.
+function eev2ResendDiagnosticRun() {
+  return resendBoardroomReport("form-20260911-081530-57fe6f84", "bhagat.taran@gmail.com");
+}
+
 function resendBoardroomReportSmallThenFull(jobId, recipientEmail) {
   const cleanedJobId = String(jobId || "").trim();
   const job = findProjectFolder(cleanedJobId);
