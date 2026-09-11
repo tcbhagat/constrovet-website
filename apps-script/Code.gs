@@ -3866,6 +3866,105 @@ function enforceGeminiVerifierBudget() {
   );
 }
 
+// EEV2-018 (Contract 5 canary automation). Weekly, scheduled via a
+// time-driven trigger (see eev2InstallWeeklyCanaryTrigger below).
+// Resubmits the real known-bad 9-file Procurement_* set through the
+// actual extraction + validation pipeline to catch a gate that silently
+// breaks after an unrelated code change (Contract 5's own words -- "A
+// gate that passed once can silently break again"). Structurally cannot
+// deliver to a real client: it never calls sendReportEmail at all, only
+// ever sends one internal alert via MailApp.sendEmail to a hardcoded
+// recipient, regardless of outcome -- so even a fully broken gate cannot
+// turn this into the incident it exists to catch (Contract 5's mandatory
+// mitigation). Consumes one slot of GLOBAL_DAILY_JOB_LIMIT like a real
+// submission (founder decision 2026-09-11) -- no special-casing, no new
+// bypass path to reason about.
+const EEV2_CANARY_FIXTURES_FOLDER_ID = "1XHb-9GRCjPfUh4DlQfMlvJT-ipxKpTXf";
+const EEV2_CANARY_ALERT_EMAIL = "admin@constrovet.com";
+
+function eev2RunWeeklyCanary() {
+  const startedAt = new Date();
+  const jobId = "canary-" + Utilities.formatDate(startedAt, "GMT", "yyyyMMdd-HHmmss");
+  const outcome = { ok: false, skipped: false, job_id: jobId, stage: "start" };
+
+  try {
+    enforceGlobalDailyJobLimit();
+  } catch (capErr) {
+    outcome.skipped = true;
+    outcome.stage = "cap_exhausted";
+    outcome.error = String(capErr && capErr.message ? capErr.message : capErr);
+    eev2SendCanaryAlert_(outcome, startedAt);
+    return outcome;
+  }
+  outcome.stage = "cap_ok";
+
+  try {
+    const folder = DriveApp.getFolderById(EEV2_CANARY_FIXTURES_FOLDER_ID);
+    const fileInfos = listBoardroomFolderFiles(folder);
+    if (fileInfos.length < 9) {
+      throw new Error(`Canary fixtures folder has ${fileInfos.length} file(s), expected 9. Folder may have been modified.`);
+    }
+    outcome.stage = "files_listed";
+
+    const documents = fileInfos.map(extractBoardroomDocument);
+    const browserReport = buildBoardroomOutput(documents, []);
+    outcome.stage = "extracted";
+    outcome.finding_count = (browserReport.findings || []).length;
+
+    const payload = { job_id: jobId, mode: "EMAIL_BROWSER_REPORT", email: EEV2_CANARY_ALERT_EMAIL };
+    const verifierResult = fallbackVerifier(browserReport);
+    const report = buildReport(payload, browserReport, verifierResult, []);
+    outcome.stage = "report_built";
+
+    const validationResult = validateReportOutput(report, browserReport);
+    outcome.stage = "validated";
+    outcome.validation_errors = validationResult.errors;
+    outcome.isValid = validationResult.isValid;
+
+    // Expected: isValid === false -- the known-bad set must still be held.
+    outcome.ok = validationResult.isValid === false;
+  } catch (err) {
+    outcome.error = String(err && err.message ? err.message : err);
+  }
+
+  eev2SendCanaryAlert_(outcome, startedAt);
+  return outcome;
+}
+
+// Sends exactly one internal alert, regardless of outcome. Deliberately
+// uses MailApp.sendEmail directly -- never sendReportEmail -- so this
+// function is structurally incapable of reaching a real client, per
+// Contract 5's mandatory mitigation.
+function eev2SendCanaryAlert_(outcome, startedAt) {
+  const subject = outcome.skipped
+    ? `[Canary SKIPPED] Constrovet weekly gate check ${outcome.job_id} -- daily cap already exhausted`
+    : outcome.ok
+      ? `[Canary OK] Constrovet weekly gate check ${outcome.job_id}`
+      : `[CANARY FAILED] Constrovet weekly gate check ${outcome.job_id} -- GATE MAY BE BROKEN`;
+  const body = [
+    `Weekly Contract 5 canary run at ${startedAt.toISOString()}.`,
+    `Job id: ${outcome.job_id}`,
+    `Stage reached: ${outcome.stage}`,
+    `Result: ${outcome.skipped ? "SKIPPED -- real traffic already used today's cap, not a gate signal" : outcome.ok ? "OK -- known-bad set correctly held" : "FAILED -- see detail below"}`,
+    "",
+    JSON.stringify(outcome, null, 2)
+  ].join("\n");
+  try {
+    MailApp.sendEmail(EEV2_CANARY_ALERT_EMAIL, subject, body);
+  } catch (err) {
+    Logger.log("Canary alert email failed: " + err);
+  }
+}
+
+// One-time setup: run this once from the editor to install the weekly
+// time-driven trigger. Founder-only, matching installBoardroomFormTrigger's
+// existing pattern -- installing a trigger is a live action.
+function eev2InstallWeeklyCanaryTrigger() {
+  const existing = ScriptApp.getProjectTriggers().filter((trigger) => trigger.getHandlerFunction() === "eev2RunWeeklyCanary");
+  existing.forEach((trigger) => ScriptApp.deleteTrigger(trigger));
+  ScriptApp.newTrigger("eev2RunWeeklyCanary").timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(6).create();
+}
+
 // Optional pilot second layer. Empty/unset property = open to all (default).
 // This IS caller-supplied-email based and therefore bypassable on its own -- it
 // exists to keep a closed pilot tidy, never as the cost or abuse boundary.
