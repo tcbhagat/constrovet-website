@@ -3681,3 +3681,127 @@ still needs founder review, not just mechanical compatibility.
 
 
 
+
+---
+## Session end: 2026-09-10 21:36
+
+
+---
+## Session end: 2026-09-10 21:45
+
+
+---
+## Session end: 2026-09-10 21:54
+
+
+---
+## Session end: 2026-09-10 21:59
+
+
+---
+## Session end: 2026-09-10 22:08
+
+
+---
+## Session end: 2026-09-11 10:56
+
+
+---
+## Session end: 2026-09-11 11:09
+
+
+---
+## Session end: 2026-09-11 11:13
+
+
+---
+## Session end: 2026-09-11 11:15
+
+
+---
+## Session end: 2026-09-11 11:19
+
+
+---
+## Session end: 2026-09-11 11:22
+
+
+---
+## Session end: 2026-09-11 11:23
+
+## M7 closed: eev2AuditJob verified working against a real job
+
+**Verified — how:**
+- Confirmed `EEV2AuditJob.gs` was already merged (`fd2a06f`) and live on
+  `main` well before this session — `PROJECT_MILESTONES.md`'s M7 section
+  said "BUILT, NOT MERGED," which was stale; corrected.
+- The real remaining gap was execution, not code. `clasp run
+  eev2RunFullRegressionGate` (and `eev2AuditJob` before it) failed
+  repeatedly with "Unable to run script function. Please make sure you
+  have permission to run the script function." Diagnosed and ruled out,
+  in order: (1) identity mismatch — ruled out, `clasp` authenticated as
+  `admin@constrovet.com`, same account that owns everything (a raw OAuth
+  token was accidentally printed while checking this — flagged
+  immediately, founder revoked and rotated it via
+  myaccount.google.com/permissions before continuing); (2) OAuth
+  consent-screen Testing/test-users on the linked GCP project (`Gemini
+  Project` / `gen-lang-client-0767570182`) — founder added
+  `admin@constrovet.com` as a test user, error persisted unchanged,
+  ruled out (the `clasp` CLI itself uses Google's own global shared OAuth
+  client, not one scoped to this GCP project, so that consent screen was
+  the wrong surface entirely); (3) API-executable deployment access level
+  — founder confirmed already set to "Anyone," ruled out. Root cause of
+  the `clasp run` permission error remains genuinely unresolved.
+- Found a real, separate bug while investigating: `EEV2AuditJob.gs`'s own
+  "Usage from the Apps Script editor" comment claimed you could select
+  `eev2AuditJob` from the function dropdown and Run it directly — false,
+  confirmed by the founder actually trying it (`Error:
+  eev2AuditJob(jobId) requires a non-empty job_id`), since the editor's
+  Run button cannot pass arguments to a parameterized function.
+- **Founder-approved fix**: added `eev2AuditJobDiagnosticRun()`, a
+  temporary no-argument wrapper hardcoding the real job ID
+  (`form-20260905-053908-609f4190`) the 2026-09-09 session had already
+  independently confirmed by hand (`action_taken=REVERTED_NOT_SENT`).
+  Quoted exact current lines before editing; `node --check` syntax-clean;
+  `npm test` 33/33; `npm run run-eev2-harness.mjs` 20/20; `check:fixtures`
+  OK — all unaffected, as expected for an additive, non-gate-registered
+  function. Committed `c55594e`, pushed to `main`.
+- Founder ran `git pull origin main` + `clasp push` once, but the Apps
+  Script editor showed stale content — diagnosed as a browser-tab caching
+  issue, not a git/clasp failure (independently confirmed `origin/main`
+  HEAD was already `c55594e` with the wrapper present, and a fresh `clasp
+  pull` from this session confirmed the wrapper really was live on the
+  server). Founder re-ran `clasp push` (43 files, succeeded) and hard-
+  refreshed the browser tab; wrapper then appeared correctly.
+- **Real execution, 2026-09-11T05:54:52.941Z**, run by the founder from
+  the Apps Script editor: all four Contract 1 artifacts returned
+  `held: true` for job `form-20260905-053908-609f4190` —
+  `contract_1_verdict: "GATE_HELD -- all four Contract 1 artifacts
+  confirmed for this job_id."` This is an exact match to the
+  already-known-by-hand answer from 2026-09-09. `eev2AuditJob` is now
+  confirmed correct end-to-end against real Drive/Sheets/Gmail data —
+  the first time this function has ever actually been executed.
+- `PROJECT_MILESTONES.md` updated: M7 moved to DONE with the full
+  evidence trail above (including the honest note that the acceptance
+  criteria's literal `clasp run`/Termux path was not what worked — the
+  editor-run path was, and that's recorded as such, not silently
+  reworded to match the original wording). M11 updated to note its
+  blocker on M7 is cleared (still 0 of 5 cycles logged; that's separate,
+  future work).
+
+**NOT verified / NOT done this session:**
+- The underlying `clasp run` Execution API permission error itself is
+  still unresolved — worked around via the editor path, not fixed.
+- `eev2AuditJobDiagnosticRun()` is temporary and should be deleted once
+  nobody needs the editor-run path any more; not deleted yet.
+- M10's next real Test A/B cycle — still needs the founder to submit a
+  real job; nothing here substitutes for that.
+- PR #43 and #44's CI/merge status — not rechecked this session.
+
+**Assumption made:** treated the M7/M11 `PROJECT_MILESTONES.md` edits as
+within this session's own autonomous authority (docs-only, no
+`apps-script/` write) — separate from the `EEV2AuditJob.gs` wrapper
+itself, which required and received explicit founder approval before
+being committed.
+
+

@@ -149,11 +149,34 @@ Drive's `read_file_content` tool did — has not been tested.
 the real intake pipeline; Gemini's actual extracted text inspected for the same artifact.
 
 ### M7 — `eev2AuditJob` (Contract 1 audit function)
-**State: BUILT, NOT MERGED, NOT LIVE-TESTED.** PR #23 (`feat/eev2-audit-job-contract1`),
-16/16 and 26/26 locally. Blocked on confirming the Apps Script project has an
-API-executable deployment (separate from the existing Web App deployment).
-**Acceptance criteria for DONE:** merged; `clasp run eev2AuditJob` executed for real by
-the founder from Termux against a real job ID; verdict matches manual inspection.
+**State: DONE 2026-09-11**, verified by a real execution against a real job. This section
+previously read "BUILT, NOT MERGED, NOT LIVE-TESTED," describing PR #23 before it merged
+— stale; `EEV2AuditJob.gs` has actually been on `main` since `fd2a06f` and live since
+(confirmed by checksum against a fresh `clasp pull`, 2026-09-11).
+
+The remaining real gap was execution, not code: `clasp run` (from either this machine or
+the founder's) fails with "Unable to run script function. Please make sure you have
+permission to run the script function." — root cause not fully resolved (ruled out so
+far: OAuth consent-screen test users, API-executable deployment access level, which is
+already "Anyone"). Rather than keep debugging that Execution API permission wall, added a
+temporary no-argument wrapper, `eev2AuditJobDiagnosticRun()` (`EEV2AuditJob.gs`, founder-
+approved diff), so the founder could run the real function from the Apps Script editor's
+own Run button instead — a path that does not depend on the Execution API at all.
+
+**Real result, 2026-09-11**, job `form-20260905-053908-609f4190` (the same real job the
+2026-09-09 verification attempt had already confirmed by hand): all four Contract 1
+artifacts came back `held: true` — `contract_1_verdict: "GATE_HELD -- all four Contract 1
+artifacts confirmed for this job_id."` This **matches** the already-known-by-hand answer
+(`action_taken=REVERTED_NOT_SENT`) exactly. `eev2AuditJob` is confirmed working correctly
+end-to-end against real Drive/Sheets/Gmail data — the acceptance criteria's intent (real
+execution against a real job, verdict matches manual inspection) is met, via the editor
+Run button rather than the originally-specified `clasp run`/Termux path, since that path
+remains blocked by an unresolved Execution API permission issue.
+
+**Not yet done:** delete `eev2AuditJobDiagnosticRun()` (temporary, per its own comment)
+once nobody still needs the editor-run path; the underlying `clasp run` permission issue
+itself remains open (separate, lower-priority now that the editor path proves the real
+function works).
 
 ## Milestones not yet started
 
@@ -245,7 +268,9 @@ same tool-boundary limitation as before.
 CSV, must-pass) both run cleanly 3 consecutive times under the merged code.
 
 ### M11 — Auto-push trust count
-**State: 0 of 5 cycles logged.** Cannot start meaningfully until M7 is live.
+**State: 0 of 5 cycles logged.** Was blocked on M7; M7 is now DONE (2026-09-11,
+`eev2AuditJob` verified working against a real job), so this can start — no cycles have
+been logged yet.
 **Acceptance criteria for DONE:** `AUTO_PUSH_TRUST_LOG.md` shows 5 consecutive cycles
 where the automated verdict matched the real outcome.
 
