@@ -32,8 +32,12 @@
 // a Web App):
 //   clasp run eev2AuditJob -p '["form-20260902-135120-81f4fd27"]'
 //
-// Usage from the Apps Script editor: select eev2AuditJob in the function
-// dropdown, Run, then View > Logs (or View > Executions) for the JSON.
+// CORRECTED 2026-09-11: the line below previously said "select eev2AuditJob
+// in the function dropdown, Run" -- that does not work, because the editor's
+// Run button cannot pass a jobId argument, so it throws
+// "eev2AuditJob(jobId) requires a non-empty job_id" every time (confirmed by
+// hand, 2026-09-11). To run this from the editor UI, select
+// eev2AuditJobDiagnosticRun below instead -- it takes no arguments.
 
 function eev2AuditJob(jobId) {
   const id = String(jobId || "").trim();
@@ -79,6 +83,21 @@ function eev2AuditJob(jobId) {
   console.log("CONTRACT-1-AUDIT " + id);
   console.log(JSON.stringify(result, null, 2));
   return result;
+}
+
+// TEMPORARY DIAGNOSTIC — delete once M7's clasp run / editor-run blocker is
+// resolved. eev2AuditJob(jobId) requires an argument, which the Apps Script
+// editor's "Run" button cannot supply. This wrapper exists solely so the
+// founder can run the real Contract-1 audit from the editor UI, bypassing
+// the still-unresolved `clasp run` Execution API permission error
+// ("Unable to run script function. Please make sure you have permission to
+// run the script function.", 2026-09-11 -- ruled out so far: OAuth
+// consent-screen test users, API-executable deployment access level set to
+// "Anyone"). Job ID reused from the 2026-09-09 verification attempt
+// (SESSION_LOG.md), whose expected answer is already independently known by
+// hand: validation-errors sheet, action_taken=REVERTED_NOT_SENT.
+function eev2AuditJobDiagnosticRun() {
+  return eev2AuditJob("form-20260905-053908-609f4190");
 }
 
 // Read-only: unlike prepareJobFolders(), never creates a folder. Returns
