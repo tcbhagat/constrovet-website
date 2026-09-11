@@ -4379,3 +4379,41 @@ unused. Whether any other named/production-relevant deployment besides
 
 
 
+
+---
+## Session end: 2026-09-11 20:46
+
+## M12 pre-onboarding plan drafted; daily cap value recommended
+
+**Verified — how:**
+- Re-read `CONTRACTS.md` Contract 4/5 fresh before planning. Confirmed
+  Contract 4's text is stale (still says "0 of 3" and "archived," both
+  false as of today's M10/M13 closures) — drafted a correction in
+  `work_M12_launch_plan_20260911.md`, NOT applied to `CONTRACTS.md`
+  itself, since that wording change needs separate founder approval per
+  established practice all session.
+- Checked for existing canary automation
+  (`grep -rl "canary" apps-script/*.gs .github/workflows/*.yml`) — none
+  found. Contract 5's weekly resubmission is entirely manual with no
+  reminder mechanism; flagged as a real gap worth deciding on before
+  go-live, not silently left for later.
+- Checked the code's own built-in defaults
+  (`DEFAULT_GLOBAL_DAILY_JOB_LIMIT=25`, `DEFAULT_GEMINI_VERIFIER_DAILY_LIMIT=25`)
+  before recommending a pilot-phase value, so the recommendation (`10`)
+  is grounded against what the codebase's own authors already considered
+  reasonable, not picked arbitrarily.
+- Corrected two stale references in `PROJECT_MILESTONES.md`'s M12
+  section: it still cited M15 as having "a remaining acceptance gap"
+  (M15 closed earlier this session) and didn't mention M13's closure at
+  all.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files) — unaffected,
+  docs-only.
+
+**NOT done this session:** `GLOBAL_DAILY_JOB_LIMIT`/`GEMINI_VERIFIER_DAILY_LIMIT`
+not actually changed (recommendation only, founder action pending);
+CONTRACTS.md wording not applied (drafted only, needs approval); Contract
+5 canary automation decision not made; no client identification/outreach
+work done (explicitly out of scope for this document).
+
+
+

@@ -383,11 +383,26 @@ real fixture exists in Drive for either, and manufacturing one is not a good use
 pre-launch window. They are to be disclosed to the pilot client as known-untested
 paths, with scanned/image PDFs declared out of scope for v1.
 
-**EEV2-017 is now live** (pushed and verified 2026-09-11, see M15) — the send-gate
-choke point covers `resendBoardroomReport` and the correction-form path before a real
-client could reach either. Still worth a real exercise of at least one of those 2 paths
-(M15's remaining acceptance gap) before relying on it under real client load, but the
-code is deployed and byte-verified.
+**EEV2-017 is DONE** (M15 closed 2026-09-11) — the send-gate choke point covers
+`resendBoardroomReport` and the correction-form path, live and exercised for real
+(a real resend under the live code correctly passed through the new gate; see M15
+for the full evidence). No remaining gap here blocking M12.
+
+**M13 is DONE** (2026-09-11) — the real production web app deployment ("boardroom")
+was found stale (2 months old, predating EEV2-012 through EEV2-017) and republished;
+its endpoint cap confirmed refusing a real over-limit request correctly. This closes
+the last open code-side gap M12 was implicitly waiting on beyond M10 itself.
+
+**Contract 5's weekly canary has no automation or reminder — worth setting up as
+part of going live, not after.** It is currently a fully manual practice (resubmit
+the known-bad Procurement_* set weekly, pinned to an internal address per Contract
+5's mandatory mitigation) with nothing prompting the founder to actually do it each
+week. Given the founder's ~2 hrs/week budget, an unprompted manual weekly task is a
+real risk of being forgotten exactly when it matters.
+
+**`GLOBAL_DAILY_JOB_LIMIT` is currently `1`** (set for M10/M13's testing), which will
+not work for real client use. See `work_M12_launch_plan_20260911.md` for a proposed
+value and full pre-onboarding checklist.
 
 ### M13 — Endpoint security (EEV2-014)
 **State: DONE 2026-09-11.** Found during the pre-launch audit and not previously
