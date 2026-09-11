@@ -3793,6 +3793,21 @@ function eev2ReadLimitProperty_(propertyName, fallback) {
   return eev2ResolveLimitValue_(PropertiesService.getScriptProperties().getProperty(propertyName), fallback);
 }
 
+// TEMPORARY DIAGNOSTIC -- read-only, no side effects. Returns today's real
+// stored global_jobs counter value and the currently effective limit, to
+// debug why the cap was not observed refusing despite GLOBAL_DAILY_JOB_LIMIT
+// showing 1 in Script Properties. Founder-approved 2026-09-11.
+function eev2DailyBudgetDiagnosticRun() {
+  const props = PropertiesService.getScriptProperties();
+  const key = "global_jobs:" + Utilities.formatDate(new Date(), "GMT", "yyyyMMdd");
+  return {
+    counter_key: key,
+    stored_used_value: props.getProperty(key),
+    configured_limit_property: props.getProperty("GLOBAL_DAILY_JOB_LIMIT"),
+    effective_limit: eev2ReadLimitProperty_(GLOBAL_DAILY_JOB_LIMIT_PROPERTY, DEFAULT_GLOBAL_DAILY_JOB_LIMIT)
+  };
+}
+
 // Pure allowlist decision, storage-free for harness testability.
 // Empty/blank raw property = open to all.
 function eev2IsEmailAllowed_(rawAllowlist, email) {
