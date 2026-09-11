@@ -374,35 +374,35 @@ been logged yet.
 where the automated verdict matched the real outcome.
 
 ### M12 — First real pilot client
-**State: STARTABLE — M10 closed 2026-09-11 (3 of 3 clean cycles).** Not yet started;
-this milestone's own work (identifying and onboarding a real pilot client) has not
-begun. **Founder decision 2026-09-10 on the launch bar:** Contract 4 is held **exactly
-as written** — 3 consecutive fresh clean cycles required, now satisfied. **M8
-(large/dense document) and M9 (scanned/image PDF) are ACCEPTED-OPEN**, not blockers: no
-real fixture exists in Drive for either, and manufacturing one is not a good use of the
-pre-launch window. They are to be disclosed to the pilot client as known-untested
-paths, with scanned/image PDFs declared out of scope for v1.
+**State: TECHNICALLY READY — pre-onboarding checklist complete 2026-09-11. Client
+identification/onboarding itself not started (founder's own work, out of scope for
+this doc).** M10, M13, and M15 are all DONE. **Founder decision 2026-09-10 on the
+launch bar:** Contract 4 is held **exactly as written** — 3 consecutive fresh clean
+cycles required, now satisfied. **M8 (large/dense document) and M9 (scanned/image
+PDF) are ACCEPTED-OPEN**, not blockers: no real fixture exists in Drive for either,
+and manufacturing one is not a good use of the pre-launch window. They are to be
+disclosed to the pilot client as known-untested paths, with scanned/image PDFs
+declared out of scope for v1.
 
-**EEV2-017 is DONE** (M15 closed 2026-09-11) — the send-gate choke point covers
-`resendBoardroomReport` and the correction-form path, live and exercised for real
-(a real resend under the live code correctly passed through the new gate; see M15
-for the full evidence). No remaining gap here blocking M12.
+**Full technical pre-onboarding checklist, all closed 2026-09-11** (see
+`work_M12_launch_plan_20260911.md` for the original evidence trail):
+- `GLOBAL_DAILY_JOB_LIMIT` set to `10` (founder action, confirmed via Script
+  Properties) — below the code's own built-in default of `25`, sized for one real
+  pilot client's genuine daily use without being an open-ended abuse surface.
+- `EEV2_ENVIRONMENT: TEST` confirmed harmless — only gates a separate diagnostic
+  function that never sends email, zero effect on any real client-facing path.
+- CONTRACTS.md's Contract 4 wording corrected to reflect the real, verified state
+  (was stale: "0 of 3," "archived").
+- **Contract 5's weekly canary built and verified live** — `eev2RunWeeklyCanary()`
+  (EEV2-018) resubmits the real known-bad Procurement_* set through the actual
+  pipeline every Monday, alerting internally only (structurally cannot reach a real
+  client — never calls `sendReportEmail`). Real smoke test (job
+  `canary-20260911-162138`) confirmed `isValid: false` correctly, `[Canary OK]`
+  alert received.
 
-**M13 is DONE** (2026-09-11) — the real production web app deployment ("boardroom")
-was found stale (2 months old, predating EEV2-012 through EEV2-017) and republished;
-its endpoint cap confirmed refusing a real over-limit request correctly. This closes
-the last open code-side gap M12 was implicitly waiting on beyond M10 itself.
-
-**Contract 5's weekly canary has no automation or reminder — worth setting up as
-part of going live, not after.** It is currently a fully manual practice (resubmit
-the known-bad Procurement_* set weekly, pinned to an internal address per Contract
-5's mandatory mitigation) with nothing prompting the founder to actually do it each
-week. Given the founder's ~2 hrs/week budget, an unprompted manual weekly task is a
-real risk of being forgotten exactly when it matters.
-
-**`GLOBAL_DAILY_JOB_LIMIT` is currently `1`** (set for M10/M13's testing), which will
-not work for real client use. See `work_M12_launch_plan_20260911.md` for a proposed
-value and full pre-onboarding checklist.
+No remaining code-side or config-side gap is blocking this milestone. What remains
+is exclusively the founder's own work: identifying, pitching, and onboarding a real
+first pilot client.
 
 ### M13 — Endpoint security (EEV2-014)
 **State: DONE 2026-09-11.** Found during the pre-launch audit and not previously

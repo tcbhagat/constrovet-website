@@ -37,14 +37,18 @@ literal gate (3 clean cycles, live endpoint verified) is satisfied.
    is `false`, so this path isn't reachable. If Deep Analysis mode is enabled for the
    pilot, set this explicitly to `10` first, matching the job cap. Not yet set —
    founder action, only needed if/when Deep Analysis is enabled.
-3. **Contract 5's weekly canary has no automation.** It is a fully manual practice
-   today (resubmit the known-bad Procurement_* set weekly, pinned to an internal
-   address). Worth deciding now, before go-live, not after a gap is discovered the
-   hard way: either (a) accept it as a manual weekly founder task and set a real
-   recurring reminder outside this codebase, or (b) build a scheduled trigger that
-   runs it automatically (still gated to an internal address, per Contract 5's
-   mandatory mitigation — the canary itself must never be able to deliver to a real
-   client). Not decided — founder call.
+3. **Contract 5's weekly canary — DONE, built and verified live 2026-09-11.** Founder
+   chose (b): a scheduled trigger. `eev2RunWeeklyCanary()` (`Code.gs`, EEV2-018)
+   resubmits the real 9-file Procurement_* set (copied to a dedicated, stable Drive
+   folder, `EEV2-Canary-Fixtures`) through the actual pipeline every Monday 6am,
+   consuming one `GLOBAL_DAILY_JOB_LIMIT` slot like a real submission, per the
+   founder's own decision. Structurally cannot deliver to a real client: never calls
+   `sendReportEmail`, only ever sends one internal alert to `admin@constrovet.com`
+   via `MailApp.sendEmail` directly. **Real smoke test, 2026-09-11:** job
+   `canary-20260911-162138` ran end-to-end, correctly found `isValid: false`
+   (`NO_VERIFIED_EVIDENCE`, all 9 findings narrative-only), and the real `[Canary
+   OK]` alert email was received exactly as designed. The weekly trigger itself is
+   installed (`eev2InstallWeeklyCanaryTrigger()` run once by the founder).
 4. **CONTRACTS.md's Contract 4 text — DONE, approved and applied 2026-09-11.** Both
    stale lines ("0 of 3," "web app deployment is archived") corrected to reflect the
    real, verified state.

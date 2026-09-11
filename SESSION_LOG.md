@@ -4473,3 +4473,67 @@ still open — next item to decide.
 
 
 
+
+---
+## Session end: 2026-09-11 21:39
+
+
+---
+## Session end: 2026-09-11 21:44
+
+
+---
+## Session end: 2026-09-11 21:46
+
+
+---
+## Session end: 2026-09-11 21:49
+
+
+---
+## Session end: 2026-09-11 21:58
+
+## M12 technical checklist fully closed — weekly canary built and verified live
+
+**Verified — how:**
+- Founder confirmed the "boardroom" copy step: verified all 9 real
+  Procurement_* PDFs actually present in the new `EEV2-Canary-Fixtures`
+  folder (`1XHb-9GRCjPfUh4DlQfMlvJT-ipxKpTXf`) via a direct Drive
+  listing before writing any code against it, not just trusting the
+  folder ID pasted.
+- Designed `eev2RunWeeklyCanary()` deliberately so it can never call
+  `sendReportEmail` at all — only ever sends one internal alert via
+  `MailApp.sendEmail` directly to a hardcoded recipient, regardless of
+  outcome, per Contract 5's own "the canary must never be able to
+  deliver to a client" mandatory mitigation. Also handles the case
+  where real traffic already exhausted the daily cap on canary day as
+  SKIPPED, not FAILED, to avoid crying wolf on a coincidence.
+  Founder-approved before writing.
+- Founder pushed, installed the one-time weekly trigger
+  (`eev2InstallWeeklyCanaryTrigger`), then ran `eev2RunWeeklyCanary`
+  directly as a real smoke test rather than waiting for Monday.
+- First result pasted was actually a stale Cloud Logging entry from an
+  earlier, unrelated diagnostic (`eev2DailyBudgetDiagnosticRun`) —
+  caught by checking the returned JSON's shape (`counter_key`/
+  `stored_used_value` vs. the canary's own `job_id`/`stage`/`ok` shape)
+  and the stale `configured_limit_property: "1"` value, rather than
+  accepting it as the real result. Asked for the actual Execution log
+  instead of Cloud Logging.
+- Real result confirmed: job `canary-20260911-162138`, `isValid: false`,
+  `NO_VERIFIED_EVIDENCE`, `[Canary OK]` alert received at
+  `admin@constrovet.com` — the canary genuinely works end-to-end, live,
+  for real.
+- `PROJECT_MILESTONES.md` M12 rewritten: all 5 pre-onboarding checklist
+  items now closed (cap value, `EEV2_ENVIRONMENT` confirmed harmless,
+  CONTRACTS.md correction, canary automation, plus M10/M13/M15 already
+  DONE). State changed from "STARTABLE" to "TECHNICALLY READY" — no
+  remaining code-side or config-side gap; only the founder's own
+  client-identification work remains, explicitly out of scope for this
+  doc.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files).
+
+**NOT done this session:** identifying, pitching, or onboarding an
+actual real pilot client — founder's own work, not attempted here.
+
+
+
