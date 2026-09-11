@@ -4219,3 +4219,163 @@ decision.
 
 
 
+
+---
+## Session end: 2026-09-11 14:15
+
+
+---
+## Session end: 2026-09-11 14:27
+
+
+---
+## Session end: 2026-09-11 14:30
+
+
+---
+## Session end: 2026-09-11 14:31
+
+
+---
+## Session end: 2026-09-11 14:38
+
+
+---
+## Session end: 2026-09-11 14:40
+
+
+---
+## Session end: 2026-09-11 14:45
+
+
+---
+## Session end: 2026-09-11 14:46
+
+
+---
+## Session end: 2026-09-11 14:50
+
+
+---
+## Session end: 2026-09-11 14:51
+
+
+---
+## Session end: 2026-09-11 14:51
+
+
+---
+## Session end: 2026-09-11 14:53
+
+
+---
+## Session end: 2026-09-11 14:54
+
+
+---
+## Session end: 2026-09-11 14:55
+
+
+---
+## Session end: 2026-09-11 14:57
+
+
+---
+## Session end: 2026-09-11 15:01
+
+
+---
+## Session end: 2026-09-11 17:10
+
+
+---
+## Session end: 2026-09-11 17:14
+
+
+---
+## Session end: 2026-09-11 17:17
+
+
+---
+## Session end: 2026-09-11 17:18
+
+
+---
+## Session end: 2026-09-11 17:19
+
+
+---
+## Session end: 2026-09-11 17:21
+
+
+---
+## Session end: 2026-09-11 20:00
+
+
+---
+## Session end: 2026-09-11 20:03
+
+
+---
+## Session end: 2026-09-11 20:41
+
+
+---
+## Session end: 2026-09-11 20:44
+
+## M13 DONE — and a serious stale-deployment finding surfaced and fixed
+
+**Verified — how:**
+- Attempted a real over-cap POST to the anonymous endpoint. `curl` failed
+  consistently with a generic Google Drive "file not found" page (HTTP
+  405) across multiple variants (`-L`, `--post302 --post303`,
+  `text/plain` content-type) — ruled out as curl-specific by confirming a
+  plain GET worked fine on the same URL, then confirming a real browser
+  `fetch()` POST succeeded where curl failed.
+- The successful browser POST then revealed a deeper problem: it
+  succeeded when it should have been refused. Traced systematically,
+  ruling out one real cause at a time rather than guessing: wrong
+  deployment URL (checked against `constrovet-app-config.js`'s real
+  `appsScriptEndpoint` — found we'd initially tested a *different*,
+  unnamed deployment, not "boardroom"); UTC day rollover (`date -u`
+  confirmed same day); property not saved (founder re-confirmed
+  `GLOBAL_DAILY_JOB_LIMIT=1` directly in Script Properties). Added a
+  founder-approved, read-only diagnostic
+  (`eev2DailyBudgetDiagnosticRun()`) that confirmed real stored state:
+  `used=9`, `limit=1` — logically should refuse, yet a live request still
+  succeeded. This contradiction was the real signal.
+- Checked `clasp deployments` directly: the "boardroom" deployment (the
+  one the real website's config actually points to) was pinned to
+  **version 8, created 2026-07-03** — over 2 months stale, predating
+  EEV2-012 through EEV2-017 entirely. An earlier "edit the existing
+  deployment" instruction (before the naming mismatch was known) had
+  bumped a *different*, unnamed deployment to `@14`, while "boardroom"
+  itself never moved off `@8`.
+- Founder redeployed "boardroom" specifically; independently confirmed
+  via a fresh `clasp deployments` check: `@8` → `@15`.
+- Retested the identical real POST against the now-current deployment:
+  `{"ok":false,"error":"Daily submission limit of 1 reached for today.
+  Please try again tomorrow."}` — exact expected refusal.
+  Independently confirmed via Drive search for the refused job's id
+  (`cv-eev2-014-cap-check-007`): **zero results**, satisfying "no Drive
+  folder created." Confirmed "no Gemini call made" by reading
+  `eev2ConsumeDailyBudget_` directly — the `throw` happens before the
+  only write and long before any Drive/Gemini code path, not by another
+  live test.
+- `PROJECT_MILESTONES.md` M13 moved to DONE with the full evidence trail,
+  including the stale-deployment finding written up plainly (not buried)
+  since it's a real production concern independent of M13 itself — the
+  actual client-facing endpoint was silently running 2-month-old code
+  this whole time, only caught because this specific test forced a
+  direct comparison. "Deployed vs. main" table's web app deployment row
+  corrected from stale "ARCHIVED" to current, verified state.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files).
+
+**NOT verified / NOT done this session:** the other now-`@14` deployment
+(accidentally redeployed earlier, unnamed, unused by the real site) was
+not investigated further or cleaned up — left as-is, harmless but
+unused. Whether any other named/production-relevant deployment besides
+"boardroom" might also be stale was not checked.
+
+
+

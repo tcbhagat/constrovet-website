@@ -26,7 +26,7 @@ claimed.
 | **Live** `Code.js` md5 | `daad4bef6424c22cc07059c6c74aa6b0` |
 | Status | **MATCH** — verified 2026-09-11 by fresh `clasp pull` into a throwaway folder immediately after `clasp push` (founder-run), zero drift across all 43 `.gs` files, `appsscript.json` byte-identical to `main` |
 | Merged but NOT deployed | *(none)* |
-| Web app deployment | **ARCHIVED** — un-published 2026-09-10 pending EEV2-014 verification |
+| Web app deployment | **LIVE, CURRENT** — "boardroom" deployment republished 2026-09-11 (version `@8` → `@15`, was 2 months stale, predating EEV2-012 through EEV2-017; see M13). EEV2-014's cap confirmed refusing a real POST correctly. |
 
 All 43 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
 EEV2-012 (`BOARDROOM_OCR_COLUMN_JOIN`), EEV2-013 (CHECK 8 /
@@ -390,9 +390,9 @@ client could reach either. Still worth a real exercise of at least one of those 
 code is deployed and byte-verified.
 
 ### M13 — Endpoint security (EEV2-014)
-**State: DEPLOYED 2026-09-10, NOT YET EXERCISED.** Found during the pre-launch audit and
-not previously tracked: the web app deploys as `access: ANYONE_ANONYMOUS` +
-`executeAs: USER_DEPLOYING`, and the only limit — `enforceRateLimit()` — keyed on
+**State: DONE 2026-09-11.** Found during the pre-launch audit and not previously
+tracked: the web app deploys as `access: ANYONE_ANONYMOUS` + `executeAs:
+USER_DEPLOYING`, and the only limit — `enforceRateLimit()` — keyed on
 `payload.email`, a caller-supplied field, so it was bypassed by changing one string.
 `runGeminiVerifier`'s paid `gemini-2.5-pro` call had no cap at all. `GEMINI_DAILY_CALL_LIMIT`
 did not mitigate this: it gates only the `gemini-2.5-flash` relevance path, and that gate
@@ -400,12 +400,39 @@ is off by default.
 
 Fixed by two global, date-keyed daily budgets that read no caller-supplied field
 (PR #38, `0b2a8ff`): the job cap runs before any Drive folder is created, the verifier cap
-before the paid fetch, both under a fail-closed `LockService` lock. Deployment was
-archived on discovery and remains archived.
+before the paid fetch, both under a fail-closed `LockService` lock.
 
-**Acceptance criteria for DONE:** web app republished, AND a real POST past the cap
-observed to refuse with **no Drive folder created and no Gemini call made**. A checksum
-match is explicitly not sufficient — see the Deployed vs. main block.
+**Serious finding surfaced while exercising this milestone, now fixed:** the actual
+production web app deployment (`AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ`
+— the one `assets/js/constrovet-app-config.js` genuinely points to) was pinned to a
+**frozen version 8, created 2026-07-03** — over two months stale, predating EEV2-012,
+EEV2-013, EEV2-014, EEV2-016, and EEV2-017 entirely. An earlier redeploy attempt this
+session (following a generic "edit the existing deployment" instruction, before the
+name mismatch was caught) bumped a *different*, unnamed deployment (now `@14`) instead,
+leaving the real one still at `@8`. Discovered via a genuinely confusing chain: `curl`
+POSTs failed with a generic Drive "file not found" page across multiple redirect/
+content-type variants (ruled out as curl-specific, since a real browser `fetch()`
+succeeded); the successful request then revealed the cap wasn't firing despite a
+confirmed `GLOBAL_DAILY_JOB_LIMIT=1` and a confirmed real stored counter of `9`
+(`eev2DailyBudgetDiagnosticRun()`, temporary read-only diagnostic) — a contradiction only
+explained once `clasp deployments` showed "boardroom" pinned at a stale numbered
+version rather than tracking current code. Fixed by explicitly redeploying the
+correctly-named "boardroom" deployment (confirmed via `clasp deployments`:
+`@8` → `@15`, 2026-09-11).
+
+**Real exercise, post-redeploy, 2026-09-11:** a real POST to the live, now-current
+"boardroom" endpoint was refused: `{"ok":false,"error":"Daily submission limit of 1
+reached for today. Please try again tomorrow."}` — the exact expected message.
+Independently confirmed via Drive search for the refused job's id
+(`cv-eev2-014-cap-check-007`): **zero results**, meaning no folder or file was created
+anywhere — satisfies "no Drive folder created." No Gemini call was made either, by
+construction: `eev2ConsumeDailyBudget_`'s `throw` happens before
+`props.setProperty` (the only write) and long before any Drive/Gemini code executes,
+confirmed by reading the function directly rather than a further live test.
+
+**Acceptance criteria for DONE, met:** web app republished (the *correct*, named
+deployment) — done; a real POST past the cap observed to refuse with no Drive folder
+created and no Gemini call made — done, both independently verified above.
 
 ### M14 — CI observability (EEV2-015)
 **State: DONE 2026-09-10**, verified on a live CI run. `eev2-harness-ci.yml` was a single
