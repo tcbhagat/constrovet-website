@@ -4451,3 +4451,25 @@ not made.
 
 
 
+
+---
+## Session end: 2026-09-11 21:14
+
+## Applied approved CONTRACTS.md Contract 4 correction
+
+**Verified — how:** founder approved the exact diff drafted in
+`work_M12_launch_plan_20260911.md`. Quoted current lines before editing;
+applied both corrections verbatim as proposed — the "0 of 3" line now
+reads "Satisfied 2026-09-11 — 3 of 3," and the "web app deployment is
+archived" line now reads "met 2026-09-11," both pointing to
+`PROJECT_MILESTONES.md` M10/M13 for full evidence rather than
+re-duplicating it. Removed the now-applied "Proposed CONTRACTS.md
+correction" section from the plan doc and marked item 4 done, so the
+plan doc doesn't show a stale "not applied" note for something that now
+is. `npm test` 35/35, `npm run check:fixtures` OK (24 files).
+
+**NOT done this session:** Contract 5 weekly canary automation decision
+still open — next item to decide.
+
+
+

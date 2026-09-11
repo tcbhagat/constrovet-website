@@ -45,11 +45,9 @@ literal gate (3 clean cycles, live endpoint verified) is satisfied.
    runs it automatically (still gated to an internal address, per Contract 5's
    mandatory mitigation — the canary itself must never be able to deliver to a real
    client). Not decided — founder call.
-4. **CONTRACTS.md's Contract 4 text is now stale**, still reading "0 of 3" and "web
-   app deployment is archived" — both are false as of 2026-09-11 (3/3 achieved,
-   deployment live and verified). This is the same class of wording-change CONTRACTS.md
-   has required separate founder approval for all session. Proposed correction below,
-   not applied.
+4. **CONTRACTS.md's Contract 4 text — DONE, approved and applied 2026-09-11.** Both
+   stale lines ("0 of 3," "web app deployment is archived") corrected to reflect the
+   real, verified state.
 5. **The other deployment accidentally bumped to `@14`** during M13's troubleshooting
    (unnamed, not referenced by the real website) was left as-is — harmless but unused.
    Not a blocker; noted for completeness.
@@ -58,37 +56,6 @@ literal gate (3 clean cycles, live endpoint verified) is satisfied.
    a separate diagnostic function whose own header comment says it "never sends
    email." No effect on `doPost`, `handleBoardroomFormSubmit`, or any real
    client-facing path. **Confirmed not a blocker** — no action needed.
-
-## Proposed CONTRACTS.md correction (not applied — needs founder approval)
-
-**Current (Contract 4 section):**
-> **Founder decision 2026-09-10 — "multiple consecutive" is fixed at 3.** This contract is
-> held exactly as written; it was explicitly not relaxed for a friendly or trusted first
-> client. Two real Test A attempts have failed to date, so the count stands at **0 of 3**
-> and restarts under the currently deployed code.
->
-> ...
->
-> **Also required before the gate can even begin:** the web app deployment is archived as
-> of 2026-09-10 pending EEV2-014 verification (see M13). Test A cannot run against an
-> un-published endpoint, so republication and a confirmed cap-refusal precede the first of
-> the 3 runs.
-
-**Proposed:**
-> **Founder decision 2026-09-10 — "multiple consecutive" is fixed at 3.** This contract is
-> held exactly as written; it was explicitly not relaxed for a friendly or trusted first
-> client. **Satisfied 2026-09-11 — 3 of 3 consecutive clean real cycles achieved, all
-> independently verified against Drive artifacts.** See `PROJECT_MILESTONES.md` M10 for
-> the full evidence trail (two earlier real attempts in 2026-09-09 had each failed for a
-> reason since fixed, and do not count toward the 3).
->
-> ...
->
-> **Also required before the gate could begin — met 2026-09-11:** the web app deployment
-> was archived pending EEV2-014 verification (see M13); republished, and a real POST past
-> the cap observed refusing correctly with no Drive folder created. See M13 for the full
-> evidence, including a real 2-month-stale-deployment finding surfaced and fixed in the
-> same pass.
 
 ## What this document deliberately does not plan
 

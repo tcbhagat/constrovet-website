@@ -61,8 +61,10 @@ Do not onboard real clients until Test A has passed cleanly on multiple consecut
 
 **Founder decision 2026-09-10 — "multiple consecutive" is fixed at 3.** This contract is
 held exactly as written; it was explicitly not relaxed for a friendly or trusted first
-client. Two real Test A attempts have failed to date, so the count stands at **0 of 3**
-and restarts under the currently deployed code.
+client. **Satisfied 2026-09-11 — 3 of 3 consecutive clean real cycles achieved, all
+independently verified against Drive artifacts.** See `PROJECT_MILESTONES.md` M10 for
+the full evidence trail (two earlier real attempts in 2026-09-09 had each failed for a
+reason since fixed, and do not count toward the 3).
 
 **Accepted-open, disclosed rather than blocking:** M8 (large/dense document) and M9
 (scanned/image PDF) have no real fixture anywhere in Drive, and manufacturing one is not
@@ -71,10 +73,11 @@ disclosed to the pilot client as known-untested paths, with **scanned/image PDFs
 out of scope for v1**. This is a deliberate, recorded acceptance of open risk — not an
 oversight, and not a claim that those paths work.
 
-**Also required before the gate can even begin:** the web app deployment is archived as
-of 2026-09-10 pending EEV2-014 verification (see M13). Test A cannot run against an
-un-published endpoint, so republication and a confirmed cap-refusal precede the first of
-the 3 runs.
+**Also required before the gate could begin — met 2026-09-11:** the web app deployment
+was archived pending EEV2-014 verification (see M13); republished, and a real POST past
+the cap observed refusing correctly with no Drive folder created. See M13 for the full
+evidence, including a real 2-month-stale-deployment finding surfaced and fixed in the
+same pass.
 
 ## Contract 5 — Ongoing canary (post-launch)
 
