@@ -22,17 +22,19 @@ claimed.
 
 | | Value |
 |---|---|
-| `main` `apps-script/Code.gs` md5 | `282d2e972aa29d20e63b939e1e2bb081` |
-| **Live** `Code.js` md5 | `282d2e972aa29d20e63b939e1e2bb081` |
-| Status | **MATCH** — verified 2026-09-10 by fresh `clasp pull` into a throwaway folder, then confirmed again after merging `fix/eev2-016-global-limit-form-path` (`d8f55c4`) into `main` the same day |
+| `main` `apps-script/Code.gs` md5 | `daad4bef6424c22cc07059c6c74aa6b0` |
+| **Live** `Code.js` md5 | `daad4bef6424c22cc07059c6c74aa6b0` |
+| Status | **MATCH** — verified 2026-09-11 by fresh `clasp pull` into a throwaway folder immediately after `clasp push` (founder-run), zero drift across all 43 `.gs` files, `appsscript.json` byte-identical to `main` |
 | Merged but NOT deployed | *(none)* |
 | Web app deployment | **ARCHIVED** — un-published 2026-09-10 pending EEV2-014 verification |
 
-All 42 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
+All 43 `.gs` files and `appsscript.json` match live byte-for-byte. Live carries
 EEV2-012 (`BOARDROOM_OCR_COLUMN_JOIN`), EEV2-013 (CHECK 8 /
-`NO_VERIFIED_EVIDENCE`), EEV2-014 (the global spend/abuse caps), and EEV2-016
-(the same global daily job cap also enforced on the form-trigger path — was
-live and unmerged from 07:42Z to 16:13Z 2026-09-10; see the drift flag below).
+`NO_VERIFIED_EVIDENCE`), EEV2-014 (the global spend/abuse caps), EEV2-016 (the
+same global daily job cap also enforced on the form-trigger path — was live and
+unmerged from 07:42Z to 16:13Z 2026-09-10; see the drift flag below), and
+EEV2-017 (the single validation choke point inside `sendReportEmail`, pushed
+live 2026-09-11 — see M15).
 
 **Read the governance rule before trusting this table.** A checksum match proves
 *deployment*, not *correctness*. EEV2-014's caps are live as bytes but remain
@@ -381,12 +383,11 @@ real fixture exists in Drive for either, and manufacturing one is not a good use
 pre-launch window. They are to be disclosed to the pilot client as known-untested
 paths, with scanned/image PDFs declared out of scope for v1.
 
-**Also worth deciding before onboarding a real client:** EEV2-017 (the send-gate choke
-point, M15) is merged to `main` but not yet pushed live — M10's 3 clean cycles did not
-exercise it, since the pre-existing `handleBoardroomFormSubmit` gate (unchanged by
-EEV2-017) is what handled all 6 real submissions. Worth pushing EEV2-017 live and
-re-verifying before a real client's correction-form submissions or any manual resend
-could reach the paths it specifically closes.
+**EEV2-017 is now live** (pushed and verified 2026-09-11, see M15) — the send-gate
+choke point covers `resendBoardroomReport` and the correction-form path before a real
+client could reach either. Still worth a real exercise of at least one of those 2 paths
+(M15's remaining acceptance gap) before relying on it under real client load, but the
+code is deployed and byte-verified.
 
 ### M13 — Endpoint security (EEV2-014)
 **State: DEPLOYED 2026-09-10, NOT YET EXERCISED.** Found during the pre-launch audit and
@@ -432,7 +433,14 @@ registered in the gate. Live-exercised by two real Test A jobs before the branch
 merged (see drift flag above for the deployed-before-merged timeline).
 
 ### M15 — Correction-form report path bypasses the validation gate (EEV2-017)
-**State: BUILT, NOT LIVE-DEPLOYED.** Found by code trace 2026-09-10: `onCorrectionFormSubmit`
+**State: MERGED AND LIVE 2026-09-11 — DEPLOYED, NOT YET EXERCISED.** Merged via PR #44
+(`3d90693`), pushed live by the founder 2026-09-11, confirmed via fresh `clasp pull`:
+live `Code.js` md5 `daad4bef6424c22cc07059c6c74aa6b0` matches `main` exactly, zero
+drift across all 43 `.gs` files, manifest byte-identical. **Not yet exercised**: the two
+paths this fix specifically closes (`onCorrectionFormSubmit`/`rerunBoardroomJobWithCorrections`
+and `resendBoardroomReport`) have not been triggered with a real call since going live —
+M10's 3 clean cycles all went through the pre-existing `handleBoardroomFormSubmit` gate,
+unchanged by EEV2-017. Found by code trace 2026-09-10: `onCorrectionFormSubmit`
 in `apps-script/Code.gs` rebuilds and emails a report on client-submitted correction
 evidence without ever calling `validateReportOutput`. Confirmed **not currently live** —
 the Apps Script Triggers UI shows only `onFormSubmit` installed, no
@@ -457,12 +465,14 @@ already runs via `npm test`, deliberately not added to the release-gate registry
 `check:fixtures` OK (24 files). Full detail in `work_M15_decision_memo_20260910.md`'s
 "Implementation note."
 
-**Acceptance criteria for DONE:** merged; exercised in the Apps Script TEST project
-against a real submission through at least one of the 2 previously-ungated paths (this
-was Node-only static/unit verification — `sendReportEmail` cannot be called end-to-end
-outside real Apps Script services, same documented constraint as
-`EEV2GateHealthCircuitBreakerRegression.gs`); `clasp push` and deploy remain
-founder-only.
+**Acceptance criteria for DONE:** merged (done, PR #44) and deployed (done,
+2026-09-11) — still needs a real exercise of at least one of the 2 previously-ungated
+paths under the live code, since verification to date is Node-only static/unit
+(`sendReportEmail` cannot be called end-to-end outside real Apps Script services, same
+documented constraint as `EEV2GateHealthCircuitBreakerRegression.gs`). The `resendBoardroomReport`
+path is the easier of the two to exercise for real (founder-manual-invocation only, no
+trigger install needed) — `onCorrectionFormSubmit` additionally needs that trigger
+installed, which it is not, per M10/M13's earlier finding.
 
 ## Resolved, no longer tracked
 - PR #17 — confirmed merged (`e4fc9c5`) prior to this doc; earlier "parked" note is stale.

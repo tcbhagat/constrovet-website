@@ -4124,3 +4124,42 @@ same temporary-raise-then-revert pattern).
 
 
 
+
+---
+## Session end: 2026-09-11 13:49
+
+
+---
+## Session end: 2026-09-11 13:50
+
+## EEV2-017 pushed live, verified, PROJECT_MILESTONES.md updated
+
+**Verified — how:**
+- Founder ran `git pull origin main` then `clasp push` from
+  `apps-script/` (44 files, including the manifest which clasp flagged
+  for confirmation).
+- Independently confirmed via a fresh `clasp pull` into a throwaway
+  folder (not trusting the push output alone): live `Code.js` md5
+  `daad4bef6424c22cc07059c6c74aa6b0` matches `main` exactly.
+- Checked the manifest change clasp flagged during push: diffed live
+  `appsscript.json` against `main`'s — byte-identical, so the "update"
+  prompt was routine, not a real scope/config change.
+- Full drift check: diffed every one of the 43 live `.gs` files against
+  `main` — zero differences found.
+- `PROJECT_MILESTONES.md` updated: "Deployed vs. main" table's checksums
+  corrected to the new hash; M15 moved from "BUILT, NOT LIVE-DEPLOYED" to
+  "MERGED AND LIVE — DEPLOYED, NOT YET EXERCISED" (the 2 paths it closes
+  haven't been triggered with a real call since going live); M12's note
+  updated to reflect EEV2-017 is now live, not merely merged.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files) — unaffected,
+  docs-only.
+
+**NOT verified / NOT done this session:** EEV2-017's own 2 previously-
+ungated paths (`resendBoardroomReport`, the correction-form path) have
+not been exercised with a real call under the live code — M15's
+acceptance criteria still has this one gap. `resendBoardroomReport` is
+the easier of the two to test for real (founder-manual-invocation only,
+no trigger install needed).
+
+
+
