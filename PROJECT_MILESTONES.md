@@ -195,9 +195,10 @@ genuinely exceeds 40 evidence matches and is handled correctly.
 behavior confirmed.
 
 ### M10 — Launch gate: consecutive clean Test A/B runs
-**State: 1 of 3 consecutive clean cycles — first genuinely clean cycle 2026-09-11, see
-"Third attempt" below.** Two earlier real attempts (2026-09-09) each failed for a
-reason since fixed (EEV2-012, then EEV2-013).
+**State: 2 of 3 consecutive clean cycles — both real cycles 2026-09-11, see "Third
+attempt" and "Fourth attempt" below.** Two earlier real attempts (2026-09-09) each
+failed for a reason since fixed (EEV2-012, then EEV2-013). One more clean cycle
+closes M10.
 
 **First attempt** — job `form-20260909-072421-33a43b52` (real 9-file Procurement_* set)
 was sent, not held. Root cause was EEV2-009's no-op newline row-boundary guard — see M3
@@ -320,7 +321,22 @@ criteria specifically names, since the web app deployment is still archived and
 itself close M13 — that still needs the web app republished and a real POST against
 that specific path.
 
-**2 of 3 cycles remaining** to close M10. Given the daily-cap constraint, each future
+**Fourth attempt (cycle 2 of 3), 2026-09-11 — CLEAN.** Same real fixtures, same real
+form, cap raised 1→2 then reverted to 1 immediately after (confirmed both ways):
+
+- **Test A** — job `form-20260911-072958-4cc84073`, the real 9-file Procurement_* set.
+  Correctly held. `${jobId}-VALIDATION_FAILED.json` confirmed to exist (fetched
+  directly, 2026-09-11): `isValid: false`, `NO_VERIFIED_EVIDENCE`, identical shape to
+  cycle 1's result.
+- **Test B** — job `form-20260911-073728-c8a93a1c`, the delay-only CSV. Correctly sent.
+  `job-state.json` confirmed (fetched directly): `email: "bhagat.taran@gmail.com"`
+  (correct address, no repeat of the cycle-1 typo), `email_status: "EMAIL_SENT"`,
+  `state: "ACTION_REPORT_SENT"`.
+
+No new defects surfaced this cycle — clean on the first attempt, no resubmission
+needed.
+
+**1 of 3 cycles remaining** to close M10. Given the daily-cap constraint, the final
 cycle needs the same temporary-raise-then-revert handling unless the cap's real
 long-term production value is reconsidered separately (not decided this session).
 

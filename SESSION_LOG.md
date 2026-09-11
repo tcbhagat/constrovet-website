@@ -4036,3 +4036,46 @@ throughout. This is a plan, not a completed action.
 
 
 
+
+---
+## Session end: 2026-09-11 12:49
+
+
+---
+## Session end: 2026-09-11 12:53
+
+## M10 cycle 2 of 3: clean, no new defects
+
+**Verified — how:**
+- Founder ran cycle 2's Test A and Test B before asking me to check; I
+  independently confirmed both via Drive search rather than trusting the
+  forwarded emails alone: Test A (job `form-20260911-072958-4cc84073`)
+  has a real `VALIDATION_FAILED.json`, `isValid: false`,
+  `NO_VERIFIED_EVIDENCE`, checked at `07:31:37Z`; Test B (job
+  `form-20260911-073728-c8a93a1c`) has `job-state.json` showing
+  `email: "bhagat.taran@gmail.com"` (correct address, no repeat of
+  cycle 1's typo), `email_status: "EMAIL_SENT"`.
+- Separately, a real GitHub Actions failure notification arrived
+  (`Daily Issue Fix PR`, workflow `daily-issue-fix-pr.yml`). Checked the
+  workflow file directly: it is pre-existing (authored 2026-09-07,
+  unrelated to this session's work) and its own header comment already
+  documents this exact failure mode — it requires an `ANTHROPIC_API_KEY`
+  repo secret that was never added, so the scheduled daily run fails at
+  that step by design, not silently. Confirmed harmless and unrelated to
+  M10; flagged to the founder rather than silently ignored, with the
+  option to add the secret or disable the workflow left to them.
+- Confirmed with the founder, directly, that `GLOBAL_DAILY_JOB_LIMIT` was
+  raised (1→2) and reverted back to 1 after cycle 2's two submissions —
+  not assumed.
+- `PROJECT_MILESTONES.md` M10 updated: **2 of 3 consecutive clean
+  cycles.** No new defects surfaced this cycle (unlike cycle 1's typo and
+  cap-conflict discoveries) — clean on the first attempt.
+- `npm test` 35/35, `npm run check:fixtures` OK (24 files) — unaffected,
+  docs-only.
+
+**NOT verified / NOT done this session:** 1 more clean cycle needed for
+M10 DONE; EEV2-017 still not pushed live; the daily cap's permanent
+production value still not reconsidered.
+
+
+
