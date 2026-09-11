@@ -3805,3 +3805,74 @@ itself, which required and received explicit founder approval before
 being committed.
 
 
+
+---
+## Session end: 2026-09-11 11:26
+
+## Founder decision: keep eev2AuditJobDiagnosticRun() until launch + 1 month clean
+
+**Verified — how:** founder decision, recorded verbatim in both the code
+comment (`EEV2AuditJob.gs`) and `PROJECT_MILESTONES.md`'s M7 section:
+`eev2AuditJobDiagnosticRun()` (the temporary editor-run wrapper added this
+session) stays in place until the client-facing production deployment has
+launched AND run one full month of successful real client testing — not
+deleted immediately now that M7's verification is done, since it remains
+the only working path to re-run the audit while the underlying `clasp run`
+Execution API permission error is still unresolved.
+- `npm test` 33/33, `npm run check:fixtures` OK (23 files) after the doc/
+  comment update — unaffected, no logic change.
+
+## Priority plan toward client-facing production, given at founder's request
+
+Re-verified current state fresh (not from memory) before planning:
+`main`/live still match at `282d2e97...` (EEV2-016 live, EEV2-017 NOT yet
+live), web app deployment still **ARCHIVED** since 2026-09-10 pending
+EEV2-014 exercise, PR #44 (EEV2-017/M15) confirmed `MERGEABLE`/`CLEAN` with
+green CI, PR #43 (docs) same.
+
+**Sequence, in order, each step's real blocker named:**
+
+1. **Merge PR #44 (EEV2-017/M15).** Zero-risk, CI-green, closes the
+   correction-form/manual-resend validation bypass before any client can
+   ever reach it. No reason to delay — founder action: merge via GitHub UI
+   or `gh pr merge 44`.
+2. **`clasp push` EEV2-017 live**, then re-verify via fresh `clasp pull` +
+   checksum (this session's own established pattern) so
+   `PROJECT_MILESTONES.md`'s "Deployed vs. main" table is corrected
+   immediately, not left stale like M3/M7 were.
+3. **Republish the web app deployment** (currently archived) — required
+   before M13 can be exercised at all, since Test A/B and any real cap
+   test need a live, callable endpoint.
+4. **Exercise EEV2-014's caps for real** (M13's actual acceptance
+   criterion): one real POST past `GLOBAL_DAILY_JOB_LIMIT` or the Gemini
+   verifier budget, observed to refuse cleanly with no Drive folder
+   created and no Gemini call made. Closes M13.
+5. **Run a fresh Test A/B cycle — M10's attempt #3.** Every fix that
+   caused the first two real attempts to fail is now in place (EEV2-012 —
+   row-boundary/OCR-column-join; EEV2-013 — MUST-BLOCK gate; EEV2-016 —
+   form-path daily cap; EEV2-017 — send-gate choke point, once merged and
+   live per steps 1-2). This is the first attempt with every known fix
+   present. Needs the founder to submit real Test A (9-file Procurement_*)
+   and Test B (delay-only CSV) through the live form.
+6. **Repeat step 5 two more times** for 3 consecutive clean cycles — M10's
+   literal acceptance criteria, not negotiable per the founder's own
+   2026-09-10 decision holding Contract 4 exactly as written.
+7. **M12 — first real pilot client** becomes startable only once M10 is
+   fully DONE (3/3), per its own stated dependency. M8/M9 remain
+   accepted-open (disclosed, not blockers) per the existing 2026-09-10
+   decision.
+
+**Parallel, non-blocking track:** M5 (currency symbol encoding root
+question) can be tested any time by running `M01_MonthlySummary.pdf` or
+`M01_IPC.pdf` through the real intake pipeline — does not block the
+sequence above, worth doing opportunistically. M11 (auto-push trust
+count, 0/5) can begin logging cycles once real dev/test/fix work resumes
+post-launch; not a launch blocker itself.
+
+**Not done this session:** none of steps 1-7 executed — all need either a
+founder merge/deploy action or a real client-facing submission, per the
+founder-only/production-mutation boundaries this project has held
+throughout. This is a plan, not a completed action.
+
+
+

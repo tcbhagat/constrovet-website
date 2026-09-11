@@ -85,17 +85,23 @@ function eev2AuditJob(jobId) {
   return result;
 }
 
-// TEMPORARY DIAGNOSTIC — delete once M7's clasp run / editor-run blocker is
-// resolved. eev2AuditJob(jobId) requires an argument, which the Apps Script
-// editor's "Run" button cannot supply. This wrapper exists solely so the
-// founder can run the real Contract-1 audit from the editor UI, bypassing
-// the still-unresolved `clasp run` Execution API permission error
-// ("Unable to run script function. Please make sure you have permission to
-// run the script function.", 2026-09-11 -- ruled out so far: OAuth
-// consent-screen test users, API-executable deployment access level set to
-// "Anyone"). Job ID reused from the 2026-09-09 verification attempt
+// TEMPORARY DIAGNOSTIC. eev2AuditJob(jobId) requires an argument, which the
+// Apps Script editor's "Run" button cannot supply. This wrapper exists
+// solely so the founder can run the real Contract-1 audit from the editor
+// UI, bypassing the still-unresolved `clasp run` Execution API permission
+// error ("Unable to run script function. Please make sure you have
+// permission to run the script function.", 2026-09-11 -- ruled out so far:
+// OAuth consent-screen test users, API-executable deployment access level
+// set to "Anyone"). Job ID reused from the 2026-09-09 verification attempt
 // (SESSION_LOG.md), whose expected answer is already independently known by
 // hand: validation-errors sheet, action_taken=REVERTED_NOT_SENT.
+//
+// FOUNDER DECISION 2026-09-11: keep this in place deliberately, not delete
+// it now. Delete only once the client-facing production deployment has
+// launched AND run one full month of successful real client testing. Until
+// that bar is met, this remains the only working path to re-run this audit
+// (the underlying clasp run permission error is still unresolved), so it
+// stays available on purpose.
 function eev2AuditJobDiagnosticRun() {
   return eev2AuditJob("form-20260905-053908-609f4190");
 }

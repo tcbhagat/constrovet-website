@@ -173,10 +173,12 @@ execution against a real job, verdict matches manual inspection) is met, via the
 Run button rather than the originally-specified `clasp run`/Termux path, since that path
 remains blocked by an unresolved Execution API permission issue.
 
-**Not yet done:** delete `eev2AuditJobDiagnosticRun()` (temporary, per its own comment)
-once nobody still needs the editor-run path; the underlying `clasp run` permission issue
-itself remains open (separate, lower-priority now that the editor path proves the real
-function works).
+**Deliberately kept, not deleted — founder decision 2026-09-11:**
+`eev2AuditJobDiagnosticRun()` stays in place until the client-facing production
+deployment has launched AND run one full month of successful real client testing. Until
+then it remains the only working path to re-run this audit, since the underlying `clasp
+run` Execution API permission issue is still unresolved (separate, lower-priority now
+that the editor path proves the real function works).
 
 ## Milestones not yet started
 
