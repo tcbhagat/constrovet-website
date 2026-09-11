@@ -3800,12 +3800,14 @@ function eev2ReadLimitProperty_(propertyName, fallback) {
 function eev2DailyBudgetDiagnosticRun() {
   const props = PropertiesService.getScriptProperties();
   const key = "global_jobs:" + Utilities.formatDate(new Date(), "GMT", "yyyyMMdd");
-  return {
+  const result = {
     counter_key: key,
     stored_used_value: props.getProperty(key),
     configured_limit_property: props.getProperty("GLOBAL_DAILY_JOB_LIMIT"),
     effective_limit: eev2ReadLimitProperty_(GLOBAL_DAILY_JOB_LIMIT_PROPERTY, DEFAULT_GLOBAL_DAILY_JOB_LIMIT)
   };
+  console.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 // Pure allowlist decision, storage-free for harness testability.
