@@ -64,10 +64,45 @@
   /* ── 3. ACTIVE LINK HIGHLIGHT ───────────────────────────────── */
   function highlightActiveLink() {
     const currentPath = normalizePath(window.location.pathname);
+    const activePath = activeNavPath(currentPath);
     document.querySelectorAll(".cv-nav__links a, .cv-nav__drawer a").forEach(a => {
       const hrefPath = normalizePath(new URL(a.getAttribute("href") || "/", window.location.origin).pathname);
-      if (hrefPath === currentPath) a.classList.add("active");
+      if (hrefPath === activePath) {
+        a.classList.add("active");
+        a.setAttribute("aria-current", "page");
+      }
     });
+  }
+
+  function activeNavPath(currentPath) {
+    const servicePaths = new Set([
+      "/construction-cost-leakage-audit",
+      "/construction-cost-leakage-audit.html",
+      "/construction-esg-carbon-audit",
+      "/construction-esg-carbon-audit.html",
+      "/schedule-delay-cost-impact",
+      "/schedule-delay-cost-impact.html",
+      "/construction-financier-risk-audit",
+      "/construction-financier-risk-audit.html",
+      "/construction-project-recovery-plan",
+      "/construction-project-recovery-plan.html",
+      "/pages/construction-cost-leakage-audit.html",
+      "/pages/construction-cost-overrun-analysis.html",
+      "/pages/construction-esg-carbon-audit.html",
+      "/pages/schedule-slippage-recovery.html",
+      "/pages/construction-due-diligence-financiers.html",
+      "/pages/how-it-works.html",
+      "/pages/industries.html"
+    ]);
+
+    if (servicePaths.has(currentPath)) return "/pages/solution.html";
+    if (currentPath === "/blog" || currentPath.startsWith("/blog/")) {
+      return "/pages/knowledge.html";
+    }
+    if (currentPath === "/pages/team.html" || currentPath === "/pages/client.html") {
+      return "/pages/company.html";
+    }
+    return currentPath;
   }
 
   function normalizePath(pathname) {
@@ -85,7 +120,7 @@
       a.href = APP_URL;
       a.removeAttribute("target");
       a.removeAttribute("rel");
-      a.setAttribute("aria-label", "Open Constrovet live dashboard");
+      a.setAttribute("aria-label", "Try the Constrovet analyzer");
     });
   }
 

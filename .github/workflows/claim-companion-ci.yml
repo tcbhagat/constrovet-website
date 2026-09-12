@@ -1,42 +1,58 @@
-name: Claim Companion CI
+name: Public Site and Claim Companion CI
 
 on:
   pull_request:
     paths:
       - "index.html"
+      - "*.html"
+      - "app/**"
       - "assets/nav.html"
-      - "assets/footer.html"
       - "assets/css/style.css"
-      - "pages/contact.html"
-      - "pages/challanse.html"
+      - "assets/**"
+      - "blog/**"
+      - "boardroom/**"
+      - "pages/**"
       - "ssm-core-demo/index.html"
       - "sitemap.xml"
+      - "robots.txt"
+      - "llms.txt"
+      - "CNAME"
       - "claim-companion/**"
       - "android/claim-companion/**"
-      - "tests/claim-companion-public.test.mjs"
-      - "tests/construction-public-scope.test.mjs"
+      - "tests/*.test.mjs"
+      - "tests/e2e/**"
       - "scripts/check-claim-companion.mjs"
       - "scripts/verify-production-deploy.sh"
       - "package.json"
-      - ".github/workflows/claim-companion-*.yml"
+      - "package-lock.json"
+      - "playwright.config.mjs"
+      - ".github/workflows/claim-companion-ci.yml"
   push:
     branches: [main]
     paths:
       - "index.html"
+      - "*.html"
+      - "app/**"
       - "assets/nav.html"
-      - "assets/footer.html"
       - "assets/css/style.css"
-      - "pages/contact.html"
-      - "pages/challanse.html"
+      - "assets/**"
+      - "blog/**"
+      - "boardroom/**"
+      - "pages/**"
       - "ssm-core-demo/index.html"
       - "sitemap.xml"
+      - "robots.txt"
+      - "llms.txt"
+      - "CNAME"
       - "claim-companion/**"
       - "android/claim-companion/**"
-      - "tests/claim-companion-public.test.mjs"
-      - "tests/construction-public-scope.test.mjs"
+      - "tests/*.test.mjs"
+      - "tests/e2e/**"
       - "scripts/check-claim-companion.mjs"
       - "scripts/verify-production-deploy.sh"
       - "package.json"
+      - "package-lock.json"
+      - "playwright.config.mjs"
 
 permissions:
   contents: read
@@ -51,6 +67,25 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run check
+
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 
   android-debug-bundle:
     runs-on: ubuntu-latest
