@@ -76,6 +76,16 @@
 
   function activeNavPath(currentPath) {
     const servicePaths = new Set([
+      // Canonical service topic pages (all under /pages/ since 2026-09-12).
+      "/pages/construction-cost-leakage-audit.html",
+      "/pages/construction-esg-carbon-audit.html",
+      "/pages/schedule-delay-cost-impact.html",
+      "/pages/construction-financier-risk-audit.html",
+      "/pages/construction-project-recovery-plan.html",
+      "/pages/how-it-works.html",
+      "/pages/industries.html",
+      // Redirect stubs kept for old links/bookmarks. Listed so the nav still
+      // highlights Solution during the brief moment before the redirect fires.
       "/construction-cost-leakage-audit",
       "/construction-cost-leakage-audit.html",
       "/construction-esg-carbon-audit",
@@ -86,13 +96,9 @@
       "/construction-financier-risk-audit.html",
       "/construction-project-recovery-plan",
       "/construction-project-recovery-plan.html",
-      "/pages/construction-cost-leakage-audit.html",
       "/pages/construction-cost-overrun-analysis.html",
-      "/pages/construction-esg-carbon-audit.html",
       "/pages/schedule-slippage-recovery.html",
-      "/pages/construction-due-diligence-financiers.html",
-      "/pages/how-it-works.html",
-      "/pages/industries.html"
+      "/pages/construction-due-diligence-financiers.html"
     ]);
 
     if (servicePaths.has(currentPath)) return "/pages/solution.html";
