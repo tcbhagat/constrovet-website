@@ -1,93 +1,69 @@
-# Constrovet Website
+# Constrovet Website Repository
 
-Static HTML site for **constrovet.com** — hosted on GitHub Pages.
+This repository hosts the **Constrovet construction-evidence product** plus separate Claim Companion and retired/demo material. It is not a single-product codebase.
 
-For operating procedures, route checks, incident runbooks, and zero-budget controls, see [OPERATIONS_MAINTENANCE.md](OPERATIONS_MAINTENANCE.md).
+**Software agents and contributors:** start with [`SYSTEM_INDEX.md`](SYSTEM_INDEX.md), then [`REPO_MAP.md`](REPO_MAP.md). Do not infer current project state from this README; [`PROJECT_MILESTONES.md`](PROJECT_MILESTONES.md) is the sole current-state authority.
 
----
-
-## 📁 Project Structure
-
-```
-constrovet/
-├── index.html              ← Home page
-├── pages/
-│   ├── solution.html
-│   ├── how-it-works.html
-│   ├── industries.html
-│   ├── knowledge.html
-│   ├── company.html
-│   ├── contact.html
-│   ├── team.html
-│   ├── client.html
-│   └── privacy.html
-├── assets/
-│   ├── nav.html            ← Shared navigation (edit ONCE, updates all pages)
-│   ├── footer.html         ← Shared footer   (edit ONCE, updates all pages)
-│   ├── css/
-│   │   └── style.css       ← All styles (edit ONCE, updates all pages)
-│   └── js/
-│       └── main.js         ← Nav loader + hamburger logic
-├── app/
-│   └── index.html          ← GCP-free Analyse / Deep Analysis dashboard
-├── apps-script/
-│   └── Code.gs             ← Workspace Apps Script processor for Deep Analysis + email
-├── colab/
-│   └── constrovet_gemini_verifier.ipynb ← legacy verifier reference
-├── Dockerfile              ← Legacy Cloud Run rollback reference
-├── nginx.conf              ← Legacy web server config
-└── .gitignore
-```
+For operating procedures, route checks, incident runbooks, and zero-budget controls, see [`OPERATIONS_MAINTENANCE.md`](OPERATIONS_MAINTENANCE.md).
 
 ---
 
-## ✏️ How to Edit
+## Constrovet active architecture
 
-| Task | File to edit |
+| Surface | Active implementation |
 |---|---|
-| Change nav links | `assets/nav.html` |
-| Change footer text | `assets/footer.html` |
-| Change colours / fonts / spacing | `assets/css/style.css` → top `:root {}` block |
-| Edit Home page content | `index.html` |
-| Edit any other page | `pages/<page-name>.html` |
+| Public website | Static HTML/CSS/JS served by GitHub Pages at `www.constrovet.com` |
+| App launcher | `app/index.html` |
+| Browser analysis | Client-side PDF/CSV analysis in the static dashboard |
+| Deep Analysis backend | `apps-script/` using Google Workspace Apps Script |
+| Storage / async artifacts | Google Workspace Drive and Apps Script-owned artifacts |
+| Optional AI verification | Gemini through the approved Apps Script path after explicit Deep Analysis action |
+| Backend deployment | Manual founder-only `clasp push`, governed by `AGENTS.md` |
+| Current deployment/readiness state | `PROJECT_MILESTONES.md` |
+
+GCP/Cloud Run is not the active production architecture. Legacy `Dockerfile`/`nginx.conf` material remains only as historical/rollback reference. Do not re-enable paid GCP hosting or add Cloud Run, Cloud SQL, Firestore, GCS, or service-account upload to the active workflow without an explicit architectural decision and rollback plan.
 
 ---
 
-## 🚀 Production Deploys
+## Repository orientation
 
-Production is hosted on **GitHub Pages** behind `www.constrovet.com`.
+Important active paths for Constrovet:
 
-The active GCP-free app workflow is:
+```text
+index.html, demo.html, blog/, pages/, assets/   public website
+app/index.html                                  browser dashboard
+apps-script/                                    Workspace Apps Script processor + EEV2 modules/tests
+.github/workflows/eev2-harness-ci.yml           Constrovet evidence-harness CI
+scripts/                                        deterministic engineering checks/helpers
+SYSTEM_INDEX.md                                 agent bootstrap + authority map
+PROJECT_MILESTONES.md                           current state/deployment/blockers
+CONTRACTS.md                                    definition of done + hard stops
+AGENTS.md                                       agent operating/delegation contract
+REPO_MAP.md                                     product/path topology
+multi-tool-workflow.md                          cross-tool handoff protocol
+AGENT_SYSTEM_ARCHITECTURE.md                    agent-native system design
+AGENT_EXPERIENCE.md                             governed reusable incident memory
+AGENT_NATIVE_MIGRATION_PLAN.md                  staged engineering-control-plane plan
+SESSION_LOG.md                                  historical evidence archive
+```
 
-- Website: `https://www.constrovet.com`
-- App launcher: `https://www.constrovet.com/app/`
-- First-pass execution: browser-side PDF/CSV analysis from the static `/app/`
-  dashboard
-- Storage and async processing: Google Workspace Drive and Apps Script owned by
-  `admin@constrovet.com`
-- Optional deeper execution: the **Deep Analysis** button submits an
-  evidence-bound payload to the Workspace Apps Script processor, which uses the
-  approved Gemini key from Script Properties and emails the report.
-- GCP status: all visible projects have been moved to `DELETE_REQUESTED`
+Separate or non-active surfaces are described in `REPO_MAP.md`. In particular, do not use Claim Companion code, `recovery-v11/`, or legacy infrastructure files as evidence about the active Constrovet path unless the task explicitly requires them.
 
-Legacy Cloud Run/GCP notes in this repository are retained only as rollback
-references. Do not re-enable GCP hosting or paid infrastructure without an
-explicit approval and a new rollback plan.
+---
 
-Do not add service-account Drive upload, GCS, Cloud Run, Cloud SQL, Firestore,
-or a hosted app backend to the active workflow unless a future backend revival
-is explicitly approved. Workspace Apps Script is the approved free-tier
-processor for Deep Analysis and email.
+## Production behavior
 
-The browser dashboard now produces risk scoring, top executive actions,
-recoverable exposure, control-failure notes, missing-evidence blockers, a
-7/30/90 action plan, citations/rationale, and optional Workspace report
-submission. **Analyse** is browser-only and no-cost. **Deep Analysis** calls
-Gemini only through the deployed Apps Script processor after explicit user
-action and must receive only cited findings, quoted spans, calculations, action
-plans, honesty check, and audit metadata.
+The browser dashboard produces risk scoring, executive actions, recoverable-exposure analysis, control-failure notes, missing-evidence blockers, 7/30/90 actions, citations/rationale, and optional Workspace report submission.
 
-The production deployment target is:
+**Analyse** is intended to remain browser-side and no-cost. **Deep Analysis** submits an evidence-bound payload to the Workspace Apps Script processor after explicit user action and uses the approved Gemini key from Script Properties where the live path requires it.
+
+The product's prime safety objective and launch conditions are not defined here. Read `CONTRACTS.md` and `PROJECT_MILESTONES.md`.
+
+---
+
+## GitHub Pages deployment
+
+The public website deployment target is:
 
 | Setting | Value |
 |---|---|
@@ -97,21 +73,9 @@ The production deployment target is:
 | Production domain | `www.constrovet.com` |
 | App launcher | `https://www.constrovet.com/app/` |
 
-### Automatic deploy flow
+A push to `main` that changes served static files is therefore a **production website change** even though it does not deploy the Apps Script backend.
 
-1. Edit files in this repo.
-2. Commit changes to `main`.
-3. Push to `origin/main`.
-4. GitHub Pages serves the updated static files for `www.constrovet.com`.
-
-Do not restore Cloud Build or Cloud Run deployment unless the GCP rollback path is explicitly approved.
-
-### Legacy GCP rollback reference
-
-Historical Cloud Run files remain in the repository only for rollback analysis.
-They are not the active production path.
-
-### Verify deployment
+Typical route verification:
 
 ```bash
 curl -I -L https://www.constrovet.com
@@ -122,15 +86,12 @@ curl -I -L https://www.constrovet.com/sitemap.xml
 curl -I -L https://www.constrovet.com/robots.txt
 ```
 
-All routes should return `200` from GitHub Pages.
+Expected route status must be checked against the current task; do not treat an old README statement as a live verification result.
 
 ---
 
-## 🧪 Test Locally (optional)
+## Local deterministic checks
 
-```bash
-# Requires Docker Desktop installed
-docker build -t constrovet .
-docker run -p 8080:8080 constrovet
-# Open http://localhost:8080
-```
+Available npm scripts are defined in `package.json`. For Constrovet evidence work, use the relevant local checks before any paid/live execution. Current examples include the EEV2 harness, fixture-provenance checks, golden-sample checks, and Node tests.
+
+Do not interpret a test-suite pass more broadly than what the suite actually exercises. `SYSTEM_INDEX.md` defines the lifecycle distinction between `MERGED`, `DEPLOYED`, `EXERCISED`, `VERIFIED`, and `DONE`.
