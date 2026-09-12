@@ -109,5 +109,5 @@ test("production verifier checks every sitemap route against a local preview", a
   });
 
   assert.equal(result.code, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /routes: 27 sitemap URLs plus \/llms\.txt \/robots\.txt \/assets\/nav\.html/);
+  assert.match(result.stdout, /routes: 22 sitemap URLs plus \/llms\.txt \/robots\.txt \/assets\/nav\.html/);
 });

@@ -96,6 +96,38 @@
               "@type": "Answer",
               "text": "Yes. Each finding should include file, page or sheet, and quoted span."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "Can planned spend be tagged as leakage?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Planned spend, contract value, BOQ value, cumulative work done, and advance recovery are baseline budget signals."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is an overrun always a cash leakage?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The calculation identifies a variance. The category depends on the available evidence and should not be expanded beyond it."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can Constrovet estimate missing amounts?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. If evidence is missing, the finding shows the gap instead of creating a number."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Who reviews the findings?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Owners, contractors, project managers, consultants, financiers, and executive teams review the findings."
+            }
           }
         ]
       },
@@ -145,6 +177,22 @@
             Leakage findings are created only when project evidence supports them.
           </p>
 
+          <h2>Overrun Analysis: When Budget and Actual Both Exist</h2>
+          <p>
+            Overrun is calculated only when Budget and Actual are both present for the same scope. The calculation is Actual - Budget.
+          </p>
+          <table class="cv-data-table">
+            <thead><tr><th>Input</th><th>Use</th><th>Output</th></tr></thead>
+            <tbody>
+              <tr><td>Budget or BOQ only</td><td>Baseline evidence</td><td>No overrun calculation.</td></tr>
+              <tr><td>Budget and Actual</td><td>Comparable values</td><td>Actual - Budget.</td></tr>
+              <tr><td>Actual &gt; Budget</td><td>Variance review</td><td>Overrun finding with citation.</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Keeping this calculation separate from baseline budget prevents contract value, planned spend, BOQ value, work done, or advance recovery from being mislabeled as leakage.
+          </p>
+
           <h2>Records That Help</h2>
           <ul>
             <li>Budget, actual spend, BOQ, contract value, and work-done statements.</li>
@@ -152,6 +200,24 @@
             <li>Daily progress reports, delay notes, site instructions, and schedule updates.</li>
             <li>ESG, energy, fuel, water, carbon, waste, and emissions records when available.</li>
           </ul>
+
+
+          <h2>Example Output</h2>
+          <table class="cv-data-table">
+            <thead>
+              <tr><th>Finding type</th><th>Evidence used</th><th>Executive output</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Calculated overrun</td><td>Budget and Actual values</td><td>Difference, formula, citation, confidence</td></tr>
+              <tr><td>Delayed PO impact</td><td>Purchase order date, site delay note, cost record</td><td>Delay link, cost exposure if evidenced, action owner</td></tr>
+              <tr><td>Material wastage</td><td>Material logs, invoices, consumption records</td><td>Potential leakage category and missing-evidence checks</td></tr>
+            </tbody>
+          </table>
+
+          <h2>Action Use</h2>
+          <p>
+            Leakage findings can become 7-day evidence checks, 30-day recovery actions, and 90-day governance controls. Constrovet prepares the review view; stakeholders decide the action.
+          </p>
 
           <h2>What Executives Get</h2>
           <p>
@@ -184,16 +250,32 @@
           <h3>Can the system cite evidence?</h3>
           <p>Yes. Each finding should include file, page or sheet, and quoted span.</p>
         </article>
+        <article>
+          <h3>Can planned spend be tagged as leakage?</h3>
+          <p>No. Planned spend, contract value, BOQ value, cumulative work done, and advance recovery are baseline budget signals.</p>
+        </article>
+        <article>
+          <h3>Is an overrun always a cash leakage?</h3>
+          <p>No. The calculation identifies a variance. The category depends on the available evidence and should not be expanded beyond it.</p>
+        </article>
+        <article>
+          <h3>Can Constrovet estimate missing amounts?</h3>
+          <p>No. If evidence is missing, the finding shows the gap instead of creating a number.</p>
+        </article>
+        <article>
+          <h3>Who reviews the findings?</h3>
+          <p>Owners, contractors, project managers, consultants, financiers, and executive teams review the findings.</p>
+        </article>
       </div>
     </section>
 
     <section class="cv-section cv-section--bg-white cv-link-strip" aria-label="Constrovet topics">
       <div class="cv-link-strip__inner">
         <span class="cv-link-strip__label">Explore</span>
-        <a href="/pages/construction-cost-overrun-analysis.html">Cost overrun analysis</a>
+        <a href="/pages/construction-cost-leakage-audit.html">Cost overrun analysis</a>
         <a href="/pages/construction-esg-carbon-audit.html">ESG carbon audit</a>
-        <a href="/pages/schedule-slippage-recovery.html">Schedule recovery</a>
-        <a href="/pages/construction-due-diligence-financiers.html">Financier due diligence</a>
+        <a href="/pages/schedule-delay-cost-impact.html">Schedule recovery</a>
+        <a href="/pages/construction-financier-risk-audit.html">Financier due diligence</a>
         <a href="/pages/knowledge.html">Knowledge hub</a>
         <a href="/demo.html">View Sample Report</a>
         <a href="/boardroom/#intake">Start Pilot</a>
