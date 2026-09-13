@@ -4541,3 +4541,104 @@ actual real pilot client — founder's own work, not attempted here.
 ---
 ## Session end: 2026-09-11 22:00
 
+
+---
+## Session end: 2026-09-12 12:41
+
+
+---
+## Session end: 2026-09-12 16:30
+
+
+---
+## Session end: 2026-09-12 16:38
+
+
+---
+## Session end: 2026-09-12 16:39
+
+
+---
+## Session end: 2026-09-13 08:10
+
+
+## Website simplification (public static site only) — 2026-09-13
+
+**Scope note:** this session touched ONLY the public marketing site. `apps-script/`
+was not read, modified, pushed, or referenced by any change. Also untouched:
+`android/`, `claim-companion/`, `ssm-core-demo/`, `pages/challanse.html`,
+`assets/css/challanse.css`, `app/index.html`'s structure and its Apps Script
+endpoint wiring in `assets/js/constrovet-app-config.js`.
+
+**Verified — how:**
+- Six phases, six commits (`9c1aede`, `ab6dc5a`, `9237e32`, `bf945a9`, `42872c4`,
+  `849d713`) plus `d8f834a`, each independently revertible, each stating its own
+  `git revert` command in the commit message.
+- Consolidated service pages: 3 root-only pages moved into `pages/`; 2 root/pages
+  duplicate pairs resolved; 3 topic-overlap pages merged into siblings. Public page
+  count 28 -> 23. Caught and fixed that the 3 moved pages had root-relative asset
+  paths (`assets/css/style.css`) which after the move would have loaded no CSS, nav
+  or footer at all — verified corrected by headless render.
+- Merged distinctive copy rather than discarding it (founder chose this over
+  redirect-only): Budget/Actual input table, "The Formula" guardrail, Example Output
+  tables, Action Use, "Questions It Supports", "When To Use It", "From Evidence to
+  Action", "Why 7/30/90 Helps", and 9 FAQ entries were moved into canonical pages.
+  Visible FAQs and JSON-LD FAQPage schema kept in sync; JSON-LD parsed and validated
+  with `json.loads` on every edited page.
+- All 8 merged-away paths became redirect stubs (meta-refresh + rel=canonical +
+  noindex + visible link). Both stub types render correctly and land on canonical
+  pages (confirmed by headless render, h= matches target page).
+- `sitemap.xml` 27 -> 22 URLs, removing root/pages duplicate pairs that were emitting
+  duplicate-content signals. Updated the hardcoded `routes: 27` assertion in
+  `tests/public-site-operations.test.mjs` to 22 (founder chose updating the number
+  over making the assertion count-agnostic, keeping it a real tripwire).
+- Footer 14 -> 8 links; every removed link rehomed on its parent bucket page
+  (Solution gained recovery-plan/how-it-works/industries, Knowledge gained blog,
+  Company gained team/use-cases). Verified all 4 sub-pages reachable post-trim.
+- Homepage: relabeled 3 pillar cards that pointed somewhere other than their label
+  said (clicking "Email executive action" landed on schedule-recovery — a real UX
+  defect, not just wording); replaced two identical-destination buttons with two
+  genuinely different actions; removed a near-verbatim repeated founder credential;
+  removed a redundant bottom link strip. Sections 10 -> 8, intake CTAs 5 -> 3.
+- CSS: 2,341 -> 2,056 lines. The scan initially flagged 44 dead classes; including
+  `assets/js/*.js` in the corpus corrected that to 33 — 11 classes are generated at
+  runtime by `dashboard-analyzer.js` and deleting them would have broken `/app/`
+  with no test catching it.
+- Test evidence: `npm test` 50/50 and `npx playwright test` 4/4 (desktop-chromium +
+  mobile-chromium) after every phase. The suite includes an internal-link resolver
+  that checks every anchor across all sitemap pages and both shared partials, which
+  is what proves the ~40 link retargets are sound. Plus a headless render of all 18
+  page templates asserting CSS applied, nav/footer present, no horizontal overflow,
+  no console errors.
+
+**Repository corruption found and repaired (unrelated to this work):**
+Five zero-byte git objects, all stamped 2026-09-12 20:15 — signature of an unclean
+shutdown, not any command run here. The branch ref pointed at `f9b94a06`, a commit
+written after this session's work that never finished writing. Confirmed via
+`git rev-list --objects 849d713` that all six of this session's commits were intact
+with zero missing objects, and that none of the 5 damaged objects belonged to that
+history. Backed up `.git` to `/media/taran/LargeStorage/taran/git-backup-20260913-081240`,
+reset the branch ref to `849d713`, rebuilt the index cache-tree, pruned orphans.
+`git fsck` now reports 0 errors, 0 zero-byte objects.
+
+**NOT verified this session:**
+- Nothing was pushed to GitHub — the remote was unreachable (DNS failure on
+  `github.com`) during this session. All 7 commits are local only.
+- No real browser was driven by a human; rendering was verified headlessly at
+  1280x900 desktop viewport only. Mobile rendering was covered only by the existing
+  Playwright mobile-chromium project, which tests nav behaviour, not full layout.
+- Commit `f9b94a06`'s content is unrecoverable. Founder explicitly instructed to
+  disregard it. If something (possibly the `codex` tooling this branch is named for)
+  made changes around 2026-09-12 20:15, that work is gone and would need redoing.
+- No SEO/search-console impact observed — URL changes take time to surface, and the
+  plan's recommendation to space phases apart for that reason was not followed
+  (all phases landed in one session, at the founder's direction).
+- `cv-section__eyebrow` in `app/index.html` has no CSS rule. Confirmed pre-existing
+  (0 occurrences in `HEAD`'s style.css), not caused here, and left alone.
+
+**Assumption made:** that `pages/` is the right canonical home for service topic
+pages. Founder confirmed this explicitly. Pro: matches the site's own existing
+convention and `activeNavPath()`'s own mapping. Con: URLs gain a `/pages/` segment,
+which is marginally worse for SEO than root-level URLs; mitigated by redirect stubs
+preserving the old paths.
+
