@@ -4642,3 +4642,7 @@ convention and `activeNavPath()`'s own mapping. Con: URLs gain a `/pages/` segme
 which is marginally worse for SEO than root-level URLs; mitigated by redirect stubs
 preserving the old paths.
 
+
+---
+## Session end: 2026-09-13 08:16
+
