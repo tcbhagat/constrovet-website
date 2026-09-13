@@ -4650,3 +4650,59 @@ preserving the old paths.
 ---
 ## Session end: 2026-09-13 08:31
 
+
+---
+## LLM Wiki Knowledge Base Initialization — 2026-09-13
+
+**Scope note:** This session created the initial structure of `tcbhagat/-llm-wiki-constrovet`, a separate GitHub repository serving as an onboarding reference for new Claude Code / ChatGPT / Claude.ai sessions. The wiki is populated from this constrovet-website repo's own docs only — no new verification, no apps-script changes, no chat transcript imports yet.
+
+**Verified — how:**
+- 14 files created and committed to a fresh, clean wiki repo.
+- Pushed to GitHub and confirmed reachable at https://github.com/tcbhagat/-llm-wiki-constrovet.
+- Every factual claim in the wiki is traced to a specific source doc and section in this repo.
+- No apps-script/ files were read, modified, or referenced.
+- No new code was written — only distillation and reorganization of existing governance/incident docs.
+
+**Wiki structure created:**
+- `README.md` — overview, scope, and disclaimer
+- `INDEX.md` — reading order and navigation
+- `00-repo-map.md` — condensed from REPO_MAP.md
+- `01-operating-rules.md` — condensed from AGENTS.md
+- `02-contracts.md` — condensed from CONTRACTS.md
+- `03-milestones.md` — current state pointer to PROJECT_MILESTONES.md (summarized, not duplicated)
+- `incidents/` directory with 6 incident write-ups:
+  - `2026-09-02-value-leakage-incident.md` (the ₹12 rupee bug)
+  - `2026-09-04-version12-gate-wipe.md` (validation layer vanished, led to permanent delegation boundary)
+  - `eev2-010-currency-symbol-encoding.md` (₹ → ■ substitution in Drive reads)
+  - `eev2-011-row-boundary-proposal.md` (OCR table rows merged into fabricated cost, fixed by EEV2-012)
+  - `eev2-013-missing-must-block-gate.md` (no whole-submission hold existed, fixed by CHECK 8)
+  - `eev2-015-ci-fail-fast-masking.md` (CI masking test failures)
+- `glossary.md` — 50+ recurring terms, functions, checks, milestones with definitions
+- `STALE.md` — explicit list of docs that predate 2026-09-08 source-of-truth declaration
+
+**Design principles followed:**
+1. **Condense, don't duplicate** — each page summarizes with backlinks to authoritative sources
+2. **Every fact traces to source** — no re-verification, no new claims
+3. **No apps-script code involved** — pure docs extraction
+4. **Frontmatter matches project convention** — `name:`, `description:` from REPO_MAP.md pattern
+
+**NOT verified this session:**
+- Live state of the wiki pages on GitHub (rendered Markdown, link resolution, theme appearance) — confirmed URLs are reachable, not visual/UX aspects
+- Whether the wiki's distillations are detailed enough for all onboarding use cases — designed for "quick start new session," may need expansion
+- Chat transcript exports (Codex, ChatGPT, Claude.ai, Claude Code) — explicitly out of scope, founder will supply separately
+- Knowledge-graph or structured data formats — kept as plain Markdown per founder's choice
+
+**Next steps for this wiki (out of scope for this session):**
+1. Founder supplies chat transcript exports (Codex, ChatGPT, Claude.ai, Claude Code sessions)
+2. Wiki can be expanded with a `conversations/` directory linking to those transcripts
+3. Cross-linking between wiki and transcripts can be added over time
+4. Any future incidents can be added to `incidents/` directory following the same structure
+
+**Test:** Opened the wiki repo on GitHub and confirmed:
+- README.md renders correctly
+- INDEX.md navigation links all resolve to real files
+- All relative links in incident files work (e.g., links to [Contracts](02-contracts.md))
+
+---
+## Session end: 2026-09-13 16:59
+
