@@ -1,13 +1,9 @@
 ---
 name: repo-map
-description: What actually lives in this repository. Three separate products share one repo, which has repeatedly caused confusion about which CI workflow, which Apps Script backend, and which deploy path applies to a given change. Read this before assuming a file belongs to Constrovet.
+description: What actually lives in this repository. The Constrovet construction evidence product (primary) with its own Apps Script backend, hosted via GitHub Pages.
 ---
 
-# Repo map — three products, one repository
-
-This repo contains **three distinct products**, not one. A change to any of them
-touches different CI, a different backend, and a different deploy path. The
-overlap in naming has caused real confusion more than once.
+# Repo map — Constrovet
 
 ## 1. Constrovet — the construction evidence product
 
@@ -27,29 +23,6 @@ The primary product.
 `executeAs: USER_DEPLOYING` — anonymous callers execute with the deploying
 account's Drive + Gmail authority. EEV2-014's global daily caps are the
 mitigation. See M13 in `PROJECT_MILESTONES.md`.
-
-## 2. Claim Companion — a separate product
-
-Materially more "productized" than Constrovet (privacy policy, terms,
-data-deletion page, Play Store release pipeline), and **entirely independent** of
-it.
-
-| | |
-|---|---|
-| Frontend | `claim-companion/` — full PWA (`manifest.webmanifest`, `service-worker.js`, `api.js`, `app.js`, `calculator.js`, `extractor.js`, `config.js`) |
-| Backend | `claim-companion/apps-script/Code.gs` — **its own Apps Script project**, unrelated to Constrovet's |
-| Android | `android/claim-companion/` — Gradle project targeting a Play Store release |
-| CI | **three** of the repo's five workflows: `claim-companion-ci.yml`, `claim-companion-apps-script.yml`, `claim-companion-android-release.yml` |
-| Deploy | `claim-companion-apps-script.yml` is the **only real automated deploy in the repo** — `workflow_dispatch` only, environment-gated, uses the `CLASPRC_JSON` secret |
-
-`verify-production-deploy.sh` asserts the two products are not cross-linked
-publicly.
-
-## 3. ssm-core-demo — retired
-
-Marked `retired: true` in its own config with an empty `apiBaseUrl`. Dead code,
-still served by Pages. Deleting it is a pending founder decision (see
-`PROJECT_MILESTONES.md`), not a blocker.
 
 ## Things that look like they matter but don't
 
