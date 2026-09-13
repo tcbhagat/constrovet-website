@@ -4710,3 +4710,49 @@ preserving the old paths.
 ---
 ## Session end: 2026-09-13 16:58
 
+
+---
+## Claim Companion and ssm-core-demo permanent deletion — 2026-09-13
+
+**Scope:** Permanently removed Claim Companion (PWA + Android app + own Apps Script backend) and ssm-core-demo (retired, noindex'd product) from the repo, reversing the 2026-09-05 session's deliberate decision to hold both.
+
+**Context for reversal:** A 2026-09-05 session was asked to delete both products but held them, citing:
+1. A passing test ("unlinked product code is preserved but excluded from indexing") that encodes a deliberate architecture decision from commit `9c10c51` (2026-08-29)
+2. Both products existed in repo but were unlinked from public nav/sitemap/footer, marked `noindex,nofollow`
+
+This session: the user explicitly confirmed permanent deletion after reviewing that history. Claim Companion's Android app is published on the Play Store and must be unpublished separately (outside repo scope; that's founder-only via Google Play Console).
+
+**Verified — how:**
+- All 28 unit tests pass after deletion and edits
+- No dangling references (grep -rli found only harmless dead code in main.js and updated docs)
+- New CI workflow (public-site-ci.yml) is valid YAML, retains all main-site coverage (web tests, Playwright regression, secret scan)
+- Rollback safety net in place: `git tag pre-product-deletion-20260913`
+- Commit message includes Play Store package name (com.constrovet.claimcompanion) for future reference
+
+**Deleted:**
+- `claim-companion/` (entire PWA + its own Apps Script backend)
+- `android/claim-companion/` (Gradle project)
+- `ssm-core-demo/` (entire retired product)
+- Three CI workflows: `claim-companion-ci.yml` (rewritten → `public-site-ci.yml`), `claim-companion-apps-script.yml`, `claim-companion-android-release.yml`
+- `scripts/check-claim-companion.mjs`, `tests/claim-companion-public.test.mjs`, `docs/claim-companion-play-store.md`
+
+**Updated:**
+- `.github/workflows/public-site-ci.yml` (renamed from claim-companion-ci.yml, stripped Android build job, removed product-specific path triggers)
+- `tests/construction-public-scope.test.mjs` (removed test asserting preserved-but-unlinked status)
+- `tests/public-site-operations.test.mjs` (updated workflow filename references)
+- `package.json` (removed Claim Companion check script)
+- `REPO_MAP.md` (removed "three products" framing, deleted both product sections)
+- `CONTINUATION_CONTRACT.md` (updated status: "deleted 2026-09-13")
+
+**Outstanding manual step (out of repo):**
+- Unpublish `com.constrovet.claimcompanion` from Google Play Store (requires founder's Play Console access). The app is currently live; deletion from this repo does not affect the Play Store listing.
+
+**Not verified this session:**
+- Whether any other services or external integrations still reference the deleted products (outside repo scope)
+- Live Play Store status (only user's assertion that the app is published; founding would need to verify and unpublish)
+
+**Assumption made:** That the Play Store app exists and is live, based on user's explicit statement; did not independently verify.
+
+---
+## Session end: 2026-09-13 17:05
+
