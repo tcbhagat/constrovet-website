@@ -25,20 +25,18 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Snapshot metadata
 
-- **Last updated:** 2026-09-15 (Stage 0 execution)
-- **Updated by session ending at commit:** [NOT YET RUN — Stage 0 files not yet committed]
+- **Last updated:** 2026-09-15 (Stage 1 fact-finding + verification)
+- **Updated by session ending at commit:** 23b0114 (Stage 0), wiki repo 98fec2a (local, unpushed)
 - **Prompt version in use:** v6 (two-track, rollback-first, 3 real clients)
 
 ## Track A — current position
 
-- **Current stage:** S0 (in progress — skeleton created this session, not yet committed/exited)
-- **Status:** in-progress
-- **Evidence (link to SESSION_LOG.md entry or commit):** docs/SESSION_LOG.md, "2026-09-15 — Stage 0" entry
+- **Current stage:** S1 = PASS, S2 = PASS (both confirmed this session; S3 next)
+- **Status:** PASS
+- **Evidence (link to SESSION_LOG.md entry or commit):** docs/SESSION_LOG.md, "2026-09-15 — Stage 1" entry; live-vs-repo diff (zero bytes) on Code.gs/Code.js and EEV2CitationTruncationRegression; `npm run test:harness` (20/20) and `npm test` (27/27) both green; `gh pr view 20` = MERGED; root SESSION_LOG.md fabricated-figure-send audit found zero client exposure (both incidents went to founder's own confirmed-personal inbox)
 - **Per-client status where a stage requires it:**
-  - Client 1: [NOT YET RUN]
-  - Client 2: [NOT YET RUN]
-  - Client 3: [NOT YET RUN]
-- **Open FOUNDER_ACTION_REQUIRED items awaiting Prof. Taran:** none yet raised this build
+  - Client 1/2/3: no direct per-client fixture re-test run this session (S1's code fix was already live/tested); exposure check was a document-record audit, not a fresh per-client Drive pull — see Known open items for the caveat
+- **Open FOUNDER_ACTION_REQUIRED items awaiting Prof. Taran:** none currently open
 
 ## Track B — current position
 
@@ -61,12 +59,32 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
-- EEV2-005 (citation truncation, `boardroomFinding()` at Code.gs ~2400/~2484) — confirmed
-  open as of 2026-09-08 per the execution prompt's ground truth. Not yet fact-checked
-  against all three clients' real job history this build — that fact-finding step is the
-  first action of Stage 1, not yet started.
-- PR #20 (EEV2-008) — described as "already merge-ready" in the execution prompt; not
-  yet re-verified against current `main` this build (Stage 2, not started).
+- RESOLVED 2026-09-15: EEV2-005 (per the execution prompt's ground truth) and EEV2-008
+  (per Stage 2's "PR #20, already merge-ready") are the same defect and the same fix —
+  storage-time truncation of `quoted_span` to 500 chars inside `boardroomFinding()`,
+  removed in commit 33b7a39/093cae7 (2026-09-08), replaced with render-only
+  `boardroomDisplaySpan()`. Confirmed via real `clasp pull` this session: live
+  `Code.js` is byte-identical to repo `Code.gs`; live has the fix; 43/43 files match
+  repo by name; `EEV2CitationTruncationRegression.gs` also byte-identical live vs repo.
+  The prompt's execution-prompt.md appears to have duplicated one real bug under two
+  IDs (S1 target = S2 target). No separate EEV2-005 defect was found.
+- RESOLVED 2026-09-15: PR #20 confirmed via `gh pr view 20` — state MERGED, 2026-09-08,
+  into main. S2's PASS bar is satisfied.
+- RESOLVED 2026-09-15: checked whether any of the three real clients' already-delivered
+  reports hit the truncation bug (or its sibling, EEV2-009/cross-row label bleed,
+  uncovered while testing the truncation fix). Read every `EMAIL_SENT` incident logged
+  in SESSION_LOG.md (root). Found two real fabricated-figure sends: job
+  form-20260902-184403-e5014284 (₹27,60,26,419, 2026-09-02) and job
+  form-20260909-072421-33a43b52 (₹3,670.55, 2026-09-09, the EEV2-009 sibling bug, not
+  the truncation bug itself — that one was already fixed by then). BOTH went to
+  `bhagat.taran@gmail.com`, which the founder explicitly confirmed (2026-09-06 session)
+  is his own personal inbox, not a client address. No `EMAIL_SENT` event to any other
+  recipient was found in the log. Conclusion: no evidence any of the three real clients
+  received a report affected by EEV2-005/008 or EEV2-009. This is based on SESSION_LOG.md
+  as the record of what was checked at the time — it was not re-derived from a fresh,
+  independent per-client Drive audit this session (that would be a heavier verification
+  pass if Prof. Taran wants belt-and-suspenders confirmation before any client-facing
+  claim is made about this).
 
 ## Rollback readiness (updated whenever a stage that touches live/shadow systems runs)
 
@@ -76,11 +94,10 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Next single action
 
-Finish Stage 0: write GOALS.md (this session), report SessionStart-hook search result to
-Prof. Taran (done — no in-repo `.claude/settings.json` found; hook that surfaces
-git/clasp status at session start lives outside this repo and was not located/edited),
-commit the Stage 0 skeleton, print `STAGE_EXIT: S0 = ...`, then wait for Prof. Taran's
-go-ahead before starting Stage 1 (EEV2-005 fact-finding).
+S1 and S2 are both now genuinely PASS with real evidence (live-parity diff, PR #20
+merged, no client exposure found in the session log). Confirm with Prof. Taran that S2
+can be formally closed on this evidence, then proceed to S3 (Platform Safety Crews:
+bug-scout, safety-gate-check, xai-explain, inconsistency-scan).
 
 ---
 

@@ -31,3 +31,84 @@ STATE.md automatically — would need founder confirmation of where that hook ac
 lives before attempting to edit it.
 
 `STAGE_EXIT: S0 = PASS | skeleton created, no live/content work done, hook wiring deferred pending founder input on hook location`
+
+---
+
+## 2026-09-15 — Stage 1
+
+Started S1 with the required fact-finding step: located `boardroomFinding()` and
+`boardroomDisplaySpan()` in `apps-script/Code.gs`. Found the storage-time truncation
+described in the execution prompt's S1 ground truth (as "EEV2-005") does NOT exist in
+current `main` — it was already removed by commit 33b7a39/093cae7, "Fix boardroom
+citation truncation before validation (EEV2-008)" (2026-09-08), which is the exact same
+fix S1 asked for (full span passed to the validator, truncation moved to render-only via
+`boardroomDisplaySpan()`), using the exact same real fixture (PO-5578-007 / AAC Blocks /
+Rs.3,670.55 past char 500) the prompt names. Per Prof. Taran's instruction ("the latest
+of EEV2-005 and EEV2-008 should be used"), treated this as one defect, already fixed
+under the EEV2-008 commit.
+
+Verified the fix is actually live, not just committed: ran `clasp pull` for real against
+the production script (scriptId ending `...WhcbWWvbo`, via existing `.clasp.json` found
+in `~/live-check-6/`) into a scratch directory. Diffed the pulled `Code.js` against the
+repo's `Code.gs` — zero-byte diff. Diffed the pulled `EEV2CitationTruncationRegression.js`
+against the repo's `.gs` counterpart — zero-byte diff. Full file-set parity: 43 files on
+both sides, identical names. This means the repo and live Apps Script are currently in
+sync (updates a prior working assumption that the repo could not be assumed to reflect
+live state).
+
+Ran `npm run test:harness`: 20/20 EEV2 regression suites pass (100%), 0 external calls,
+`release_decision: READY_FOR_CONTROLLED_TEST_PROJECT_VALIDATION`. Ran `npm test`: 27/27
+tests pass, 0 failures. Both outputs captured in full, not summarized.
+
+What's still unverified: (1) the prompt's S1 fact-finding question — whether any
+already-delivered client report actually hit the pre-fix truncation path — was not
+answered for any of the three real clients; since the fix is already live this is now a
+retrospective/audit question rather than a blocking one, but it remains open if Prof.
+Taran wants it checked for client-communication purposes. (2) Whether a literal GitHub
+PR #20 exists and is merged/closed — not checked this session; S2's PASS bar technically
+asks for that specific verification even though the underlying code fix is confirmed
+live by other means.
+
+`STAGE_EXIT: S1 = PASS | fix (EEV2-005/EEV2-008, same defect) confirmed already live via real clasp pull + zero-byte diff; test:harness 20/20, npm test 27/27; client-report fact-finding and literal PR #20 status remain open, non-blocking`
+
+---
+
+## 2026-09-15 — Stage 1 follow-up: PR #20 status + client-exposure fact-finding
+
+Closed both items left open at the end of the first S1 pass.
+
+**PR #20:** `gh pr view 20` — confirmed `state: MERGED`, merged 2026-09-08 into `main`,
+title "Fix boardroom citation truncation before validation (EEV2-008)". This directly
+satisfies S2's PASS bar ("regression suite green against current main (post-S1)").
+Also found PR #32 ("Merge EEV2-008/009 fix... onto current main," merged 2026-09-09) —
+a cherry-pick reconciliation of the same fix onto a `main` that had moved on, needed
+because the original PR #20 branch had gone stale. Both are part of the same landed
+fix, already confirmed live via the earlier byte-identical `clasp pull` diff.
+
+**Client exposure fact-finding:** read the root-level `SESSION_LOG.md` (251KB, the
+project's pre-existing real history) for every real `email_status: EMAIL_SENT` incident
+involving a fabricated/mislabeled figure. Found two:
+- Job `form-20260902-184403-e5014284` (2026-09-02): ₹27,60,26,419 mislabeled leakage,
+  `action_taken=PASSED_VALIDATION`, sent to `bhagat.taran@gmail.com`.
+- Job `form-20260909-072421-33a43b52` (2026-09-09): ₹3,670.55 mislabeled leakage
+  (AAC Blocks unit rate, PO-5578-007), sent to `bhagat.taran@gmail.com`. This happened
+  AFTER the EEV2-008 truncation fix had already landed — root cause was a sibling
+  defect, EEV2-009 (cross-row/OCR label bleed), uncovered while stress-testing the
+  truncation fix against real Gemini OCR output that had no newlines between table
+  rows. EEV2-009 was fixed 2026-09-09 by EEV2-012 (PR #36, "OCR column-join veto").
+
+Both incidents' recipient, `bhagat.taran@gmail.com`, was explicitly confirmed by the
+founder in the 2026-09-06 session log entry to be his own personal inbox, not a client
+address ("no external/client exposure in the 2026-09-05 escalation"). No `EMAIL_SENT`
+event to any other recipient appears anywhere in the root SESSION_LOG.md.
+
+**Conclusion:** no evidence that any of the three real clients received a report
+affected by EEV2-005/EEV2-008 (citation truncation) or its sibling EEV2-009 (label
+bleed). This is a document-record audit of the existing session log, not a fresh,
+independent per-client Drive pull — if Prof. Taran needs a stronger guarantee (e.g.
+before making any statement to a client), that would require directly pulling each of
+the three clients' real job history from Drive and checking for the specific failure
+signature, rather than relying on what was already logged.
+
+`STAGE_EXIT: S2 = PASS | PR #20 confirmed MERGED via gh pr view; fix already verified live in S1`
+`Client-exposure fact-finding = COMPLETE (document-record audit) | zero client exposure found; both real fabricated-figure sends went to founder's own confirmed-personal inbox, not a client`
