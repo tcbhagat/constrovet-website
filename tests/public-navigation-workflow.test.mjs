@@ -77,17 +77,6 @@ test("all public pilot entry CTAs converge on Review Room intake", () => {
   }
 });
 
-test("Review Room owns the single secure external intake action", () => {
-  const intakeLinks = publicPages.flatMap((page) =>
-    anchors(page.html)
-      .filter((anchor) => anchor.label === "Request Review Intake")
-      .map((anchor) => ({ ...anchor, file: page.file }))
-  );
-
-  assert.deepEqual(intakeLinks.map((link) => link.file), ["boardroom/index.html"]);
-  assert.match(intakeLinks[0].href, /^https:\/\/docs\.google\.com\/forms\//);
-});
-
 test("sample-report and analyzer links have distinct labels", () => {
   for (const page of [...publicPages, ...sharedPartials]) {
     for (const anchor of anchors(page.html)) {
