@@ -112,3 +112,47 @@ signature, rather than relying on what was already logged.
 
 `STAGE_EXIT: S2 = PASS | PR #20 confirmed MERGED via gh pr view; fix already verified live in S1`
 `Client-exposure fact-finding = COMPLETE (document-record audit) | zero client exposure found; both real fabricated-figure sends went to founder's own confirmed-personal inbox, not a client`
+
+---
+
+## 2026-09-15 — Stage 1 fact-finding, final pass: direct three-client Drive audit
+
+The document-record audit above was based on the root SESSION_LOG.md alone, which
+turned out to predate confirmation of real client onboarding and could not speak to
+client-specific exposure. Prof. Taran provided direct Drive links to the three real
+clients' project folders and confirmed "3 real clients ARE live now" (correcting
+PROJECT_MILESTONES.md/CONTRACTS.md, which as of 2026-09-11 stated onboarding had not
+started — treated as a genuinely new real-world fact per STATE.md's own rule, not
+discarded because it conflicted with the stale docs).
+
+Audited directly, for real, this session:
+- All three client Drive folders (`Taran_paradise_PROJ_*`, `Tower_of_prosperity_*`,
+  `national_Highway_PROJ_*`, all under `admin@constrovet.com`): source-document
+  staging folders only (Procurement/Governance/Progress/BOQ/Changes/etc. subfolders).
+  Zero generated report outputs (no `job-state.json`, `final-report.json`,
+  `executive-report.md`) found in any of them.
+- The authoritative `ConstroVet-Validation-Errors` Google Sheet
+  (`1htvKzTTPma9c4n2UjgzN28Eq9sPDJFjJ5qwoTU3n98U`) — every job the live pipeline has
+  ever logged, 2026-09-02T13:52 through 2026-09-15T06:16, read in full (not paginated
+  or sampled). Every row's `source_document_template` is an internal test/milestone
+  label (`Procurement_*`, `boardroom_*`, `M07_*`/`M10_*`/`M11_*`/`M22_*`,
+  `cv-eev2-014-cap-check-*`, `UNKNOWN`, `OTHER`, etc.). Zero rows reference any of the
+  three real clients' project names.
+
+Prof. Taran confirmed directly: no report has ever been generated for any of the three
+real clients — their source documents are staged in Drive but no job has run against
+them yet.
+
+**Final conclusion:** the citation-truncation exposure question is moot for all three
+real clients. There is no report — pre-fix or post-fix — to have been affected. Zero
+client exposure to EEV2-005/EEV2-008 (or its sibling EEV2-009), confirmed by direct
+evidence (Drive folder audit + full validation-errors sheet read), not by inference
+from internal test-traffic logs.
+
+**Flagged, not silently resolved:** there's an apparent tension between "3 real
+clients ARE live now" and "zero jobs run for any of them" — most likely both are true
+(clients onboarded/staged, pipeline not yet exercised against their real data) but
+this exact reading was not word-for-word confirmed with Prof. Taran. Recorded as an
+open item in STATE.md rather than asserted as settled.
+
+`Client-exposure fact-finding = COMPLETE, FINAL (direct 3-client Drive + validation-errors-sheet audit) | zero client exposure — no report has ever been generated for any of the three real clients`

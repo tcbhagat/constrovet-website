@@ -59,6 +59,18 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- STATE UNCLEAR, FLAGGED FOR FOUNDER — reconcile, don't silently resolve: earlier in
+  this session Prof. Taran confirmed "3 real clients ARE live now" (vs. the execution
+  prompt's own docs, PROJECT_MILESTONES.md/CONTRACTS.md, which as of 2026-09-11 said
+  client onboarding had not started). The direct Drive audit below confirms 3 real
+  client project folders DO exist (Taran_paradise, Tower_of_prosperity,
+  national_Highway) with real source documents staged — consistent with "live" in the
+  sense of onboarded/real. But zero jobs have been run for any of them per the
+  validation-errors sheet — consistent with "not yet processing traffic." Both can be
+  true simultaneously (clients onboarded, pipeline not yet exercised against their
+  data) and that is the most likely read, but this was not explicitly confirmed word-
+  for-word with Prof. Taran — flagging rather than asserting.
+
 - RESOLVED 2026-09-15: EEV2-005 (per the execution prompt's ground truth) and EEV2-008
   (per Stage 2's "PR #20, already merge-ready") are the same defect and the same fix —
   storage-time truncation of `quoted_span` to 500 chars inside `boardroomFinding()`,
@@ -70,21 +82,26 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   IDs (S1 target = S2 target). No separate EEV2-005 defect was found.
 - RESOLVED 2026-09-15: PR #20 confirmed via `gh pr view 20` — state MERGED, 2026-09-08,
   into main. S2's PASS bar is satisfied.
-- RESOLVED 2026-09-15: checked whether any of the three real clients' already-delivered
-  reports hit the truncation bug (or its sibling, EEV2-009/cross-row label bleed,
-  uncovered while testing the truncation fix). Read every `EMAIL_SENT` incident logged
-  in SESSION_LOG.md (root). Found two real fabricated-figure sends: job
-  form-20260902-184403-e5014284 (₹27,60,26,419, 2026-09-02) and job
-  form-20260909-072421-33a43b52 (₹3,670.55, 2026-09-09, the EEV2-009 sibling bug, not
-  the truncation bug itself — that one was already fixed by then). BOTH went to
-  `bhagat.taran@gmail.com`, which the founder explicitly confirmed (2026-09-06 session)
-  is his own personal inbox, not a client address. No `EMAIL_SENT` event to any other
-  recipient was found in the log. Conclusion: no evidence any of the three real clients
-  received a report affected by EEV2-005/008 or EEV2-009. This is based on SESSION_LOG.md
-  as the record of what was checked at the time — it was not re-derived from a fresh,
-  independent per-client Drive audit this session (that would be a heavier verification
-  pass if Prof. Taran wants belt-and-suspenders confirmation before any client-facing
-  claim is made about this).
+- RESOLVED 2026-09-15 (superseded by direct Drive audit below): initial pass checked
+  SESSION_LOG.md's own EMAIL_SENT incidents (both went to founder's personal inbox, not
+  a client) — see prior note in git history. That check covered internal test traffic
+  only and was not itself proof about the three real clients, since it never confirmed
+  where their real job history lives.
+- RESOLVED 2026-09-15, FINAL: Prof. Taran provided the three real clients' Drive
+  folders directly (Taran_paradise, Tower_of_prosperity, national_Highway project
+  folders, all under admin@constrovet.com). Audited: (1) all three folders — source
+  documents only (Procurement/Governance/Progress/BOQ/etc. staging subfolders), zero
+  generated report outputs (no job-state.json/final-report.json/executive-report.md
+  anywhere in them); (2) the authoritative `ConstroVet-Validation-Errors` sheet
+  (spreadsheet 1htvKzTTPma9c4n2UjgzN28Eq9sPDJFjJ5qwoTU3n98U) — every job ever processed,
+  2026-09-02 through 2026-09-15, all rows. Every row's source_document_template is an
+  internal test/milestone label (Procurement_*, boardroom_*, M07_*/M10_*/M11_*/M22_*,
+  cv-eev2-014-cap-check-*, etc.) — zero rows reference any of the three client project
+  names or folders. Prof. Taran confirmed: **no report has ever been generated for any
+  of the three real clients** — their source documents are staged but no job has run
+  against them yet. Conclusion: the citation-truncation exposure question is moot for
+  all three clients — there is no report, pre- or post-fix, to have been affected.
+  Zero client exposure, confirmed by direct evidence, not by inference.
 
 ## Rollback readiness (updated whenever a stage that touches live/shadow systems runs)
 
