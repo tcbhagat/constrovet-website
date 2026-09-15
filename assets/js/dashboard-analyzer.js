@@ -57,9 +57,11 @@
     resetPendingJobIds();
   });
 
-  runButton.addEventListener("click", async () => {
-    await runBrowserAnalysis();
-  });
+  if (runButton) {
+    runButton.addEventListener("click", async () => {
+      await runBrowserAnalysis();
+    });
+  }
 
   if (deepButton) {
     deepButton.addEventListener("click", async () => {
@@ -994,7 +996,7 @@
   }
 
   function setBusy(isBusy) {
-    runButton.disabled = isBusy;
+    if (runButton) runButton.disabled = isBusy;
     if (deepButton) deepButton.disabled = isBusy || !workspaceEndpointConfigured();
     clearButton.disabled = isBusy;
     if (emailButton) emailButton.disabled = isBusy || !latestOutput || !workspaceEndpointConfigured();

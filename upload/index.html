@@ -87,13 +87,11 @@
           </label>
           <label class="cv-upload-drop" for="cv-analysis-files">
             <span class="cv-upload-drop__label">Drop or choose project PDF/CSV files</span>
-            <span class="cv-upload-drop__hint">Accepts multiple files (up to 10 for browser analysis, up to 3 for full review), 15 MB each.</span>
+            <span class="cv-upload-drop__hint">Accepts multiple files (up to 3), 15 MB each.</span>
             <input id="cv-analysis-files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple>
           </label>
           <div class="cv-upload-dashboard__actions">
-            <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyse</button>
-            <button type="button" class="cv-btn cv-btn--try" data-cv-deep-analysis>Request Full Review</button>
-            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-email-report disabled>Email Me This Report</button>
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-deep-analysis>Submit</button>
             <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
           </div>
           <p class="cv-template-guidance">
@@ -108,7 +106,7 @@
             <strong>Executive findings</strong>
           </div>
           <div class="cv-upload-dashboard__summary" data-cv-analysis-summary>
-            Enter your email, select project files, and run Analyse to generate cited findings.
+            Enter your email, select project files, and hit Submit to generate cited findings and email the report.
           </div>
           <div class="cv-upload-dashboard__rationale" data-cv-analysis-rationale hidden></div>
           <p class="cv-workspace-note" data-cv-workspace-note hidden></p>

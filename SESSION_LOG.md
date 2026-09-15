@@ -4878,3 +4878,43 @@ This session: the user explicitly confirmed permanent deletion after reviewing t
 
 **Assumptions:**
 - User confirmed via AskUserQuestion: wire /upload/ into the same live Apps Script endpoint (not a mockup-only change), and also add the missing buttons to /app/ so both surfaces gain real submission.
+
+---
+## Session end: 2026-09-15 11:29
+
+
+---
+## Session end: 2026-09-15 11:31
+
+
+---
+## Session end: 2026-09-15 11:32
+
+
+---
+## Session end: 2026-09-15 11:36
+
+
+---
+## Session end: 2026-09-15 11:38
+
+
+---
+## Session end: 2026-09-15 (upload page: single Submit button)
+
+**Task:** Remove the separate "Request Full Review" / "Email Me This Report" click steps on /upload/ so hitting one Submit button immediately emails the report, matching the old Google Form's one-shot behavior.
+
+**Verified:**
+- doPost() in apps-script/Code.gs always calls sendReportEmail() at the end regardless of mode ("DEEP_ANALYSIS" or "EMAIL_BROWSER_REPORT") -- the two modes only differ in whether uploaded files are saved via saveUploadedFiles() and whether Gemini verification runs. DEEP_ANALYSIS is a superset (it also uploads real file bytes), so wiring Submit to that one mode alone is sufficient for one-click submit-and-email.
+- deepButton's existing click handler (assets/js/dashboard-analyzer.js) already runs runBrowserAnalysis() internally before calling submitWorkspaceJob("DEEP_ANALYSIS") -- no new JS logic was needed, only removing the separate Analyse/Email buttons from upload/index.html's markup so Submit is the only action.
+- Found removing the Analyse button from the DOM would have thrown a TypeError: dashboard-analyzer.js referenced `runButton.addEventListener(...)` and `runButton.disabled = ...` unconditionally, unlike the already-guarded `if (deepButton)`/`if (emailButton)` pattern used for the other two optional buttons. Fixed by adding the same null-guard to runButton (2 call sites) rather than keeping a hidden dummy button in the markup.
+- Playwright-driven check confirms: clicking Submit with 0 files shows "Choose at least one PDF or CSV file." and does not fire a network request; with 1 file + valid email, a single click POSTs the full DEEP_ANALYSIS payload (including the file's base64 content) to the live Apps Script endpoint in one step, and the findings panel still populates from the same runBrowserAnalysis() call. Zero console errors.
+- Confirmed /app/'s original multi-button flow (Analyse -> buttons enable) is unaffected by the runButton null-guard change -- re-ran the same Playwright check against /app/ post-change, identical results to before.
+- npm test: 27/27 pass. npm run test:e2e: 4/4 pass.
+
+**Not verified:**
+- Did not trigger a real send against the live Apps Script deployment (same caveat as the prior session: fetch() uses mode: "no-cors" so the browser cannot observe the server's actual response).
+- Did not verify whether users routinely have more than 3 files to submit; Submit now always uses DEEP_ANALYSIS mode (3-file cap), down from the previous split flow's 10-file cap for browser-only analysis. This matches "upload construction project data" (real files reviewed) better than the browser-only preview mode, but is a narrower file-count ceiling than before.
+
+**Assumptions:**
+- /app/ (the "try before you buy" local demo) intentionally keeps its multi-button, preview-first flow -- only /upload/ (the real project-data submission page) was changed to single-click submit, per the user's explicit ask that "just after hitting Submit... the report should be emailed."
