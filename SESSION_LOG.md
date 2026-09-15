@@ -4800,3 +4800,24 @@ This session: the user explicitly confirmed permanent deletion after reviewing t
 ---
 ## Session end: 2026-09-15 08:24
 
+
+---
+## Session end: 2026-09-15 (hero Try/Buy CTA)
+
+**Task:** Replace Google Form intake link with upload page; add hero "Try or Buy" link (0.51% subscription).
+
+**Verified:**
+- Intake section (boardroom/index.html #intake) already pointed to `/upload` from a prior session (5bd4482, 8567fcb) — confirmed via `git log` and file read, not re-done here.
+- Live site (curl https://www.constrovet.com/boardroom/) hero matched repo exactly pre-edit — no Try/Buy CTA existed live or in repo.
+- Added two hero CTAs in boardroom/index.html: "Start Free Review" and "Buy Subscription — 0.51%", both → `/upload`. Confirmed via git diff (5-line addition, no unrelated changes) and served the file locally to confirm all three button labels render.
+
+**Not verified:**
+- Did not deploy; live site will not reflect this change until the deploy/publish step (outside this repo's scope) runs.
+- Did not visually screenshot in a real browser at mobile width — relied on existing flex-col/sm:flex-row wrapper (already proven with 2 buttons) to reflow correctly with 3.
+
+**Assumptions:**
+- User confirmed via AskUserQuestion: two separate CTAs (try vs. buy) rather than one combined button, both routing to /upload since there's no separate paid-checkout flow yet.
+
+---
+## Session end: 2026-09-15 09:41
+
