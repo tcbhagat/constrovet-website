@@ -105,9 +105,9 @@
                     <div class="flex-1">
                       <h3 class="font-semibold text-zinc-950">Budget & Bill of Quantities (BOQ)</h3>
                       <p class="mt-1 text-sm text-zinc-600">Approved project budget, BOQ breakdown, and line-item cost allocation.</p>
-                      <label class="mt-3 inline-block">
-                        <input type="file" name="budgetFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 cursor-pointer hover:bg-emerald-100">
+                      <label for="budgetFile" class="mt-3 inline-block cursor-pointer">
+                        <input type="file" id="budgetFile" name="budgetFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
+                        <span class="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                           </svg>
@@ -127,9 +127,9 @@
                     <div class="flex-1">
                       <h3 class="font-semibold text-zinc-950">Actual Spend & Invoicing</h3>
                       <p class="mt-1 text-sm text-zinc-600">Invoices, payment records, material receipts, and committed spend data.</p>
-                      <label class="mt-3 inline-block">
-                        <input type="file" name="spendFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 cursor-pointer hover:bg-blue-100">
+                      <label for="spendFile" class="mt-3 inline-block cursor-pointer">
+                        <input type="file" id="spendFile" name="spendFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
+                        <span class="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                           </svg>
@@ -149,9 +149,9 @@
                     <div class="flex-1">
                       <h3 class="font-semibold text-zinc-950">Project Schedule</h3>
                       <p class="mt-1 text-sm text-zinc-600">Baseline schedule, current progress, weekly status, and delay notifications.</p>
-                      <label class="mt-3 inline-block">
-                        <input type="file" name="scheduleFile" accept=".xlsx,.xls,.csv,.pdf,.mpp" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 cursor-pointer hover:bg-amber-100">
+                      <label for="scheduleFile" class="mt-3 inline-block cursor-pointer">
+                        <input type="file" id="scheduleFile" name="scheduleFile" accept=".xlsx,.xls,.csv,.pdf,.mpp" class="hidden" />
+                        <span class="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                           </svg>
@@ -171,9 +171,9 @@
                     <div class="flex-1">
                       <h3 class="font-semibold text-zinc-950">ESG & Sustainability Data</h3>
                       <p class="mt-1 text-sm text-zinc-600">Fuel, electricity, water consumption, waste, emissions, and carbon records.</p>
-                      <label class="mt-3 inline-block">
-                        <input type="file" name="esgFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 cursor-pointer hover:bg-green-100">
+                      <label for="esgFile" class="mt-3 inline-block cursor-pointer">
+                        <input type="file" id="esgFile" name="esgFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
+                        <span class="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                           </svg>
@@ -193,9 +193,9 @@
                     <div class="flex-1">
                       <h3 class="font-semibold text-zinc-950">Additional Documents</h3>
                       <p class="mt-1 text-sm text-zinc-600">Site reports, quality logs, rework records, procurement notices, or any supporting evidence.</p>
-                      <label class="mt-3 inline-block">
-                        <input type="file" name="additionalFiles" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx" multiple class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-slate-100">
+                      <label for="additionalFiles" class="mt-3 inline-block cursor-pointer">
+                        <input type="file" id="additionalFiles" name="additionalFiles" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx" multiple class="hidden" />
+                        <span class="inline-flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
                           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                           </svg>
@@ -215,8 +215,8 @@
 
             <!-- Submit Section -->
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button type="submit" form="projectForm" class="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-8 py-4 text-base font-extrabold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-700">
-                Submit for Review
+              <button type="submit" form="projectForm" id="submitBtn" class="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-8 py-4 text-base font-extrabold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="submitBtnText">Submit for Review</span>
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
                 </svg>
@@ -317,13 +317,58 @@
 
     document.getElementById('projectForm').addEventListener('submit', function(e) {
       e.preventDefault();
+
       const projectName = document.getElementById('projectName').value;
       const projectBudget = document.getElementById('projectBudget').value;
       const reviewScope = document.getElementById('reviewScope').value;
       const reviewOwner = document.getElementById('reviewOwner').value;
       const contactEmail = document.getElementById('contactEmail').value;
 
-      alert(`Thank you for your submission!\n\nProject: ${projectName}\nBudget: ₹${parseInt(projectBudget).toLocaleString('en-IN')}\nScope: ${reviewScope}\n\nWe will contact ${contactEmail} to confirm scope and secure document transfer terms.`);
+      const submitBtn = document.getElementById('submitBtn');
+      const submitBtnText = document.getElementById('submitBtnText');
+
+      submitBtn.disabled = true;
+      submitBtnText.textContent = 'Processing...';
+
+      const formData = new FormData(this);
+
+      setTimeout(() => {
+        const subscriptionCost = (parseInt(projectBudget) * 0.0051).toLocaleString('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+
+        alert(`✓ Thank you for your submission!\n\nProject: ${projectName}\nBudget: ₹${parseInt(projectBudget).toLocaleString('en-IN')}\nReview Scope: ${reviewScope}\nSubscription: ${subscriptionCost} (0.51% of budget)\n\nWe will contact ${contactEmail} to confirm scope and secure document transfer terms.\n\nExpected timeline: 3-5 business days for initial findings.`);
+
+        submitBtnText.textContent = 'Submitted Successfully!';
+        submitBtn.style.backgroundColor = '#10b981';
+
+        setTimeout(() => {
+          window.location.href = '/boardroom';
+        }, 2000);
+      }, 800);
+    });
+
+    document.getElementById('budgetFile').addEventListener('change', function() {
+      console.log('Budget file selected:', this.files[0]?.name);
+    });
+
+    document.getElementById('spendFile').addEventListener('change', function() {
+      console.log('Spend file selected:', this.files[0]?.name);
+    });
+
+    document.getElementById('scheduleFile').addEventListener('change', function() {
+      console.log('Schedule file selected:', this.files[0]?.name);
+    });
+
+    document.getElementById('esgFile').addEventListener('change', function() {
+      console.log('ESG file selected:', this.files[0]?.name);
+    });
+
+    document.getElementById('additionalFiles').addEventListener('change', function() {
+      console.log('Additional files selected:', this.files.length, 'file(s)');
     });
   </script>
 </body>
