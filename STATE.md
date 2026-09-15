@@ -31,8 +31,9 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Track A — current position
 
-- **Current stage:** S1 = PASS, S2 = PASS, S3 = PASS (all confirmed this session; S4 next)
-- **Status:** PASS
+- **Current stage:** S1 = PASS, S2 = PASS, S3 = PASS, S4 = IN PROGRESS (day 1 of ~21,
+  started 2026-09-15, branch `test/phase2-readiness-20260915`)
+- **Status:** in-progress
 - **Evidence (link to SESSION_LOG.md entry or commit):** docs/SESSION_LOG.md, "2026-09-15 — Stage 1" entry; live-vs-repo diff (zero bytes) on Code.gs/Code.js and EEV2CitationTruncationRegression; `npm run test:harness` (20/20) and `npm test` (27/27) both green; `gh pr view 20` = MERGED; root SESSION_LOG.md fabricated-figure-send audit found zero client exposure (both incidents went to founder's own confirmed-personal inbox)
 - **Per-client status where a stage requires it:**
   - Client 1/2/3: no direct per-client fixture re-test run this session (S1's code fix was already live/tested); exposure check was a document-record audit, not a fresh per-client Drive pull — see Known open items for the caveat
@@ -134,13 +135,13 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Next single action
 
-S1, S2, S3 all PASS with real evidence. `clasp run` Execution API permission:
-investigated at length 2026-09-15, real progress made but NOT fully resolved —
-see "Known open items" below for the full trail. Decision: stop investigating for
-now, proceed to S4 (first real 3-week testing branch) using the Apps Script editor's
-manual fallback (`eev2AuditJobDiagnosticRun()`, or pasting direct calls to
-`eev2AuditJob`/`eev2InconsistencyScan`/`eev2XaiExplain`) for any daily-log entry that
-needs their output, until `clasp run` is revisited.
+S4 is now genuinely in progress: branch `test/phase2-readiness-20260915` created,
+`../llm-wiki-constrovet/TESTING_BRANCHES/branch-phase2-readiness-20260915.md`
+created with day 1's real log entry (committed locally in the wiki repo, not
+pushed — same as the rest of that repo). Per GOALS.md, this branch's ~21-day clock
+cannot be compressed — the next single action is: at the start of the next real
+working session, read the existing branch log before adding to it, and append that
+day's real entry. Do not claim readiness before the real elapsed time has passed.
 
 ---
 
