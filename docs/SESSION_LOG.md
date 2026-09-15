@@ -242,3 +242,66 @@ produce a real result instead of `FOUNDER_ACTION_REQUIRED`):
    item 2.
 
 `STAGE_EXIT: S3 = PASS | all 4 tools exist, documented, each run at least once with real output; 2 founder actions queued (Execution API permission, clasp push for the 2 new .gs files) before 3 of the 4 can produce a live result instead of FOUNDER_ACTION_REQUIRED`
+
+---
+
+## 2026-09-15 — clasp run Execution API permission: investigated, partially fixed, not fully resolved
+
+Prof. Taran completed the queued `clasp push` (confirmed via fresh clasp pull:
+EEV2InconsistencyScan.js and EEV2XaiExplain.js both live, byte-identical to repo,
+46/46 files match). Re-tested `safety-gate-check` — Execution API permission still
+blocked, identical error to before.
+
+Investigated the actual root cause rather than just re-reporting the known
+limitation, since Prof. Taran asked me to resolve it directly:
+
+1. Found `apps-script/appsscript.json` had no `executionApi` block at all (only a
+   `webapp` block) — this is required for the Execution API to authorize function
+   calls at all, separate from any web app deployment. Added
+   `"executionApi": {"access": "MYSELF"}`. Both test suites still green after the
+   edit (27/27, 20/20). This was a repo file I could edit directly, but pushing it
+   live is still founder-only per the execution prompt's ground truth — printed a
+   FOUNDER ACTION REQUIRED with the exact diff and push command.
+2. Prof. Taran pushed it and separately created a dedicated API-executable
+   deployment in the Apps Script editor (confirmed via `clasp deployments`:
+   `AKfycbxuz7bMHIpcx5X7FfknJE5o_aH3k61DsE6gImPmz08o8l0p4ZRc6mREv3yljoJUEbE3Kw`,
+   "api-executable-constrovet", 8 deployments total now). `clasp run` still failed
+   identically — confirmed `clasp run` has no flag to target a specific deployment
+   ID (checked `clasp run --help`), so it always goes through HEAD/whatever the
+   Execution API resolves to, not a deployment clasp lets you pick.
+3. Mid-investigation, `clasp` auth itself expired (`invalid_grant`/`invalid_rapt`) —
+   Prof. Taran ran `clasp login` again to fix this (separate, now-resolved issue).
+4. Found `clasp apis` was independently failing ("GCP project ID is not set") even
+   after auth was restored. Traced this to `apps-script/.clasp.json` never having a
+   `projectId` field — clasp reads this from the local config file, not by live
+   Google lookup. Asked Prof. Taran to confirm the actual GCP linkage via the Apps
+   Script editor's Project Settings + GCP Console: confirmed the script IS linked
+   to a real Standard GCP project ("Gemini Project", project number 957629876968,
+   project ID `gen-lang-client-0767570182`), with the Apps Script API enabled
+   there (both shown via real screenshots, not assumed). Added
+   `"projectId": "gen-lang-client-0767570182"` to `.clasp.json`. This FIXED
+   `clasp apis` (now correctly lists Drive as enabled plus the full available-API
+   list) — confirming this was a real, distinct bug, not a dead end.
+5. Re-tested `safety-gate-check` after the `projectId` fix: `clasp run` STILL fails
+   with the identical "Unable to run script function" error, despite `clasp apis`
+   now working. This means `clasp apis` and `clasp run` authorize through different
+   paths — fixing the project-ID lookup was necessary for one but not sufficient
+   for the other.
+
+Remaining hypothesis (not tested): the cached OAuth token in `~/.clasprc.json` may
+have been granted before today's GCP-link/API-executable-deployment changes and
+may carry an incomplete scope set specifically for the Apps Script Execution API
+(separate from whatever scope `clasp apis` needs). A forced `clasp logout &&
+clasp login` to get a fresh consent grant was the next concrete step, but Prof.
+Taran explicitly deferred it ("stop here, use manual fallback") rather than spend
+further session time on it.
+
+**Net result:** two real, confirmed bugs fixed this session (missing
+`executionApi` manifest block; missing `.clasp.json` `projectId`) — both are
+genuine improvements now committed to the repo, even though `clasp run` itself
+remains blocked. Proceeding to Stage 4 using the Apps Script editor's manual
+fallback (`eev2AuditJobDiagnosticRun()`, or pasting direct function calls) for any
+daily-log entries that need `safety-gate-check`/`inconsistency-scan`/`xai-explain`
+output, until this is revisited.
+
+`STAGE_EXIT: clasp-run-investigation = PARTIAL | executionApi manifest block and .clasp.json projectId both fixed and confirmed working individually; clasp run itself still blocked; OAuth re-consent (clasp logout/login) is the next untested hypothesis, explicitly deferred by founder`

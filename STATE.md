@@ -59,6 +59,34 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- OPEN, real progress made 2026-09-15: `clasp run` Execution API permission
+  ("Unable to run script function. Please make sure you have permission to run the
+  script function."), blocking `safety-gate-check`/`inconsistency-scan`/`xai-explain`
+  from producing live results (they correctly detect and report this rather than
+  fail silently). Investigated and fixed, in order: (1) `apps-script/appsscript.json`
+  was missing an `executionApi` block entirely — added `{"access": "MYSELF"}`, pushed
+  live by Prof. Taran, confirmed live via clasp pull. Did not fix it alone. (2)
+  Founder created a dedicated API-executable deployment
+  (`AKfycbxuz7bMHIpcx5X7FfknJE5o_aH3k61DsE6gImPmz08o8l0p4ZRc6mREv3yljoJUEbE3Kw`,
+  "api-executable-constrovet") — confirmed via `clasp deployments`. Did not fix it
+  alone; `clasp run` has no flag to target a specific deployment ID, so it wasn't
+  clear this was even reachable via clasp. (3) `clasp apis` was separately failing
+  with "GCP project ID is not set" — root cause found: `apps-script/.clasp.json` had
+  no `projectId` field (clasp reads it from this file, not by live lookup). Founder
+  confirmed via Apps Script editor + GCP Console that the script IS linked to a real
+  Standard GCP project ("Gemini Project", project number 957629876968, project ID
+  `gen-lang-client-0767570182`, Apps Script API enabled there). Added
+  `"projectId": "gen-lang-client-0767570182"` to `.clasp.json` — this FIXED
+  `clasp apis` (now lists enabled APIs correctly). `clasp run` STILL fails
+  identically after all three fixes. Remaining hypothesis, NOT yet tested: the
+  cached OAuth token (`~/.clasprc.json`, re-logged-in once already this session,
+  `invalid_rapt` resolved) may predate the API-executable deployment/GCP link and
+  carry an incomplete scope grant for the Execution API specifically (distinct from
+  the scopes `clasp apis` needs) — a forced `clasp logout && clasp login` was
+  proposed but explicitly deferred by Prof. Taran ("stop here, use manual fallback").
+  Next session: either resume this investigation (logout/login first) or continue
+  treating it as a standing limitation with the documented manual-editor workaround.
+
 - RESOLVED 2026-09-15: "3 real clients live" vs. "zero jobs run for them" tension.
   Prof. Taran confirmed: the three clients' documents are presently staged in the
   admin Drive account intentionally, for upload/submission later — not yet processed
@@ -106,16 +134,13 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Next single action
 
-S1, S2, S3 all PASS with real evidence. Two founder actions are now queued, both
-blocking further use of 3 of the 4 Stage 3 tools: (1) fix/restore `clasp run`'s
-Execution API permission (or accept the documented manual-editor fallback as the
-standing workaround), (2) `clasp push` the two new .gs files
-(EEV2InconsistencyScan.gs, EEV2XaiExplain.gs) so eev2InconsistencyScan and
-eev2XaiExplain exist live (eev2AuditJob, used by safety-gate-check, is already live).
-Next stage: S4 (first real 3-week testing branch) — two-way door, can start without
-waiting on the above, but its daily log content will be thin until the Execution API
-permission is resolved. Recommend raising both founder actions before or alongside
-starting S4.
+S1, S2, S3 all PASS with real evidence. `clasp run` Execution API permission:
+investigated at length 2026-09-15, real progress made but NOT fully resolved —
+see "Known open items" below for the full trail. Decision: stop investigating for
+now, proceed to S4 (first real 3-week testing branch) using the Apps Script editor's
+manual fallback (`eev2AuditJobDiagnosticRun()`, or pasting direct calls to
+`eev2AuditJob`/`eev2InconsistencyScan`/`eev2XaiExplain`) for any daily-log entry that
+needs their output, until `clasp run` is revisited.
 
 ---
 
