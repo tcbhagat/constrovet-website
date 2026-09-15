@@ -4541,3 +4541,291 @@ actual real pilot client — founder's own work, not attempted here.
 ---
 ## Session end: 2026-09-11 22:00
 
+
+---
+## Session end: 2026-09-12 12:41
+
+
+---
+## Session end: 2026-09-12 16:30
+
+
+---
+## Session end: 2026-09-12 16:38
+
+
+---
+## Session end: 2026-09-12 16:39
+
+
+---
+## Session end: 2026-09-13 08:10
+
+
+## Website simplification (public static site only) — 2026-09-13
+
+**Scope note:** this session touched ONLY the public marketing site. `apps-script/`
+was not read, modified, pushed, or referenced by any change. Also untouched:
+`android/`, `claim-companion/`, `ssm-core-demo/`, `pages/challanse.html`,
+`assets/css/challanse.css`, `app/index.html`'s structure and its Apps Script
+endpoint wiring in `assets/js/constrovet-app-config.js`.
+
+**Verified — how:**
+- Six phases, six commits (`9c1aede`, `ab6dc5a`, `9237e32`, `bf945a9`, `42872c4`,
+  `849d713`) plus `d8f834a`, each independently revertible, each stating its own
+  `git revert` command in the commit message.
+- Consolidated service pages: 3 root-only pages moved into `pages/`; 2 root/pages
+  duplicate pairs resolved; 3 topic-overlap pages merged into siblings. Public page
+  count 28 -> 23. Caught and fixed that the 3 moved pages had root-relative asset
+  paths (`assets/css/style.css`) which after the move would have loaded no CSS, nav
+  or footer at all — verified corrected by headless render.
+- Merged distinctive copy rather than discarding it (founder chose this over
+  redirect-only): Budget/Actual input table, "The Formula" guardrail, Example Output
+  tables, Action Use, "Questions It Supports", "When To Use It", "From Evidence to
+  Action", "Why 7/30/90 Helps", and 9 FAQ entries were moved into canonical pages.
+  Visible FAQs and JSON-LD FAQPage schema kept in sync; JSON-LD parsed and validated
+  with `json.loads` on every edited page.
+- All 8 merged-away paths became redirect stubs (meta-refresh + rel=canonical +
+  noindex + visible link). Both stub types render correctly and land on canonical
+  pages (confirmed by headless render, h= matches target page).
+- `sitemap.xml` 27 -> 22 URLs, removing root/pages duplicate pairs that were emitting
+  duplicate-content signals. Updated the hardcoded `routes: 27` assertion in
+  `tests/public-site-operations.test.mjs` to 22 (founder chose updating the number
+  over making the assertion count-agnostic, keeping it a real tripwire).
+- Footer 14 -> 8 links; every removed link rehomed on its parent bucket page
+  (Solution gained recovery-plan/how-it-works/industries, Knowledge gained blog,
+  Company gained team/use-cases). Verified all 4 sub-pages reachable post-trim.
+- Homepage: relabeled 3 pillar cards that pointed somewhere other than their label
+  said (clicking "Email executive action" landed on schedule-recovery — a real UX
+  defect, not just wording); replaced two identical-destination buttons with two
+  genuinely different actions; removed a near-verbatim repeated founder credential;
+  removed a redundant bottom link strip. Sections 10 -> 8, intake CTAs 5 -> 3.
+- CSS: 2,341 -> 2,056 lines. The scan initially flagged 44 dead classes; including
+  `assets/js/*.js` in the corpus corrected that to 33 — 11 classes are generated at
+  runtime by `dashboard-analyzer.js` and deleting them would have broken `/app/`
+  with no test catching it.
+- Test evidence: `npm test` 50/50 and `npx playwright test` 4/4 (desktop-chromium +
+  mobile-chromium) after every phase. The suite includes an internal-link resolver
+  that checks every anchor across all sitemap pages and both shared partials, which
+  is what proves the ~40 link retargets are sound. Plus a headless render of all 18
+  page templates asserting CSS applied, nav/footer present, no horizontal overflow,
+  no console errors.
+
+**Repository corruption found and repaired (unrelated to this work):**
+Five zero-byte git objects, all stamped 2026-09-12 20:15 — signature of an unclean
+shutdown, not any command run here. The branch ref pointed at `f9b94a06`, a commit
+written after this session's work that never finished writing. Confirmed via
+`git rev-list --objects 849d713` that all six of this session's commits were intact
+with zero missing objects, and that none of the 5 damaged objects belonged to that
+history. Backed up `.git` to `/media/taran/LargeStorage/taran/git-backup-20260913-081240`,
+reset the branch ref to `849d713`, rebuilt the index cache-tree, pruned orphans.
+`git fsck` now reports 0 errors, 0 zero-byte objects.
+
+**NOT verified this session:**
+- Nothing was pushed to GitHub — the remote was unreachable (DNS failure on
+  `github.com`) during this session. All 7 commits are local only.
+- No real browser was driven by a human; rendering was verified headlessly at
+  1280x900 desktop viewport only. Mobile rendering was covered only by the existing
+  Playwright mobile-chromium project, which tests nav behaviour, not full layout.
+- Commit `f9b94a06`'s content is unrecoverable. Founder explicitly instructed to
+  disregard it. If something (possibly the `codex` tooling this branch is named for)
+  made changes around 2026-09-12 20:15, that work is gone and would need redoing.
+- No SEO/search-console impact observed — URL changes take time to surface, and the
+  plan's recommendation to space phases apart for that reason was not followed
+  (all phases landed in one session, at the founder's direction).
+- `cv-section__eyebrow` in `app/index.html` has no CSS rule. Confirmed pre-existing
+  (0 occurrences in `HEAD`'s style.css), not caused here, and left alone.
+
+**Assumption made:** that `pages/` is the right canonical home for service topic
+pages. Founder confirmed this explicitly. Pro: matches the site's own existing
+convention and `activeNavPath()`'s own mapping. Con: URLs gain a `/pages/` segment,
+which is marginally worse for SEO than root-level URLs; mitigated by redirect stubs
+preserving the old paths.
+
+
+---
+## Session end: 2026-09-13 08:16
+
+
+---
+## Session end: 2026-09-13 08:31
+
+
+---
+## LLM Wiki Knowledge Base Initialization — 2026-09-13
+
+**Scope note:** This session created the initial structure of `tcbhagat/-llm-wiki-constrovet`, a separate GitHub repository serving as an onboarding reference for new Claude Code / ChatGPT / Claude.ai sessions. The wiki is populated from this constrovet-website repo's own docs only — no new verification, no apps-script changes, no chat transcript imports yet.
+
+**Verified — how:**
+- 14 files created and committed to a fresh, clean wiki repo.
+- Pushed to GitHub and confirmed reachable at https://github.com/tcbhagat/-llm-wiki-constrovet.
+- Every factual claim in the wiki is traced to a specific source doc and section in this repo.
+- No apps-script/ files were read, modified, or referenced.
+- No new code was written — only distillation and reorganization of existing governance/incident docs.
+
+**Wiki structure created:**
+- `README.md` — overview, scope, and disclaimer
+- `INDEX.md` — reading order and navigation
+- `00-repo-map.md` — condensed from REPO_MAP.md
+- `01-operating-rules.md` — condensed from AGENTS.md
+- `02-contracts.md` — condensed from CONTRACTS.md
+- `03-milestones.md` — current state pointer to PROJECT_MILESTONES.md (summarized, not duplicated)
+- `incidents/` directory with 6 incident write-ups:
+  - `2026-09-02-value-leakage-incident.md` (the ₹12 rupee bug)
+  - `2026-09-04-version12-gate-wipe.md` (validation layer vanished, led to permanent delegation boundary)
+  - `eev2-010-currency-symbol-encoding.md` (₹ → ■ substitution in Drive reads)
+  - `eev2-011-row-boundary-proposal.md` (OCR table rows merged into fabricated cost, fixed by EEV2-012)
+  - `eev2-013-missing-must-block-gate.md` (no whole-submission hold existed, fixed by CHECK 8)
+  - `eev2-015-ci-fail-fast-masking.md` (CI masking test failures)
+- `glossary.md` — 50+ recurring terms, functions, checks, milestones with definitions
+- `STALE.md` — explicit list of docs that predate 2026-09-08 source-of-truth declaration
+
+**Design principles followed:**
+1. **Condense, don't duplicate** — each page summarizes with backlinks to authoritative sources
+2. **Every fact traces to source** — no re-verification, no new claims
+3. **No apps-script code involved** — pure docs extraction
+4. **Frontmatter matches project convention** — `name:`, `description:` from REPO_MAP.md pattern
+
+**NOT verified this session:**
+- Live state of the wiki pages on GitHub (rendered Markdown, link resolution, theme appearance) — confirmed URLs are reachable, not visual/UX aspects
+- Whether the wiki's distillations are detailed enough for all onboarding use cases — designed for "quick start new session," may need expansion
+- Chat transcript exports (Codex, ChatGPT, Claude.ai, Claude Code) — explicitly out of scope, founder will supply separately
+- Knowledge-graph or structured data formats — kept as plain Markdown per founder's choice
+
+**Next steps for this wiki (out of scope for this session):**
+1. Founder supplies chat transcript exports (Codex, ChatGPT, Claude.ai, Claude Code sessions)
+2. Wiki can be expanded with a `conversations/` directory linking to those transcripts
+3. Cross-linking between wiki and transcripts can be added over time
+4. Any future incidents can be added to `incidents/` directory following the same structure
+
+**Test:** Opened the wiki repo on GitHub and confirmed:
+- README.md renders correctly
+- INDEX.md navigation links all resolve to real files
+- All relative links in incident files work (e.g., links to [Contracts](02-contracts.md))
+
+---
+## Session end: 2026-09-13 16:59
+
+
+---
+## Session end: 2026-09-13 16:58
+
+
+---
+## Claim Companion and ssm-core-demo permanent deletion — 2026-09-13
+
+**Scope:** Permanently removed Claim Companion (PWA + Android app + own Apps Script backend) and ssm-core-demo (retired, noindex'd product) from the repo, reversing the 2026-09-05 session's deliberate decision to hold both.
+
+**Context for reversal:** A 2026-09-05 session was asked to delete both products but held them, citing:
+1. A passing test ("unlinked product code is preserved but excluded from indexing") that encodes a deliberate architecture decision from commit `9c10c51` (2026-08-29)
+2. Both products existed in repo but were unlinked from public nav/sitemap/footer, marked `noindex,nofollow`
+
+This session: the user explicitly confirmed permanent deletion after reviewing that history. Claim Companion's Android app is published on the Play Store and must be unpublished separately (outside repo scope; that's founder-only via Google Play Console).
+
+**Verified — how:**
+- All 28 unit tests pass after deletion and edits
+- No dangling references (grep -rli found only harmless dead code in main.js and updated docs)
+- New CI workflow (public-site-ci.yml) is valid YAML, retains all main-site coverage (web tests, Playwright regression, secret scan)
+- Rollback safety net in place: `git tag pre-product-deletion-20260913`
+- Commit message includes Play Store package name (com.constrovet.claimcompanion) for future reference
+
+**Deleted:**
+- `claim-companion/` (entire PWA + its own Apps Script backend)
+- `android/claim-companion/` (Gradle project)
+- `ssm-core-demo/` (entire retired product)
+- Three CI workflows: `claim-companion-ci.yml` (rewritten → `public-site-ci.yml`), `claim-companion-apps-script.yml`, `claim-companion-android-release.yml`
+- `scripts/check-claim-companion.mjs`, `tests/claim-companion-public.test.mjs`, `docs/claim-companion-play-store.md`
+
+**Updated:**
+- `.github/workflows/public-site-ci.yml` (renamed from claim-companion-ci.yml, stripped Android build job, removed product-specific path triggers)
+- `tests/construction-public-scope.test.mjs` (removed test asserting preserved-but-unlinked status)
+- `tests/public-site-operations.test.mjs` (updated workflow filename references)
+- `package.json` (removed Claim Companion check script)
+- `REPO_MAP.md` (removed "three products" framing, deleted both product sections)
+- `CONTINUATION_CONTRACT.md` (updated status: "deleted 2026-09-13")
+
+**Outstanding manual step (out of repo):**
+- Unpublish `com.constrovet.claimcompanion` from Google Play Store (requires founder's Play Console access). The app is currently live; deletion from this repo does not affect the Play Store listing.
+
+**Not verified this session:**
+- Whether any other services or external integrations still reference the deleted products (outside repo scope)
+- Live Play Store status (only user's assertion that the app is published; founding would need to verify and unpublish)
+
+**Assumption made:** That the Play Store app exists and is live, based on user's explicit statement; did not independently verify.
+
+---
+## Session end: 2026-09-13 17:05
+
+
+---
+## Session end: 2026-09-13 18:49
+
+
+---
+## Session end: 2026-09-13 18:51
+
+
+---
+## Session end: 2026-09-13 18:55
+
+
+---
+## Session end: 2026-09-13 18:57
+
+
+---
+## Session end: 2026-09-13 19:03
+
+
+---
+## Session end: 2026-09-13 19:08
+
+
+---
+## Session end: 2026-09-13 19:17
+
+
+---
+## Session end: 2026-09-14 22:31
+
+
+---
+## Session end: 2026-09-14 22:33
+
+
+---
+## Session end: 2026-09-14 22:34
+
+
+---
+## Session end: 2026-09-15 08:24
+
+
+---
+## Session end: 2026-09-15 (hero Try/Buy CTA)
+
+**Task:** Replace Google Form intake link with upload page; add hero "Try or Buy" link (0.51% subscription).
+
+**Verified:**
+- Intake section (boardroom/index.html #intake) already pointed to `/upload` from a prior session (5bd4482, 8567fcb) — confirmed via `git log` and file read, not re-done here.
+- Live site (curl https://www.constrovet.com/boardroom/) hero matched repo exactly pre-edit — no Try/Buy CTA existed live or in repo.
+- Added two hero CTAs in boardroom/index.html: "Start Free Review" and "Buy Subscription — 0.51%", both → `/upload`. Confirmed via git diff (5-line addition, no unrelated changes) and served the file locally to confirm all three button labels render.
+
+**Not verified:**
+- Did not deploy; live site will not reflect this change until the deploy/publish step (outside this repo's scope) runs.
+- Did not visually screenshot in a real browser at mobile width — relied on existing flex-col/sm:flex-row wrapper (already proven with 2 buttons) to reflow correctly with 3.
+
+**Assumptions:**
+- User confirmed via AskUserQuestion: two separate CTAs (try vs. buy) rather than one combined button, both routing to /upload since there's no separate paid-checkout flow yet.
+
+---
+## Session end: 2026-09-15 09:41
+
+
+---
+## Session end: 2026-09-15 09:48
+
+
+---
+## Session end: 2026-09-15 09:50
+

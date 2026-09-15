@@ -40,9 +40,9 @@ function run(command, args, options) {
 }
 
 test("public-site CI watches every public navigation surface", () => {
-  const workflow = read(".github/workflows/claim-companion-ci.yml");
+  const workflow = read(".github/workflows/public-site-ci.yml");
 
-  assert.match(workflow, /^name: Public Site and Claim Companion CI/m);
+  assert.match(workflow, /^name: Public Site CI/m);
   for (const requiredPath of [
     '"*.html"',
     '"app/**"',
@@ -59,7 +59,7 @@ test("public-site CI watches every public navigation surface", () => {
 });
 
 test("public-site CI runs Playwright as a browser regression gate", () => {
-  const workflow = read(".github/workflows/claim-companion-ci.yml");
+  const workflow = read(".github/workflows/public-site-ci.yml");
 
   for (const requiredText of [
     '"tests/e2e/**"',
@@ -109,5 +109,5 @@ test("production verifier checks every sitemap route against a local preview", a
   });
 
   assert.equal(result.code, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /routes: 27 sitemap URLs plus \/llms\.txt \/robots\.txt \/assets\/nav\.html/);
+  assert.match(result.stdout, /routes: 22 sitemap URLs plus \/llms\.txt \/robots\.txt \/assets\/nav\.html/);
 });

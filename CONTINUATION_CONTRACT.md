@@ -82,7 +82,7 @@ green numbers again:**
 discrepancy across old session notes — cosmetic, never worth chasing.
 
 **Repo cleanup, closed:** `colab/` deleted (orphaned, safe). `boardroom/`,
-`ssm-core-demo/`, `claim-companion/` held — live nav link and passing
+`ssm-core-demo/`, `claim-companion/` deleted 2026-09-13
 tests respectively protect them. Do not revisit unless the founder
 explicitly names one with new evidence.
 

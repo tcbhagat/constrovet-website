@@ -1,4 +1,4 @@
-name: Public Site and Claim Companion CI
+name: Public Site CI
 
 on:
   pull_request:
@@ -12,21 +12,17 @@ on:
       - "blog/**"
       - "boardroom/**"
       - "pages/**"
-      - "ssm-core-demo/index.html"
       - "sitemap.xml"
       - "robots.txt"
       - "llms.txt"
       - "CNAME"
-      - "claim-companion/**"
-      - "android/claim-companion/**"
       - "tests/*.test.mjs"
       - "tests/e2e/**"
-      - "scripts/check-claim-companion.mjs"
       - "scripts/verify-production-deploy.sh"
       - "package.json"
       - "package-lock.json"
       - "playwright.config.mjs"
-      - ".github/workflows/claim-companion-ci.yml"
+      - ".github/workflows/public-site-ci.yml"
   push:
     branches: [main]
     paths:
@@ -39,16 +35,12 @@ on:
       - "blog/**"
       - "boardroom/**"
       - "pages/**"
-      - "ssm-core-demo/index.html"
       - "sitemap.xml"
       - "robots.txt"
       - "llms.txt"
       - "CNAME"
-      - "claim-companion/**"
-      - "android/claim-companion/**"
       - "tests/*.test.mjs"
       - "tests/e2e/**"
-      - "scripts/check-claim-companion.mjs"
       - "scripts/verify-production-deploy.sh"
       - "package.json"
       - "package-lock.json"
@@ -86,25 +78,6 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
-  android-debug-bundle:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
-      - run: gradle -p android/claim-companion :app:bundleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: claim-companion-debug-aab
-          path: android/claim-companion/app/build/outputs/bundle/debug/app-debug.aab
 
   secret-scan:
     runs-on: ubuntu-latest

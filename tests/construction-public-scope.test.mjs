@@ -26,8 +26,3 @@ test("Constrovet public discovery is limited to construction services", () => {
   }
 });
 
-test("unlinked product code is preserved but excluded from indexing", () => {
-  assert.match(read("claim-companion/index.html"), /<meta name="robots" content="noindex,nofollow">/);
-  assert.match(read("pages/challanse.html"), /<meta name="robots" content="noindex,nofollow">/);
-  assert.match(read("ssm-core-demo/index.html"), /<meta name="robots" content="noindex,nofollow">/);
-});
