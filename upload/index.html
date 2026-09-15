@@ -4,372 +4,129 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Upload Construction Project Data | Constrovet</title>
-  <meta name="description" content="Upload construction project data — budgets, BOQs, schedules, spend records, and ESG files for professional review and analysis.">
+  <meta name="description" content="Upload construction project PDFs and CSVs for cost leakage, delay, and ESG review. Findings are extracted from your files automatically.">
   <link rel="canonical" href="https://www.constrovet.com/upload/">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"]
-          },
-          boxShadow: {
-            soft: "0 24px 80px rgba(15, 23, 42, 0.14)"
-          }
-        }
-      }
-    };
-  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
-<body class="bg-stone-50 text-zinc-950 antialiased">
+<body>
   <div id="cv-nav-placeholder"></div>
-
   <main>
-    <section class="bg-white py-12 sm:py-16">
-      <div class="mx-auto max-w-4xl px-5 sm:px-8">
-        <div class="mb-10">
-          <a href="/" class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-600 hover:text-emerald-700">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-            Back to Boardroom
-          </a>
-        </div>
-        <div class="mb-12">
-          <h1 class="text-4xl font-extrabold tracking-normal text-zinc-950 sm:text-5xl">Upload Construction Project Data</h1>
-          <p class="mt-4 text-lg leading-8 text-zinc-600">
-            Share the project records needed for cost leakage, delay impact, ESG, and recovery action analysis.
+    <section class="home-hero home-hero--dashboard home-hero--compact">
+      <img
+        class="home-hero__bg"
+        src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1800&q=72"
+        alt="Construction project team reviewing site documents"
+        width="1800"
+        height="1200"
+        loading="eager"
+        decoding="async"
+        fetchpriority="high">
+      <div class="home-hero__content home-hero__layout">
+        <div class="home-hero__copy">
+          <span class="home-hero__badge">Pilot intake</span>
+          <h1>Upload Construction Project Data</h1>
+          <p>
+            Upload your project's budgets, BOQs, invoices, schedules, and ESG records. Constrovet reads the files directly and extracts cost, delay, and ESG findings &mdash; no project form to fill in first.
+          </p>
+          <p class="home-hero__footnote">
+            Confidential? Yes. Files are reviewed only after scope and permission are confirmed. Subscription: <strong>0.51%</strong> of project budget.
           </p>
         </div>
-
-        <div class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <!-- Main Upload Section -->
-          <div class="space-y-8">
-            <!-- Project Information -->
-            <div class="rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
-              <h2 class="text-2xl font-extrabold text-zinc-950">Project Information</h2>
-              <p class="mt-2 text-sm text-zinc-600">Tell us about the construction project under review.</p>
-
-              <form id="projectForm" class="mt-6 space-y-5">
-                <div>
-                  <label for="projectName" class="block text-sm font-semibold text-zinc-900">Project Name</label>
-                  <input type="text" id="projectName" name="projectName" required class="mt-2 block w-full rounded-md border border-zinc-300 px-4 py-2.5 text-zinc-950 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="e.g., Highway Expansion Project">
-                </div>
-
-                <div class="grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <label for="projectBudget" class="block text-sm font-semibold text-zinc-900">Total Project Budget (₹)</label>
-                    <input type="number" id="projectBudget" name="projectBudget" required step="100000" class="mt-2 block w-full rounded-md border border-zinc-300 px-4 py-2.5 text-zinc-950 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="e.g., 50000000">
-                  </div>
-                  <div>
-                    <label for="reviewScope" class="block text-sm font-semibold text-zinc-900">Review Scope</label>
-                    <select id="reviewScope" name="reviewScope" required class="mt-2 block w-full rounded-md border border-zinc-300 px-4 py-2.5 text-zinc-950 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                      <option value="">Select scope</option>
-                      <option value="cost">Cost Leakage Audit</option>
-                      <option value="schedule">Schedule Delay Recovery</option>
-                      <option value="esg">ESG & Carbon Audit</option>
-                      <option value="comprehensive">Comprehensive Review</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label for="reviewOwner" class="block text-sm font-semibold text-zinc-900">Named Review Owner</label>
-                  <input type="text" id="reviewOwner" name="reviewOwner" required class="mt-2 block w-full rounded-md border border-zinc-300 px-4 py-2.5 text-zinc-950 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="Full name and title">
-                </div>
-
-                <div>
-                  <label for="contactEmail" class="block text-sm font-semibold text-zinc-900">Email</label>
-                  <input type="email" id="contactEmail" name="contactEmail" required class="mt-2 block w-full rounded-md border border-zinc-300 px-4 py-2.5 text-zinc-950 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="your.email@company.com">
-                </div>
-              </form>
-            </div>
-
-            <!-- File Upload Section -->
-            <div class="rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
-              <h2 class="text-2xl font-extrabold text-zinc-950">Construction Project Files</h2>
-              <p class="mt-2 text-sm text-zinc-600">Upload the documents needed for project review.</p>
-
-              <div class="mt-6 space-y-4">
-                <!-- Budget & BOQ -->
-                <div class="rounded-md border border-zinc-200 bg-stone-50 p-5">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-1">
-                      <i data-lucide="file-spreadsheet" class="h-5 w-5 text-emerald-600" aria-hidden="true"></i>
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="font-semibold text-zinc-950">Budget & Bill of Quantities (BOQ)</h3>
-                      <p class="mt-1 text-sm text-zinc-600">Approved project budget, BOQ breakdown, and line-item cost allocation.</p>
-                      <label for="budgetFile" class="mt-3 inline-block cursor-pointer">
-                        <input type="file" id="budgetFile" name="budgetFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                          </svg>
-                          Upload Budget
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Spend & Invoicing -->
-                <div class="rounded-md border border-zinc-200 bg-stone-50 p-5">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-1">
-                      <i data-lucide="receipt" class="h-5 w-5 text-blue-600" aria-hidden="true"></i>
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="font-semibold text-zinc-950">Actual Spend & Invoicing</h3>
-                      <p class="mt-1 text-sm text-zinc-600">Invoices, payment records, material receipts, and committed spend data.</p>
-                      <label for="spendFile" class="mt-3 inline-block cursor-pointer">
-                        <input type="file" id="spendFile" name="spendFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                          </svg>
-                          Upload Spend Records
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Schedule -->
-                <div class="rounded-md border border-zinc-200 bg-stone-50 p-5">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-1">
-                      <i data-lucide="calendar" class="h-5 w-5 text-amber-600" aria-hidden="true"></i>
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="font-semibold text-zinc-950">Project Schedule</h3>
-                      <p class="mt-1 text-sm text-zinc-600">Baseline schedule, current progress, weekly status, and delay notifications.</p>
-                      <label for="scheduleFile" class="mt-3 inline-block cursor-pointer">
-                        <input type="file" id="scheduleFile" name="scheduleFile" accept=".xlsx,.xls,.csv,.pdf,.mpp" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                          </svg>
-                          Upload Schedule
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- ESG & Compliance -->
-                <div class="rounded-md border border-zinc-200 bg-stone-50 p-5">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-1">
-                      <i data-lucide="leaf" class="h-5 w-5 text-green-600" aria-hidden="true"></i>
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="font-semibold text-zinc-950">ESG & Sustainability Data</h3>
-                      <p class="mt-1 text-sm text-zinc-600">Fuel, electricity, water consumption, waste, emissions, and carbon records.</p>
-                      <label for="esgFile" class="mt-3 inline-block cursor-pointer">
-                        <input type="file" id="esgFile" name="esgFile" accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                          </svg>
-                          Upload ESG Data
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Additional Documents -->
-                <div class="rounded-md border border-zinc-200 bg-stone-50 p-5">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-1">
-                      <i data-lucide="file-text" class="h-5 w-5 text-slate-600" aria-hidden="true"></i>
-                    </div>
-                    <div class="flex-1">
-                      <h3 class="font-semibold text-zinc-950">Additional Documents</h3>
-                      <p class="mt-1 text-sm text-zinc-600">Site reports, quality logs, rework records, procurement notices, or any supporting evidence.</p>
-                      <label for="additionalFiles" class="mt-3 inline-block cursor-pointer">
-                        <input type="file" id="additionalFiles" name="additionalFiles" accept=".pdf,.xlsx,.xls,.csv,.doc,.docx" multiple class="hidden" />
-                        <span class="inline-flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                          </svg>
-                          Upload Supporting Files
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-6 rounded-md bg-blue-50 p-4 text-sm text-blue-800">
-                <p class="font-semibold">Confidential? Yes.</p>
-                <p class="mt-1">All uploaded files are encrypted, access-controlled, and reviewed only after scope and permission are confirmed. Do not upload files through public channels unless review terms are agreed.</p>
+        <aside class="cv-intel-panel" aria-label="Upload checklist">
+          <div class="cv-intel-panel__bar">
+            <span></span><span></span><span></span>
+            <strong>What to upload</strong>
+          </div>
+          <div class="cv-intel-panel__body">
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--blue">Cost</span>
+                <h2>Budget, BOQ, invoices</h2>
+                <p>Approved budget, BOQ breakdown, invoices, and payment records.</p>
               </div>
             </div>
-
-            <!-- Submit Section -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button type="submit" form="projectForm" id="submitBtn" class="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-8 py-4 text-base font-extrabold text-white shadow-lg shadow-emerald-950/10 transition hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                <span id="submitBtnText">Submit for Review</span>
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
-                </svg>
-              </button>
-              <a href="/boardroom" class="text-center text-sm font-semibold text-zinc-600 hover:text-zinc-900">
-                Back to Boardroom
-              </a>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--orange">Schedule</span>
+                <h2>Progress and delay records</h2>
+                <p>Baseline schedule, weekly progress, and delay notifications.</p>
+              </div>
+            </div>
+            <div class="cv-intel-row">
+              <div>
+                <span class="cv-intel-row__tag cv-intel-row__tag--green">ESG</span>
+                <h2>Sustainability data</h2>
+                <p>Fuel, energy, water, waste, and emissions records, where available.</p>
+              </div>
             </div>
           </div>
+        </aside>
+      </div>
+    </section>
 
-          <!-- Pricing & Info Sidebar -->
-          <div class="space-y-6">
-            <!-- Pricing Card -->
-            <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
-              <h3 class="font-extrabold text-emerald-950">Subscription Pricing</h3>
-              <div class="mt-4 space-y-3">
-                <div>
-                  <p class="text-sm text-emerald-800">Per Project Review</p>
-                  <p class="text-2xl font-extrabold text-emerald-950">0.51%</p>
-                  <p class="text-xs text-emerald-700">of total project budget</p>
-                </div>
-                <div class="border-t border-emerald-200 pt-3">
-                  <p class="text-xs text-emerald-800">Example:</p>
-                  <ul class="mt-2 space-y-1 text-xs text-emerald-700">
-                    <li>₹5 Cr budget → ₹2.55 Lakh review</li>
-                    <li>₹10 Cr budget → ₹5.1 Lakh review</li>
-                    <li>₹50 Cr budget → ₹25.5 Lakh review</li>
-                  </ul>
-                </div>
-              </div>
-              <p class="mt-4 text-xs text-emerald-800">
-                One-time subscription covers pilot review, findings report, and 90-day action plan.
-              </p>
-            </div>
-
-            <!-- What's Included -->
-            <div class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-              <h3 class="font-extrabold text-zinc-950">What You Get</h3>
-              <ul class="mt-4 space-y-3 text-sm text-zinc-600">
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  Cited cost leakage findings
-                </li>
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  Delay impact analysis
-                </li>
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  ESG & carbon audit
-                </li>
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  7/30/90 day action plan
-                </li>
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  Evidence documentation
-                </li>
-                <li class="flex gap-3">
-                  <svg class="mt-0.5 h-5 w-5 flex-none text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                  </svg>
-                  Missing evidence notes
-                </li>
-              </ul>
-            </div>
-
-            <!-- Security Notice -->
-            <div class="rounded-lg border border-amber-200 bg-amber-50 p-5">
-              <h3 class="text-sm font-extrabold text-amber-950">Scope & Permission Required</h3>
-              <p class="mt-2 text-xs leading-5 text-amber-900">
-                The review owner must confirm authorization to share project records before upload. Constrovet does not review unauthorized or accidentally shared documents.
-              </p>
-            </div>
+    <section id="dashboard-upload" class="cv-section cv-section--bg-white">
+      <div class="cv-section__header">
+        <span class="cv-section__eyebrow">Project data upload</span>
+        <h2 class="cv-section__title">Upload PDFs And CSVs For Review</h2>
+        <p class="cv-section__sub">
+          Select the files for this project and request a full review. Findings are extracted from the files themselves.
+        </p>
+      </div>
+      <div class="cv-upload-dashboard" data-cv-local-analyzer>
+        <div class="cv-upload-dashboard__panel">
+          <label class="cv-email-field" for="cv-analysis-email">
+            <span>Your Email</span>
+            <input id="cv-analysis-email" type="email" inputmode="email" autocomplete="email" placeholder="name@company.com" required data-cv-analysis-email>
+          </label>
+          <label class="cv-honeypot" for="cv-analysis-company">
+            Company website
+            <input id="cv-analysis-company" type="text" tabindex="-1" autocomplete="off" data-cv-honeypot>
+          </label>
+          <label class="cv-upload-drop" for="cv-analysis-files">
+            <span class="cv-upload-drop__label">Drop or choose project PDF/CSV files</span>
+            <span class="cv-upload-drop__hint">Accepts multiple files (up to 10 for browser analysis, up to 3 for full review), 15 MB each.</span>
+            <input id="cv-analysis-files" type="file" accept=".pdf,.csv,application/pdf,text/csv" multiple>
+          </label>
+          <div class="cv-upload-dashboard__actions">
+            <button type="button" class="cv-btn cv-btn--primary" data-cv-run-analysis>Analyse</button>
+            <button type="button" class="cv-btn cv-btn--try" data-cv-deep-analysis>Request Full Review</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-email-report disabled>Email Me This Report</button>
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-clear-analysis>Clear</button>
+          </div>
+          <p class="cv-template-guidance">
+            Best CSV columns: package, budget, actual, invoice, delay days, cause, owner, document reference, and status.
+          </p>
+          <p class="cv-upload-dashboard__status" data-cv-analysis-status>No files selected.</p>
+          <ul class="cv-upload-dashboard__files" data-cv-analysis-files></ul>
+        </div>
+        <div class="cv-upload-dashboard__results" aria-live="polite">
+          <div class="cv-dashboard-card__header">
+            <span>Output</span>
+            <strong>Executive findings</strong>
+          </div>
+          <div class="cv-upload-dashboard__summary" data-cv-analysis-summary>
+            Enter your email, select project files, and run Analyse to generate cited findings.
+          </div>
+          <div class="cv-upload-dashboard__rationale" data-cv-analysis-rationale hidden></div>
+          <p class="cv-workspace-note" data-cv-workspace-note hidden></p>
+          <div class="cv-upload-dashboard__actions">
+            <button type="button" class="cv-btn cv-btn--outline cv-btn--muted" data-cv-toggle-rationale disabled>Citations and Rationale</button>
           </div>
         </div>
       </div>
+
+      <p style="margin-top: 32px;">
+        <a href="/boardroom" class="cv-section__sub" style="text-decoration: underline;">Back to Boardroom</a>
+      </p>
     </section>
   </main>
-
   <div id="cv-footer-placeholder"></div>
-
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="../assets/js/main.js"></script>
-  <script>
-    lucide.createIcons();
-
-    document.getElementById('projectForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-
-      const projectName = document.getElementById('projectName').value;
-      const projectBudget = document.getElementById('projectBudget').value;
-      const reviewScope = document.getElementById('reviewScope').value;
-      const reviewOwner = document.getElementById('reviewOwner').value;
-      const contactEmail = document.getElementById('contactEmail').value;
-
-      const submitBtn = document.getElementById('submitBtn');
-      const submitBtnText = document.getElementById('submitBtnText');
-
-      submitBtn.disabled = true;
-      submitBtnText.textContent = 'Processing...';
-
-      const formData = new FormData(this);
-
-      setTimeout(() => {
-        const subscriptionCost = (parseInt(projectBudget) * 0.0051).toLocaleString('en-IN', {
-          style: 'currency',
-          currency: 'INR',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        });
-
-        alert(`✓ Thank you for your submission!\n\nProject: ${projectName}\nBudget: ₹${parseInt(projectBudget).toLocaleString('en-IN')}\nReview Scope: ${reviewScope}\nSubscription: ${subscriptionCost} (0.51% of budget)\n\nWe will contact ${contactEmail} to confirm scope and secure document transfer terms.\n\nExpected timeline: 3-5 business days for initial findings.`);
-
-        submitBtnText.textContent = 'Submitted Successfully!';
-        submitBtn.style.backgroundColor = '#10b981';
-
-        setTimeout(() => {
-          window.location.href = '/boardroom';
-        }, 2000);
-      }, 800);
-    });
-
-    document.getElementById('budgetFile').addEventListener('change', function() {
-      console.log('Budget file selected:', this.files[0]?.name);
-    });
-
-    document.getElementById('spendFile').addEventListener('change', function() {
-      console.log('Spend file selected:', this.files[0]?.name);
-    });
-
-    document.getElementById('scheduleFile').addEventListener('change', function() {
-      console.log('Schedule file selected:', this.files[0]?.name);
-    });
-
-    document.getElementById('esgFile').addEventListener('change', function() {
-      console.log('ESG file selected:', this.files[0]?.name);
-    });
-
-    document.getElementById('additionalFiles').addEventListener('change', function() {
-      console.log('Additional files selected:', this.files.length, 'file(s)');
-    });
-  </script>
+  <script src="../assets/js/constrovet-app-config.js"></script>
+  <script src="../assets/js/dashboard-analyzer.js"></script>
 </body>
 </html>

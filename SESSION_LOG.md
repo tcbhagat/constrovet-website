@@ -4829,3 +4829,52 @@ This session: the user explicitly confirmed permanent deletion after reviewing t
 ---
 ## Session end: 2026-09-15 09:50
 
+
+---
+## Session end: 2026-09-15 10:00
+
+
+---
+## Session end: 2026-09-15 10:03
+
+
+---
+## Session end: 2026-09-15 10:07
+
+
+---
+## Session end: 2026-09-15 10:55
+
+
+---
+## Session end: 2026-09-15 10:58
+
+
+---
+## Session end: 2026-09-15 (upload page: real submission + multi-file + auto-extraction)
+
+**Task:** Allow multiple (or zero-blocking) file uploads; wire /upload/ to the real Apps Script pipeline so it emails the submitter from admin@constrovet.com; eliminate manual data-entry fields the files already carry.
+
+**Verified:**
+- Found the site already has a working, unused capability: assets/js/dashboard-analyzer.js extracts findings client-side from PDFs/CSVs and can POST to the live Apps Script endpoint (assets/js/constrovet-app-config.js) via submitWorkspaceJob("DEEP_ANALYSIS" | "EMAIL_BROWSER_REPORT"), which server-side runs the same doPost() -> sendReportEmail() -> MailApp.sendEmail() path already used elsewhere in apps-script/Code.gs.
+- That script's buttons (data-cv-deep-analysis, data-cv-email-report) were wired in JS but never rendered in any page's HTML — /app/'s dashboard only exposed "Analyse" (browser-only preview), so no page actually emailed anyone today despite the JS supporting it.
+- Confirmed via grep that doPost's actual required payload is only `email`, `job_id`, and `browser_report.findings[]` — there is no project name/budget/owner field anywhere in the server contract. The old /upload/ form's manual fields (project name, budget, scope, owner) were never consumed by the backend at all.
+- validateFiles()/validateInputs() in dashboard-analyzer.js already reject 0 files ("Choose at least one PDF or CSV file") and already support `<input multiple>` (up to 10 files for browser analysis, up to 3 for full/email review) — no validation logic needed to change.
+- admin@constrovet.com is already the deployment's configured notify/canary address (DEFAULT_BOARDROOM_NOTIFY_EMAIL, EEV2_CANARY_ALERT_EMAIL in Code.gs) — MailApp.sendEmail sends as the Apps Script deployment's authorized account, so as long as that live deployment is under admin@constrovet.com (a live-deployment fact outside this repo, consistent with [[constrovet-repo-not-live-appsscript]]), no code change was needed for the "from" address.
+
+**Changes:**
+- upload/index.html: replaced the disconnected mockup form (fake alert(), single-file-per-category inputs, manual project/budget/owner/scope fields) with the same file-drop dashboard as /app/, reusing dashboard-analyzer.js and constrovet-app-config.js directly. Added "Request Full Review" and "Email Me This Report" buttons.
+- app/index.html: added the same two buttons (previously dark/unrendered despite existing JS support), so /app/ also gains real email delivery instead of being analyse-only.
+- assets/js/main.js: fixed a pre-existing bug (not introduced this session) where the nav/footer partial loader's `isNested` path list omitted `/upload/`, so nav+footer silently 404'd on that page (both before and after my rebuild) — confirmed via Playwright console-error capture, fixed by adding the path to the whitelist.
+
+**Not verified:**
+- Did not verify against the live Apps Script project (per [[constrovet-repo-not-live-appsscript]], repo Code.gs is a known strict subset of live) — did not run clasp pull this session; treated payload contract and sendReportEmail behavior as repo-only and provisional.
+- Did not send a real end-to-end email — local testing only exercised the browser-side extraction and button state; the actual fetch() to the live endpoint uses `mode: "no-cors"` so the browser cannot observe its response, and doPost's real behavior was reviewed by reading the code, not by triggering a live send.
+- Did not confirm the live Apps Script deployment's authorized Google account is actually admin@constrovet.com (inferred from DEFAULT_BOARDROOM_NOTIFY_EMAIL / EEV2_CANARY_ALERT_EMAIL constants in the repo copy, which per the same memory may not match live).
+
+**Testing done:**
+- npm test: 27/27 pass. npm run test:e2e (Playwright): 4/4 pass.
+- Playwright-driven manual check of /upload/: multi-file select works, 0-file Analyse click shows "Choose at least one PDF or CSV file.", after Analyse succeeds Email button enables, zero console errors after the main.js fix (previously 2x 404 on nav.html/footer.html).
+
+**Assumptions:**
+- User confirmed via AskUserQuestion: wire /upload/ into the same live Apps Script endpoint (not a mockup-only change), and also add the missing buttons to /app/ so both surfaces gain real submission.

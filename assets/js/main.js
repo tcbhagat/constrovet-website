@@ -32,6 +32,7 @@
     window.location.pathname.includes("/blog/") ||
     window.location.pathname.includes("/app/") ||
     window.location.pathname.includes("/boardroom/") ||
+    window.location.pathname.includes("/upload/") ||
     window.location.pathname.includes("/ssm-core-demo/");
   const base = isNested ? "../assets/" : "assets/";
 
