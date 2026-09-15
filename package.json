@@ -10,7 +10,10 @@
     "test:harness": "node scripts/run-eev2-harness.mjs",
     "check:golden": "node scripts/check-golden-sample.mjs",
     "check:fixtures": "node scripts/check-fixture-provenance.mjs",
-    "check": "exit 0"
+    "check": "exit 0",
+    "safety-gate-check": "node scripts/safety-gate-check.mjs",
+    "inconsistency-scan": "node scripts/inconsistency-scan.mjs",
+    "xai-explain": "node scripts/xai-explain.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"

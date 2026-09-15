@@ -156,3 +156,89 @@ this exact reading was not word-for-word confirmed with Prof. Taran. Recorded as
 open item in STATE.md rather than asserted as settled.
 
 `Client-exposure fact-finding = COMPLETE, FINAL (direct 3-client Drive + validation-errors-sheet audit) | zero client exposure — no report has ever been generated for any of the three real clients`
+
+---
+
+## 2026-09-15 — Stage 3: Platform Safety Crews built
+
+Built all 4 tools GOALS.md's S3 requires, checking what this Claude Code
+environment actually supports before building (found: `.claude/skills/` exists
+but empty; the established pattern in this repo is `npm run <name>` backed by
+real `.mjs` files in `scripts/`, matching `pre-push-check.mjs`'s conventions
+— followed that rather than guessing at a different mechanism).
+
+**Credential constraint surfaced and resolved with founder input:**
+`safety-gate-check` and `inconsistency-scan` both need to read the live
+validation-errors sheet / Drive job folders. There is no Node-side Google API
+credential anywhere in this repo — only `clasp` (Apps Script-side,
+founder-run) and an agent's own Drive MCP connector access (session-only).
+Asked Prof. Taran; chose "wrap `clasp run`" (free, fast, reuses the already
+tested `eev2AuditJob` as-is) over standing up new Node-side credentials.
+
+**Built:**
+1. `scripts/safety-gate-check.mjs` — wraps the real, live `eev2AuditJob`
+   (`apps-script/EEV2AuditJob.gs`, already live and tested) via `clasp run`.
+   Real test run against `form-20260905-053908-609f4190` correctly detected
+   `clasp run`'s Execution API permission failure (documented broken since
+   2026-09-11) and reported `FOUNDER_ACTION_REQUIRED` with real fallback
+   steps, rather than crashing. Took two debugging passes to get right: (a)
+   `clasp`'s own path-traversal guard rejects being invoked with `-P
+   <path>` from outside the config's directory when `rootDir` is `""` — fixed
+   by running with `cwd` set to the config directory instead; (b) `clasp run`
+   was observed to exit 0 while printing its permission failure to stderr
+   only, which `execFileSync`'s stdout-only return value on success silently
+   discarded — fixed by switching to `spawnSync`, which always returns both
+   streams regardless of exit code.
+2. `apps-script/EEV2InconsistencyScan.gs` (`eev2InconsistencyScan()`) + `scripts/inconsistency-scan.mjs`
+   — new function (not previously built), read-only scan across every logged
+   job in the validation-errors sheet for 4 recurring-anomaly categories, all
+   built from warning/error codes the live pipeline already emits (nothing
+   invented). Syntax-checked. Real test run correctly reported
+   `FOUNDER_ACTION_REQUIRED` (function written but not yet pushed live).
+   Separately validated the scan LOGIC ITSELF by dry-running it in plain
+   Node against a real 17-row subset of the actual validation-errors sheet
+   (already read via Drive this session) — it correctly surfaced the two
+   real, independently-known recurring anomalies (INR 3,670.55 across 6
+   jobs, the EEV2-009 pattern; INR 454.16 across 3 jobs), confirming the
+   logic is correct ahead of the founder push that will make it live.
+3. `apps-script/EEV2XaiExplain.gs` (`eev2XaiExplain(jobId, findingIndex)`) + `scripts/xai-explain.mjs`
+   — new function, renders a "why this figure" markdown for one finding
+   using only fields already on it (no new inference, no second analysis
+   pass). Syntax-checked. Real test run against
+   `form-20260902-135120-81f4fd27` finding 0 correctly reported
+   `FOUNDER_ACTION_REQUIRED` (not yet pushed live).
+4. `docs/bug-scout.md` — not a script (root-causing a real anomaly is a
+   reasoning task, chosen over the alternative of a Node script calling an
+   external LLM API, which would need a new credential/cost decision and
+   duplicate reasoning Claude Code already does natively — founder chose the
+   template approach). A structured investigation procedure. Dry-run
+   performed per S3's bar, against a real, already-fixed historical bug
+   (job `form-20260909-072421-33a43b52`'s EEV2-009 label-bleed incident):
+   following the procedure from raw evidence (the real validation-errors
+   sheet row, the real no-newline citation text) independently arrived at
+   the same root cause already recorded in the real PR that fixed it
+   (`4201e86`/PR #36) — confirms the procedure is sound.
+
+Added `docs/safety-gate-check.md`, `docs/inconsistency-scan.md`,
+`docs/xai-explain.md` (per S3's "doc in docs/ explaining when to invoke it
+and what it outputs" requirement), and filled in `docs/AGENTS.md`'s stub
+with a real tool roster table.
+
+Added `npm run safety-gate-check`, `npm run inconsistency-scan`,
+`npm run xai-explain` to `package.json`.
+
+Full regression suites re-run after all changes: `npm run test:harness`
+20/20 pass, `npm test` 27/27 pass — no regression from the new files.
+
+**Two founder actions now queued** (both needed before 3 of the 4 tools can
+produce a real result instead of `FOUNDER_ACTION_REQUIRED`):
+1. Fix/restore `clasp run`'s Execution API permission (broken since at
+   least 2026-09-11), or explicitly accept the documented manual-editor
+   fallback as the standing workaround.
+2. `clasp push` (full 32+2-file — now 45 files with the two new .gs files)
+   so `eev2InconsistencyScan` and `eev2XaiExplain` exist live.
+   `eev2AuditJob` (used by `safety-gate-check`) is already live from an
+   earlier session, so `safety-gate-check` is blocked ONLY on item 1, not
+   item 2.
+
+`STAGE_EXIT: S3 = PASS | all 4 tools exist, documented, each run at least once with real output; 2 founder actions queued (Execution API permission, clasp push for the 2 new .gs files) before 3 of the 4 can produce a live result instead of FOUNDER_ACTION_REQUIRED`

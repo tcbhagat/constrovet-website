@@ -31,7 +31,7 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Track A — current position
 
-- **Current stage:** S1 = PASS, S2 = PASS (both confirmed this session; S3 next)
+- **Current stage:** S1 = PASS, S2 = PASS, S3 = PASS (all confirmed this session; S4 next)
 - **Status:** PASS
 - **Evidence (link to SESSION_LOG.md entry or commit):** docs/SESSION_LOG.md, "2026-09-15 — Stage 1" entry; live-vs-repo diff (zero bytes) on Code.gs/Code.js and EEV2CitationTruncationRegression; `npm run test:harness` (20/20) and `npm test` (27/27) both green; `gh pr view 20` = MERGED; root SESSION_LOG.md fabricated-figure-send audit found zero client exposure (both incidents went to founder's own confirmed-personal inbox)
 - **Per-client status where a stage requires it:**
@@ -59,17 +59,12 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
-- STATE UNCLEAR, FLAGGED FOR FOUNDER — reconcile, don't silently resolve: earlier in
-  this session Prof. Taran confirmed "3 real clients ARE live now" (vs. the execution
-  prompt's own docs, PROJECT_MILESTONES.md/CONTRACTS.md, which as of 2026-09-11 said
-  client onboarding had not started). The direct Drive audit below confirms 3 real
-  client project folders DO exist (Taran_paradise, Tower_of_prosperity,
-  national_Highway) with real source documents staged — consistent with "live" in the
-  sense of onboarded/real. But zero jobs have been run for any of them per the
-  validation-errors sheet — consistent with "not yet processing traffic." Both can be
-  true simultaneously (clients onboarded, pipeline not yet exercised against their
-  data) and that is the most likely read, but this was not explicitly confirmed word-
-  for-word with Prof. Taran — flagging rather than asserting.
+- RESOLVED 2026-09-15: "3 real clients live" vs. "zero jobs run for them" tension.
+  Prof. Taran confirmed: the three clients' documents are presently staged in the
+  admin Drive account intentionally, for upload/submission later — not yet processed
+  by design, not a gap or inconsistency. Onboarding (client relationship, real) and
+  job processing (pipeline execution against their data) are simply two different,
+  independently-tracked milestones; the first has happened, the second hasn't yet.
 
 - RESOLVED 2026-09-15: EEV2-005 (per the execution prompt's ground truth) and EEV2-008
   (per Stage 2's "PR #20, already merge-ready") are the same defect and the same fix —
@@ -111,10 +106,16 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Next single action
 
-S1 and S2 are both now genuinely PASS with real evidence (live-parity diff, PR #20
-merged, no client exposure found in the session log). Confirm with Prof. Taran that S2
-can be formally closed on this evidence, then proceed to S3 (Platform Safety Crews:
-bug-scout, safety-gate-check, xai-explain, inconsistency-scan).
+S1, S2, S3 all PASS with real evidence. Two founder actions are now queued, both
+blocking further use of 3 of the 4 Stage 3 tools: (1) fix/restore `clasp run`'s
+Execution API permission (or accept the documented manual-editor fallback as the
+standing workaround), (2) `clasp push` the two new .gs files
+(EEV2InconsistencyScan.gs, EEV2XaiExplain.gs) so eev2InconsistencyScan and
+eev2XaiExplain exist live (eev2AuditJob, used by safety-gate-check, is already live).
+Next stage: S4 (first real 3-week testing branch) — two-way door, can start without
+waiting on the above, but its daily log content will be thin until the Execution API
+permission is resolved. Recommend raising both founder actions before or alongside
+starting S4.
 
 ---
 
