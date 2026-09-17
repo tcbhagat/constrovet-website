@@ -109,6 +109,45 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **RESOLVED 2026-09-18 — end-to-end live test submission PASSED on Version 21.**
+  Job `cv-20260917214914-9jo4kb`, mode DEEP_ANALYSIS, generated 2026-09-17T21:49:37Z
+  (03:19 IST 18 Sept), delivered by email. Three things this proves at once:
+  1. **The rotated `GEMINI_API_KEY` works.** `runGeminiVerifier()` is called
+     unconditionally for DEEP_ANALYSIS (`Code.gs:148`) and `throw`s on any HTTP >= 400.
+     The job completed and emailed a normal report rather than hitting doPost's catch, so
+     the Gemini call succeeded. The out-of-band `curl` check was abandoned after repeated
+     `HTTP 000` results (paste never reached `read -s`); this supersedes it with better
+     evidence, since it exercises the *stored* property rather than a re-pasted value.
+  2. **Version 21 executes correctly in production** — the reconciled code ran a real job
+     start to finish.
+  3. **The prime directive held.** The run produced an "Evidence Intake Exception" with
+     zero cited findings and **zero fabricated figures** — it correctly refused to invent
+     numbers when it had no cited evidence, and said so plainly. This is the safety
+     behaviour working as designed on live traffic, not a failure.
+
+- **OPEN, client-facing defect, found 2026-09-18 — `/upload` reports always show
+  "Files received: unknown / Files accepted: unknown".** `report.form_intake` is populated
+  only inside `handleBoardroomFormSubmit()` (`Code.gs:901`, the Google Form path). The
+  `/upload` doPost path never sets it, so `renderIntakeKpisEmailHtml()` (`:6073-6076`) falls
+  through to the `"unknown"` literal for both counters — on every Deep Analysis email from
+  the product's primary intake path. The count *is* known: `payload.files.length` is written
+  to job state at `Code.gs:137`. A client-facing report that cannot state how many files it
+  received undermines trust in every other number on the page. Low effort, high value.
+
+- **OPEN, counter inconsistency, found 2026-09-18.** The same run reported
+  `Documents processed: 0` **and** `No-signal documents: 0`, while the Missing Evidence
+  Request named `M01_BoQ.pdf: no cost, schedule, or ESG signal found by deterministic
+  browser scan`. A document was scanned and found to have no signal, so one of those two
+  counters should be non-zero. Reconcile before any client sees this pairing.
+
+- **OPEN, misleading client guidance, found 2026-09-18.** The exception email advises
+  "Confirm PDF OCR readiness: enable Apps Script Advanced Drive service OCR". For `/upload`,
+  extraction is **client-side pdf.js** (`assets/js/dashboard-analyzer.js:40-42, 219-228`),
+  which has no OCR. So the advice names an admin action the client cannot take, on a path
+  where it may not help. `.pdf` and `.csv` are both accepted (`upload/index.html:91`), and
+  pdf.js reads only PDFs that already have a text layer — a scanned BoQ yields nothing.
+  Rewrite this guidance for the `/upload` path: ask for a searchable PDF or a CSV.
+
 - **RESOLVED 2026-09-18 — `/upload` confirmed serving Version 21.** The Apps Script editor's
   Manage deployments panel shows deployment
   `AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMB…` configured as **"Version 21 on 18 Sept 2026, 02:16"**
