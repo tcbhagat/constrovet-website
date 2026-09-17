@@ -58,7 +58,15 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
     Prime directive intact. This is what makes the drift urgent-but-not-an-incident.
 - **Open FOUNDER_ACTION_REQUIRED items awaiting Prof. Taran (raised 2026-09-18):**
   1. Decide and execute the live Apps Script reconciliation push (see "Live push plan").
-  2. Push the local wiki repo — it has no remote and three unpushed commits.
+     Precondition not yet met: capture the production baseline (`clasp pull` to scratch +
+     tarball) and identify the pinned deployment ID serving `/upload`.
+  - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
+    pushed to `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki` (deliberately
+    not `main`, which holds `sync-wiki.yml`-generated content with unrelated history).
+    Verified on GitHub: all three commits (`98fec2a`, `ef8ba6d`, `181425e`) and all three
+    files (`OPERATIONS/CHARTER.md`, `SAFETY_CHECKLIST/DEFINITION_OF_DONE.md`,
+    `TESTING_BRANCHES/branch-phase2-readiness-20260915.md`) present; generated `main`
+    untouched. No Phase 2 artifact is single-disk any more.
 
 ## Track B — current position
 
