@@ -30,7 +30,8 @@ function eev2RunFullRegressionGate() {
     { id: "EEV2-012", name: "Cross-row label bleed: OCR column-join veto (real Test A fix)", fn: "eev2RunRowBoundaryRegression" },
     { id: "EEV2-013", name: "Whole-submission MUST-BLOCK gate (Option A, no verified evidence)", fn: "eev2RunMustBlockGateRegression" },
     { id: "EEV2-014", name: "Global spend/abuse cap on the anonymous public endpoint", fn: "eev2RunGlobalBudgetGateRegression" },
-    { id: "EEV2-016", name: "Global daily job cap also enforced on the form-trigger path (real Test A fix)", fn: "eev2RunGlobalDailyLimitFormPathRegression" }
+    { id: "EEV2-016", name: "Global daily job cap also enforced on the form-trigger path (real Test A fix)", fn: "eev2RunGlobalDailyLimitFormPathRegression" },
+    { id: "EEV2-018", name: "Foreign-currency figures must never ship labelled INR (real shipped incident)", fn: "eev2RunForeignCurrencyMislabelRegression" }
   ];
 
   const results = [];
@@ -129,7 +130,8 @@ function eev2ResolveRegressionFunction(name) {
     eev2RunRowBoundaryRegression: typeof eev2RunRowBoundaryRegression === "function" ? eev2RunRowBoundaryRegression : null,
     eev2RunMustBlockGateRegression: typeof eev2RunMustBlockGateRegression === "function" ? eev2RunMustBlockGateRegression : null,
     eev2RunGlobalBudgetGateRegression: typeof eev2RunGlobalBudgetGateRegression === "function" ? eev2RunGlobalBudgetGateRegression : null,
-    eev2RunGlobalDailyLimitFormPathRegression: typeof eev2RunGlobalDailyLimitFormPathRegression === "function" ? eev2RunGlobalDailyLimitFormPathRegression : null
+    eev2RunGlobalDailyLimitFormPathRegression: typeof eev2RunGlobalDailyLimitFormPathRegression === "function" ? eev2RunGlobalDailyLimitFormPathRegression : null,
+    eev2RunForeignCurrencyMislabelRegression: typeof eev2RunForeignCurrencyMislabelRegression === "function" ? eev2RunForeignCurrencyMislabelRegression : null
   };
   return registry[name] || null;
 }

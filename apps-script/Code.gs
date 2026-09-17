@@ -496,6 +496,28 @@ function validateReportOutput(report, browserReport) {
     });
   });
 
+  // CHECK 5f: (EEV2-018) Currency-denomination guard for STRUCTURED_ACTUAL_BUDGET.
+  // CHECK 5b deliberately exempts these findings, because a computed
+  // Actual - Budget difference legitimately never appears verbatim in the
+  // source text. That exemption is correct about the arithmetic but says
+  // nothing about the CURRENCY of the inputs, which left the structured path
+  // with no currency guard at all -- while CHECK 5b guards the narrative path.
+  // Real incident 2026-09-18, job cv-20260917223525-2z8936: a USD CSV shipped
+  // as "INR 5,400 across 12 findings", the report printing
+  // "Budget: $45,000.00 | Actual: $46,000.00" beside "overrun of INR 1,000".
+  // The extractor now refuses these at source; this is the backstop that
+  // catches any other route to the same mislabeling.
+  // Only a POSITIVE foreign marker blocks. An unmarked numeric column is the
+  // common legitimate case and must keep passing.
+  findings.forEach((f, idx) => {
+    if (!(f.amount_inr > 0)) return;
+    if (f.evidence_quality !== "STRUCTURED_ACTUAL_BUDGET") return;
+    const foreign = (f.citations || []).filter((c) => boardroomHasForeignCurrency(c.quoted_span || ""));
+    if (foreign.length > 0) {
+      errors.push(`FOREIGN_CURRENCY_LABELLED_INR: Finding ${idx} claims INR ${f.amount_inr} but its own citation shows a non-INR currency: "${boardroomDisplaySpan(foreign[0].quoted_span || "", 120)}"`);
+    }
+  });
+
   // CHECK 6: Every finding must cite its source (file + quoted span).
   findings.forEach((f, idx) => {
     const cites = f.citations || [];
@@ -2400,17 +2422,38 @@ function boardroomRecomputedRateFindings_(file, pageOrSheet, text) {
   return [boardroomFinding(statement, "ESG_METRIC", 0, 0, file, pageOrSheet, check.citation, 0, 0, 0, "HIGH")];
 }
 
+// EEV2-018: boardroomParseAmount() falls through to a bare digit match, so it
+// happily turns "$45,000.00" into 45000 and discards the symbol. Every caller
+// below then labels that number INR. Detect the discarded symbol here so a
+// foreign figure can be refused rather than silently redenominated.
+// Bare numbers ("45000", no symbol) are NOT foreign -- an unmarked column in an
+// India-facing tool is the common, legitimate case and must keep working.
+function boardroomHasForeignCurrency(text) {
+  return /(\$|€|£|¥|\bUSD\b|\bEUR\b|\bGBP\b|\bAED\b|\bSAR\b)/i.test(String(text || ""));
+}
+
 function boardroomCsvBudgetActualFinding(file, pageOrSheet, span, headers, row) {
   let budget = null;
   let actual = null;
+  let budgetRaw = "";
+  let actualRaw = "";
   headers.forEach((header, index) => {
     const key = String(header || "").toLowerCase();
-    const value = boardroomParseAmount(row[index] || "");
+    const raw = row[index] || "";
+    const value = boardroomParseAmount(raw);
     if (value === null) return;
-    if (/budget|boq|planned|estimate|contract|baseline/.test(key)) budget = value;
-    if (/actual|spent|cost incurred|cost to date|paid amount|payment amount|expenditure|debit amount|deduction amount|back charge amount/.test(key)) actual = value;
+    if (/budget|boq|planned|estimate|contract|baseline/.test(key)) { budget = value; budgetRaw = raw; }
+    if (/actual|spent|cost incurred|cost to date|paid amount|payment amount|expenditure|debit amount|deduction amount|back charge amount/.test(key)) { actual = value; actualRaw = raw; }
   });
   if (budget === null || actual === null || actual <= budget) return null;
+  // EEV2-018 (prime directive): refuse rather than redenominate. Shipped
+  // 2026-09-18 in job cv-20260917223525-2z8936 -- a USD CSV was reported as
+  // "INR 5,400 across 12 findings", with the report's own citations printing
+  // "Budget: $45,000.00" beside "overrun of INR 1,000". The arithmetic was
+  // right; the currency was fabricated. Supporting non-INR reporting is a
+  // separate feature -- until it exists, not emitting the finding is the only
+  // honest option.
+  if (boardroomHasForeignCurrency(budgetRaw) || boardroomHasForeignCurrency(actualRaw)) return null;
   return boardroomFinding(`CSV row shows Actual - Budget overrun of INR ${formatInr(actual - budget)}.`, "LEAKAGE_AND_OVERRUN", actual - budget, 0, file, pageOrSheet, span, budget, actual, actual - budget, "HIGH");
 }
 
