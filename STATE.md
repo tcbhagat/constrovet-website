@@ -214,11 +214,15 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   live baseline by `clasp pull` first, before any push is planned.
 - **Phase 2 fast-disable switch located AND test-fired:** not yet located
 - **Any rollback actually exercised this project (date, reason, outcome):** none yet
-- **Drift detection:** `scripts/session-context.sh` runs `clasp status`, which only lists
-  local files queued for push — it never compares live *content* to repo content, despite
-  the script's header claiming it checks "whether the live Apps Script project's HEAD
-  matches." This is why 11 days of drift went unnoticed. Fixing it is the highest-leverage
-  prevention available and is authorized by the execution prompt's Stage 0 step 3.
+- **Drift detection: FIXED 2026-09-18** (commit `73ec664`). `scripts/session-context.sh`
+  previously ran `clasp status`, which lists only local files queued for push and never
+  compares live *content* — that is why 11 days of drift went unnoticed. It now pulls live
+  into an mktemp dir (deleted on exit) and diffs every `.gs` against its live `.js` plus
+  the manifest. Verified run: 34 identical, 2 differing (`Code`, `EEV2FullRegressionGate`),
+  7 in repo but not live; ~4.7s; still exits 0 always so it can never block a session.
+  An auth failure now prints "drift is UNKNOWN, not zero" instead of implying sync.
+  **Every session from now on opens with this line — if it says DRIFT DETECTED, resolve
+  that before trusting any stage's PASS.**
 
 ## Next single action
 

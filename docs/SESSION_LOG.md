@@ -305,3 +305,55 @@ daily-log entries that need `safety-gate-check`/`inconsistency-scan`/`xai-explai
 output, until this is revisited.
 
 `STAGE_EXIT: clasp-run-investigation = PARTIAL | executionApi manifest block and .clasp.json projectId both fixed and confirmed working individually; clasp run itself still blocked; OAuth re-consent (clasp logout/login) is the next untested hypothesis, explicitly deferred by founder`
+
+---
+
+## 2026-09-18 — Live-vs-repo drift audit; S1/S2 reopened; governance moved to main
+
+**What changed.** This session opened on `main`, where `STATE.md` and `GOALS.md` did not
+exist — they had only ever been committed to the unpushed branch
+`test/phase2-readiness-20260915`. Rather than create a fresh Stage 0 skeleton (which would
+have destroyed three sessions of real work), the files were located in git history and
+read from that branch.
+
+**The finding.** A real `clasp pull` into a scratch directory proves live Apps Script HEAD
+is byte-identical to repo commit `6078bb1` (2026-09-07 18:49) — 11 days stale. Live
+`Code.js` lines 2400 and 2484 still carry the storage-time `.slice(0, 500)` truncation, the
+EEV2-005/008 defect; `boardroomDisplaySpan` (the fix) appears 0× live vs 8× on `main`.
+Seven files on `main` are absent live, including `EEV2CitationTruncationRegression` — the
+regression guarding that exact bug — and `EEV2AuditJob`. Every PR merged since 2026-09-07
+(#23, #32, #34, #36, #38, #39, #40, #41, #44, and all 09-17 work) is undeployed.
+
+**Mechanism, verified not inferred.** Versions were created without a preceding `clasp
+push`. Pulling version 20 explicitly — labelled "validation alert recipient fix",
+2026-09-17 — returns content byte-identical to stale HEAD (`MAX_FILES = 3`, no
+`boardroomDisplaySpan`). Same for v17 "Raise upload file cap 3->10". Version labels
+describe changes the versions do not contain. A version label is not evidence of a deploy.
+
+**Knock-on.** The `clasp run` OAuth investigation is retired: the live manifest contains no
+`executionApi` and no `oauthScopes`, so the consent-screen/restricted-scope hypothesis
+cannot have been the cause — the manifest it depended on was never live. The three config
+fixes remain real and correct; they are simply undeployed.
+
+**Verified this session.** Live HEAD == `6078bb1` (exact diff against 40 historical commits,
+one match). `npm test` 27/27 and `npm run test:harness` green on `main`. Evidence Harness CI
+green. `test/phase2-readiness-20260915` pushed to origin. Governance files moved to `main`
+(`b0d727a`). Session-context hook rewritten to diff live against repo, run for real: 34
+identical, 2 differing, 7 repo-only, ~4.7s, exit 0, mktemp dir cleaned up (`73ec664`).
+Zero client exposure re-confirmed: no job has ever run for any of the three clients, so the
+live defect has reached no client report. Prime directive intact.
+
+**Not verified / still open.** The live push itself has not happened — FOUNDER ACTION. The
+pinned deployment ID for `/upload` has not been identified this session. S4's daily log has
+an unlogged gap for 2026-09-16 and 2026-09-17, deliberately **not** back-filled. The local
+wiki repo still has no remote and three unpushed commits — the sandbox blocked adding a
+remote, so this is handed to the founder. `sync-wiki.yml` will still fail when next
+triggered: it uses `secrets.GITHUB_TOKEN` for a cross-repo checkout, which cannot work.
+
+**Assumption stated plainly.** That live traffic runs HEAD or a deployment built from it —
+since HEAD and every pulled version are identical, the drift conclusion holds either way,
+but which deployment serves `/upload` still needs confirming before the push.
+
+`STAGE_EXIT: S1 = FOUNDER_ACTION_REQUIRED | fix is correct in repo and tested, but is not live; live is 11 days stale at 6078bb1`
+`STAGE_EXIT: S2 = FOUNDER_ACTION_REQUIRED | PR #20 merged in repo, but the merged code has never been deployed`
+`STAGE_EXIT: S4 = PAUSED | readiness evidence cannot be built while live lacks the fixes being assessed; 21-day clock not compressed, gap days recorded as unlogged`
