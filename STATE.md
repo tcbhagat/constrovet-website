@@ -74,8 +74,11 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
     captured first, push and version 21 both verified by pulling back and diffing.
   - ~~Confirm which version real `/upload` traffic runs~~ **DONE 2026-09-18** — editor's
     Manage deployments panel shows the deployment at Version 21. Chain verified end to end.
-  - **Still open:** rotate `GEMINI_API_KEY` (exposed in a screenshot). Optionally fix the
-    `value || DEFAULT` zero-handling bug. Neither blocks client work.
+  - ~~Rotate `GEMINI_API_KEY`~~ **DONE 2026-09-18** — rotated and Script Property updated.
+    Verify once with an out-of-band `curl` (HTTP 200) so a bad key cannot burn verifier
+    budget through repeated job failures.
+  - **Still open, non-blocking:** the `value || DEFAULT` zero-handling bug, and the
+    failed-call-still-charges-budget behaviour. Neither blocks client work.
   - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
     pushed to `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki` (deliberately
     not `main`, which holds `sync-wiki.yml`-generated content with unrelated history).
@@ -132,7 +135,25 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   off — but it is exactly the trap that bites during an incident, when someone sets a limit
   to 0 to stop everything and it does not stop.
 
-- **OPEN, security, 2026-09-18 — `GEMINI_API_KEY` was exposed in a screenshot** shared into
+- **RESOLVED 2026-09-18 — `GEMINI_API_KEY` rotated.** Founder rotated the key and updated
+  the Script Property after it appeared legibly in a screenshot shared into a Claude Code
+  session. Pending: an independent `curl` check that the new key + `GEMINI_MODEL` pair
+  returns HTTP 200, done outside the pipeline so a bad key cannot burn verifier budget
+  (see the budget item below). Original entry follows.
+
+- **OPEN, design, 2026-09-18 — a failed Gemini call still consumes daily budget.**
+  `runGeminiVerifier()` calls `enforceGeminiVerifierBudget()` *before* `UrlFetchApp.fetch`
+  (`Code.gs`, "the paid call" comment), then `throw`s on any HTTP >= 400. So an invalid key,
+  a wrong `GEMINI_MODEL`, or a Gemini outage does two things at once: it fails the whole
+  DEEP_ANALYSIS job rather than degrading, and it still charges one of the 20 daily
+  verifier calls. Roughly 20 failed attempts would exhaust a day's budget without a single
+  successful analysis. The budget-before-call ordering is deliberate and correct for
+  bounding *spend* (the comment explains why: DEEP_ANALYSIS can reach the path more than
+  once per submission), so this is not a bug to reverse casually — but consider not charging
+  budget for calls that never reached Gemini, or distinguishing a transport failure from a
+  billable one. Relevant every time the key or model changes.
+
+- ~~**OPEN, security, 2026-09-18 — `GEMINI_API_KEY` was exposed in a screenshot**~~ shared into
   a Claude Code session while reviewing Script Properties. The value is legible in the
   image. Rotate the key in Google AI Studio / GCP and update the Script Property. Treat as
   routine hygiene rather than a breach, but do not skip it.
