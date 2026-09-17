@@ -25,11 +25,12 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Snapshot metadata
 
-- **Last updated:** 2026-09-18 (live-vs-repo drift audit; S1/S2 reopened)
+- **Last updated:** 2026-09-18 (drift audit → reconciliation push → live-verified; S1/S2 PASS)
 - **Updated by session ending at commit:** see `git log -1 main`; governance files
   (this file, GOALS.md, docs/*) moved onto `main` this session — previously they existed
   only on the unpushed branch `test/phase2-readiness-20260915`, which is why three
-  sessions in a row could not read them. Wiki repo 181425e (local, still unpushed).
+  sessions in a row could not read them. Wiki repo pushed to
+  `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki`.
 - **Prompt version in use:** v6 (two-track, rollback-first, 3 real clients)
 
 ## Track A — current position
@@ -46,28 +47,34 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   (`boardroomDisplaySpan` 8×, `MAX_FILES = 10`, 43 files). Production baseline captured
   first at `~/constrovet-live-baseline-20260918.tar.gz` (121,530 bytes, verified
   byte-identical to the audit pull) — that is the rollback artifact.
-- **Evidence:** live `clasp pull` on 2026-09-18 into a scratch dir proves live HEAD is
+- **Evidence (pre-push audit, now remediated — kept because it is what made the case):**
+  live `clasp pull` on 2026-09-18 into a scratch dir proved live HEAD was
   **byte-identical to repo commit `6078bb1` (2026-09-07 18:49)** — 11 days stale.
-  Specifically: live `Code.js` lines 2400 and 2484 still carry the storage-time
+  Specifically: live `Code.js` lines 2400 and 2484 still carried the storage-time
   `.slice(0, 500)` truncation (the EEV2-005/008 defect); `boardroomDisplaySpan` (the fix)
   appears 0× live vs 8× on `main`; 7 files present on `main` are absent live
   (`EEV2AuditJob`, `EEV2CitationTruncationRegression`, `EEV2GlobalBudgetGateRegression`,
   `EEV2GlobalDailyLimitFormPathRegression`, `EEV2MustBlockGateRegression`,
   `EEV2RowBoundaryRegression`, `EEV2SendGateChokePointRegression`). Repo-side tests
   remain green on `main`: `npm test` 27/27, `npm run test:harness` passing.
-  `gh pr view 20` = MERGED (repo-side S2 claim still true; live-side is not).
-- **Why the previous PASS was wrong:** the 2026-09-15 entry claimed "live Code.js is
-  byte-identical to repo Code.gs; live has the fix; 43/43 files match." All three are
-  false against live as pulled on 2026-09-18. Root cause below (versions created without
-  a preceding push) means a version *label* was read as evidence of a *push*.
+  `gh pr view 20` = MERGED. All of the above was corrected by the same-day push.
+- **Why the 2026-09-15 PASS was wrong (keep this — it is the reusable lesson):** that entry
+  claimed "live Code.js is byte-identical to repo Code.gs; live has the fix; 43/43 files
+  match." All three were false when checked on 2026-09-18. Root cause below (versions
+  created without a preceding push) means a version *label* was read as evidence of a
+  *push*. **A label is never evidence of a deploy. Pull it back and diff it.**
 - **Per-client status where a stage requires it:**
   - Client 1/2/3: unchanged and still the key mitigating fact — **no job has ever been
     run for any of the three clients**, so the live defect has reached no client report.
     Prime directive intact. This is what makes the drift urgent-but-not-an-incident.
 - **Open FOUNDER_ACTION_REQUIRED items awaiting Prof. Taran (raised 2026-09-18):**
-  1. Decide and execute the live Apps Script reconciliation push (see "Live push plan").
-     Precondition not yet met: capture the production baseline (`clasp pull` to scratch +
-     tarball) and identify the pinned deployment ID serving `/upload`.
+  - ~~1. Execute the live Apps Script reconciliation push~~ **DONE 2026-09-18.** Baseline
+    captured first, push and version 21 both verified by pulling back and diffing.
+  - **Still open:** one controlled `/upload` test submission, checked against the Apps
+    Script Executions panel, to confirm real traffic runs Version 21 (see Known open
+    items). Plus: set `GEMINI_DAILY_CALL_LIMIT` in Script Properties before the first real
+    client job — it now defaults to 10 calls/day project-wide, a cap that did not exist in
+    live before this push.
   - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
     pushed to `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki` (deliberately
     not `main`, which holds `sync-wiki.yml`-generated content with unrelated history).

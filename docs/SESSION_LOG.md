@@ -357,3 +357,52 @@ but which deployment serves `/upload` still needs confirming before the push.
 `STAGE_EXIT: S1 = FOUNDER_ACTION_REQUIRED | fix is correct in repo and tested, but is not live; live is 11 days stale at 6078bb1`
 `STAGE_EXIT: S2 = FOUNDER_ACTION_REQUIRED | PR #20 merged in repo, but the merged code has never been deployed`
 `STAGE_EXIT: S4 = PAUSED | readiness evidence cannot be built while live lacks the fixes being assessed; 21-day clock not compressed, gap days recorded as unlogged`
+
+---
+
+## 2026-09-18 (cont.) — Reconciliation push executed and independently verified
+
+**What happened.** Founder captured the production baseline
+(`~/constrovet-live-baseline-20260918.tar.gz`, 121,530 bytes — verified byte-identical to
+this session's audit pull, so it is a true pre-push snapshot), then ran `clasp push` and
+`clasp create-version` from `main`, producing version 21.
+
+**Verified, not assumed.** `scripts/session-context.sh` now reports **"IN SYNC -- live
+matches this working tree (43 files + manifest)"**. A `clasp pull --versionNumber 21`
+confirms version 21 genuinely contains the fix: `boardroomDisplaySpan` 8×, `MAX_FILES = 10`,
+43 files. The EEV2-005/008 storage-time truncation is gone from live. S1 and S2 are
+live-verified PASS. The 11-day drift is closed.
+
+**Diff reviewed before the push, not after.** 492 changed lines in `Code.gs`; 15 functions
+added; **zero functions removed** — purely additive plus the truncation fix. The manifest
+was byte-identical to live, so the push carried no OAuth-surface change. The `executionApi`
+/ `oauthScopes` manifest edits were deliberately excluded and remain on the test branch:
+bundling an authorization-surface change with a code reconciliation would have made any
+failure ambiguous. `clasp run` therefore stays blocked, by choice.
+
+**Gate defaults checked before the push.** The three new enforcement gates all fail safe:
+`eev2IsEmailAllowed_` returns true when its property is unset, and `eev2ResolveLimitValue_`
+falls back to conservative defaults rather than "unlimited". No Script Properties needed to
+be set first, so there was no lockout risk.
+
+**Hook false positive found and fixed (`ea16b08`).** Immediately after the push the drift
+check still reported DRIFT on `appsscript.json` — a trailing-newline-only difference, since
+Apps Script stores files without a final newline. Normalized both sides before comparing.
+A detector that reports drift every session trains people to ignore it, which is the exact
+failure the section exists to prevent.
+
+**Not verified / still open.** Which version real `/upload` traffic executes.
+`clasp deployments` shows the deployment at @21, but the founder's `clasp redeploy` command
+**errored** ("Read-only deployments may not be modified"; `-V NN` was pasted with the
+literal placeholder), so something other than that command moved it. Per this session's own
+lesson, a label is not proof. A `GET` on the `/exec` URL cannot settle it either — `doGet`
+returns identical output on v20 and v21 (confirmed HTTP 200, healthy). The Executions panel
+after one controlled test submission is the only thing that will.
+
+**Config item queued.** `DEFAULT_GEMINI_DAILY_CALL_LIMIT = 10` is now live — a project-wide
+daily cap that did not previously exist. Set `GEMINI_DAILY_CALL_LIMIT` deliberately before
+the first real client job rather than discovering it as a mid-job failure.
+
+`STAGE_EXIT: S1 = PASS | fix verified live by pulling version 21 back and diffing; live IN SYNC with main`
+`STAGE_EXIT: S2 = PASS | PR #20's merged code is now genuinely deployed and verified, not label-asserted`
+`STAGE_EXIT: S4 = RESUMABLE | blocker removed; resume daily log once /upload version is confirmed via Executions panel`
