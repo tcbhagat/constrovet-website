@@ -70,11 +70,10 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 - **Open FOUNDER_ACTION_REQUIRED items awaiting Prof. Taran (raised 2026-09-18):**
   - ~~1. Execute the live Apps Script reconciliation push~~ **DONE 2026-09-18.** Baseline
     captured first, push and version 21 both verified by pulling back and diffing.
-  - **Still open:** one controlled `/upload` test submission, checked against the Apps
-    Script Executions panel, to confirm real traffic runs Version 21 (see Known open
-    items). Plus: set `GEMINI_DAILY_CALL_LIMIT` in Script Properties before the first real
-    client job — it now defaults to 10 calls/day project-wide, a cap that did not exist in
-    live before this push.
+  - ~~Confirm which version real `/upload` traffic runs~~ **DONE 2026-09-18** — editor's
+    Manage deployments panel shows the deployment at Version 21. Chain verified end to end.
+  - **Still open:** rotate `GEMINI_API_KEY` (exposed in a screenshot). Optionally fix the
+    `value || DEFAULT` zero-handling bug. Neither blocks client work.
   - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
     pushed to `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki` (deliberately
     not `main`, which holds `sync-wiki.yml`-generated content with unrelated history).
@@ -104,7 +103,40 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
-- **OPEN, low severity, 2026-09-18 — which version does real `/upload` traffic execute?**
+- **RESOLVED 2026-09-18 — `/upload` confirmed serving Version 21.** The Apps Script editor's
+  Manage deployments panel shows deployment
+  `AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMB…` configured as **"Version 21 on 18 Sept 2026, 02:16"**
+  with description "Reconcile live with main: EEV2-008…", and its Web app URL is the same
+  `/exec` endpoint hardcoded in `assets/js/constrovet-app-config.js`. That is the editor's
+  own configuration record, not a CLI label. The prior @19/@20 deployments are archived.
+  The full chain is now verified end to end: repo → push → version 21 → the deployment real
+  upload traffic hits. **The EEV2-005/008 truncation fix is genuinely serving production.**
+
+- **CORRECTION 2026-09-18 — an earlier warning in this session was wrong.** It claimed
+  `DEFAULT_GEMINI_DAILY_CALL_LIMIT = 10` could exhaust mid-job and fail a document-heavy
+  client job. Checked against the code: `geminiRelevanceDailyLimit()` is consulted only by
+  the **image relevance classifier** (`Code.gs:4747`), it **degrades gracefully**
+  (returns `QUOTA_SKIPPED`, does not fail the job), and `ENABLE_GEMINI_RELEVANCE_GATE` is
+  `false`, so it is inert today. The verifier budget that actually matters,
+  `GEMINI_VERIFIER_DAILY_LIMIT`, **is** set (20), as is `GLOBAL_DAILY_JOB_LIMIT` (20).
+  Setting `GEMINI_DAILY_CALL_LIMIT` is optional, not a precondition for client work.
+
+- **OPEN, latent — `value || DEFAULT` defeats a deliberate zero.** `geminiRelevanceDailyLimit()`
+  (`Code.gs:4841-4842`) and `geminiMaxClassifierBytes()` (`:4846-4847`) both do
+  `Number(prop || DEFAULT)` then `value || DEFAULT`, so a property deliberately set to `0`
+  silently becomes the default. This directly contradicts `eev2ResolveLimitValue_`, whose
+  own comment states "0 is honoured as a real value (a deliberate hard stop / maintenance
+  mode)". Two limit-readers with opposite semantics. Harmless while the relevance gate is
+  off — but it is exactly the trap that bites during an incident, when someone sets a limit
+  to 0 to stop everything and it does not stop.
+
+- **OPEN, security, 2026-09-18 — `GEMINI_API_KEY` was exposed in a screenshot** shared into
+  a Claude Code session while reviewing Script Properties. The value is legible in the
+  image. Rotate the key in Google AI Studio / GCP and update the Script Property. Treat as
+  routine hygiene rather than a breach, but do not skip it.
+
+- ~~**OPEN, low severity, 2026-09-18 — which version does real `/upload` traffic execute?**~~
+  *(resolved above; original text retained for the reasoning trail)*
   `clasp deployments` shows the `/upload` deployment
   (`AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ`, hardcoded
   in `assets/js/constrovet-app-config.js`) at **@21**, which is the reconciled version.
