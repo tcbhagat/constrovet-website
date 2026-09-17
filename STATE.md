@@ -34,10 +34,18 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Track A — current position
 
-- **Current stage:** S1 = **REOPENED**, S2 = **REOPENED**, S3 = PASS (in repo only),
-  S4 = IN PROGRESS (day 4 of ~21, started 2026-09-15, branch
-  `test/phase2-readiness-20260915`, now pushed to origin)
-- **Status:** **FOUNDER_ACTION_REQUIRED** — live Apps Script does not contain the S1/S2 fix.
+- **Current stage:** S1 = **PASS (live-verified 2026-09-18)**, S2 = **PASS (live-verified
+  2026-09-18)**, S3 = PASS, S4 = PAUSED → resumable (day 4 of ~21, started 2026-09-15,
+  branch `test/phase2-readiness-20260915`, pushed to origin)
+- **Status:** in-progress — the 11-day drift is closed; one confirmation still outstanding
+  (which deployment version real `/upload` traffic executes — see Known open items).
+- **Reconciliation result (2026-09-18):** founder ran `clasp push` + `clasp create-version`
+  from `main`. Verified independently, not from labels: `scripts/session-context.sh` now
+  reports **"IN SYNC -- live matches this working tree (43 files + manifest)"**, and a
+  `clasp pull --versionNumber 21` confirms version 21 genuinely contains the fix
+  (`boardroomDisplaySpan` 8×, `MAX_FILES = 10`, 43 files). Production baseline captured
+  first at `~/constrovet-live-baseline-20260918.tar.gz` (121,530 bytes, verified
+  byte-identical to the audit pull) — that is the rollback artifact.
 - **Evidence:** live `clasp pull` on 2026-09-18 into a scratch dir proves live HEAD is
   **byte-identical to repo commit `6078bb1` (2026-09-07 18:49)** — 11 days stale.
   Specifically: live `Code.js` lines 2400 and 2484 still carry the storage-time
@@ -89,7 +97,23 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
-- **OPEN, P0, found 2026-09-18 — LIVE APPS SCRIPT IS 11 DAYS STALE.** Live HEAD equals
+- **OPEN, low severity, 2026-09-18 — which version does real `/upload` traffic execute?**
+  `clasp deployments` shows the `/upload` deployment
+  (`AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ`, hardcoded
+  in `assets/js/constrovet-app-config.js`) at **@21**, which is the reconciled version.
+  **But this is a label, and this project has just been burned by trusting labels.** The
+  founder's `clasp redeploy` command actually **errored** ("Read-only deployments may not
+  be modified" — `-V NN` was pasted with the literal placeholder), so whatever moved that
+  deployment to @21, it was not that command. Treat @21 as probable, not proven.
+  **How to prove it:** the Apps Script editor's Executions panel shows the deployment/
+  version column for each real execution. Run one controlled test submission through
+  `/upload` and confirm the row reads Version 21. A `GET` on the `/exec` URL cannot settle
+  this — `doGet` returns identical output on v20 and v21 (confirmed HTTP 200, healthy).
+  Note also: this deployment has advanced on its own before (@17 → @20 → @21 across
+  sessions), so "pinned" may be the wrong mental model for it — worth establishing.
+
+- **RESOLVED 2026-09-18 — the 11-day drift is closed.** Retained because the failure mode
+  is the important part. Original finding: live HEAD equalled
   repo commit `6078bb1` (2026-09-07). Every PR merged since then has never reached
   production: #23, #32 (the EEV2-008 citation-truncation fix), #34, #36, #38, #39, #40,
   #41, #44, plus all 2026-09-17 work.
@@ -242,9 +266,18 @@ as paused pending the live reconciliation, and the pause recorded honestly in th
 branch log (which also has an unlogged gap for 2026-09-16 and 2026-09-17 — do **not**
 back-fill those; record them as unlogged).
 
-**The one concrete next action:** Prof. Taran executes the live push plan below, then a
-fresh `clasp pull` confirms live matches `main` byte-for-byte. Until that lands and is
-verified, S1/S2 stay REOPENED and S4 stays paused.
+**DONE 2026-09-18.** The push landed and was verified independently: live is IN SYNC with
+`main` (43 files + manifest), and version 21 was pulled back and confirmed to contain the
+fix. S1/S2 are live-verified PASS.
+
+**The one concrete next action:** run a single controlled test submission through `/upload`
+and confirm the Apps Script Executions panel shows it ran **Version 21**. That is the last
+unproven link in the chain — everything upstream of it is now verified. Once it reads 21,
+S4 can resume its daily log (recording 2026-09-16/17 as unlogged, never back-filled).
+
+Also queue, before the first real client job: set `GEMINI_DAILY_CALL_LIMIT` in Script
+Properties deliberately. It now defaults to 10 calls/day project-wide — a cap that did not
+exist in live before this push, and one a single document-heavy client job could exhaust.
 
 ### Live push plan (FOUNDER ACTION — do not improvise under pressure)
 
