@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(clasp open *)",
+      "Bash(git commit -m 'Fix upload page to integrate with Apps Script email pipeline *)"
+    ]
+  }
+}

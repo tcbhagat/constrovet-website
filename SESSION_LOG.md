@@ -4918,3 +4918,167 @@ This session: the user explicitly confirmed permanent deletion after reviewing t
 
 **Assumptions:**
 - /app/ (the "try before you buy" local demo) intentionally keeps its multi-button, preview-first flow -- only /upload/ (the real project-data submission page) was changed to single-click submit, per the user's explicit ask that "just after hitting Submit... the report should be emailed."
+
+---
+## Session end: 2026-09-15 11:52
+
+
+---
+## Session end: 2026-09-15 11:54
+
+
+---
+## Session end: 2026-09-15 12:05
+
+
+---
+## Session end: 2026-09-15 12:12
+
+
+---
+## Session end: 2026-09-15 12:20
+
+
+---
+## Session end: 2026-09-15 12:29
+
+
+---
+## Session end: 2026-09-15 12:36
+
+
+---
+## Session end: 2026-09-15 12:38
+
+
+---
+## Session end: 2026-09-15 12:38
+
+
+---
+## Session end: 2026-09-15 12:44
+
+
+---
+## Session end: 2026-09-15 12:45
+
+
+---
+## Session end: 2026-09-15 12:48
+
+
+---
+## Session end: 2026-09-15 12:52
+
+
+---
+## Session end: 2026-09-15 12:56
+
+
+---
+## Session end: 2026-09-15 13:01
+
+
+---
+## Session end: 2026-09-15 13:04
+
+
+---
+## Session end: 2026-09-15 13:22
+
+
+---
+## Session end: 2026-09-15 13:31
+
+
+---
+## Session end: 2026-09-15 13:34
+
+
+---
+## Session end: 2026-09-15 15:23
+
+
+---
+## Session end: 2026-09-15 15:26
+
+
+---
+## Session end: 2026-09-15 15:30
+
+
+---
+## Session end: 2026-09-15 15:38
+
+
+---
+## Session end: 2026-09-15 15:46
+
+
+---
+## Session end: 2026-09-15 15:50
+
+
+---
+## Session end: 2026-09-15 15:53
+
+
+---
+## Session end: 2026-09-15 16:03
+
+
+---
+## Session end: 2026-09-15 16:17
+
+
+---
+## Session end: 2026-09-15 16:21
+
+
+---
+## Session end: 2026-09-15 16:25
+
+
+---
+## Session end: 2026-09-15 16:35
+
+
+---
+## Session end: 2026-09-15 16:39
+
+
+---
+## Session end: 2026-09-15 16:48
+
+
+---
+## Session end: 2026-09-15 17:10
+
+
+---
+## Session end: 2026-09-15 17:12
+
+
+---
+## Session end: 2026-09-15 17:23
+
+
+---
+## Session end: 2026-09-17 14:34
+
+
+---
+## Session end: 2026-09-17 14:41
+
+
+---
+## Session end: 2026-09-17 15:04
+
+
+---
+## Session end: 2026-09-17 16:31
+
+
+---
+## Session end: 2026-09-17 16:43
+
