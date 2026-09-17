@@ -107,8 +107,20 @@ const VALIDATION_ALERT_EMAIL = "bhagat.taran@gmail.com";
    ============================================================ */
 
 function doPost(e) {
+  // Hoisted so the catch block below can still reach these if the failure
+  // happens after they were assigned -- `const` inside the try body is not
+  // visible in `catch`, which is why every earlier failure here left zero
+  // trace: this function's own catch block never logged anything AND the
+  // client's fetch() uses mode: "no-cors", so the response body is
+  // unreadable too. Writing a Drive file in the catch block (below) is
+  // deliberately independent of Stackdriver/Cloud Logging, which was found
+  // 2026-09-17 to not be reliably surfacing console.error output for this
+  // project's executions even minutes later -- Drive writes are already
+  // proven reliable (job-state.json itself is written the same way).
+  let payload;
+  let folders;
   try {
-    const payload = parseRequest(e);
+    payload = parseRequest(e);
     validatePayload(payload);
     // EEV2-014: these two run BEFORE prepareJobFolders() so a refused request
     // creates no Drive folders and consumes no Gemini quota. Order matters:
@@ -118,7 +130,7 @@ function doPost(e) {
     enforceRateLimit(payload.email);
     rememberLatestBoardroomJob(payload.job_id);
 
-    const folders = prepareJobFolders(payload.job_id);
+    folders = prepareJobFolders(payload.job_id);
     writeJobState(folders, newJobState(payload.job_id, JOB_STATE_INTAKE_RECEIVED, {
       mode: payload.mode,
       email: payload.email,
@@ -242,7 +254,32 @@ function doPost(e) {
         : "Browser report generated. Use the result_url if email delivery is delayed or blocked."
     });
   } catch (error) {
-    return jsonResponse({ ok: false, error: error && error.message ? error.message : String(error) });
+    // Was silent before this fix: the client's fetch() uses mode: "no-cors",
+    // so it can never read this response body. console.error alone (tried
+    // 2026-09-17) turned out not to be enough either -- Stackdriver/Cloud
+    // Logging was not reliably surfacing it, even many minutes later, across
+    // several real failing executions that all showed "Completed" with "No
+    // logs available" in the Apps Script editor's own Executions panel. This
+    // writes the error to a real Drive file instead -- the same mechanism
+    // job-state.json already uses, independently verified working even when
+    // everything else in this catch block is failing.
+    const message = error && error.message ? error.message : String(error);
+    const stack = error && error.stack ? error.stack : "";
+    console.error("doPost failed: " + message + (stack ? "\n" + stack : ""));
+    try {
+      if (folders && folders.outputs) {
+        const idForFile = (payload && payload.job_id) || ("unknown-job-" + new Date().toISOString().replace(/[:.]/g, "-"));
+        folders.outputs.createFile(
+          `${idForFile}-DOPOST_ERROR.json`,
+          JSON.stringify({ job_id: idForFile, occurred_at: new Date().toISOString(), message, stack }, null, 2),
+          MimeType.PLAIN_TEXT
+        );
+      }
+    } catch (writeError) {
+      // Never let the diagnostic write itself mask the real error response.
+      console.error("Additionally failed to write DOPOST_ERROR.json: " + (writeError && writeError.message ? writeError.message : String(writeError)));
+    }
+    return jsonResponse({ ok: false, error: message });
   }
 }
 
