@@ -91,6 +91,14 @@ else
   fi
   pull_exit=$?
 
+  # Apps Script stores files without a trailing newline, so a byte-for-byte diff
+  # flags every file as differing on that alone. Normalize both sides first --
+  # a detector that reports drift every session trains people to ignore it,
+  # which is the failure this whole section exists to prevent.
+  same_content() {
+    diff -q <(sed -e '$a\' "$1") <(sed -e '$a\' "$2") >/dev/null 2>&1
+  }
+
   if [[ $pull_exit -ne 0 ]]; then
     if grep -qi "invalid_grant\|invalid_rapt\|login\|not logged in\|credential" <<<"$pull_output"; then
       echo "NOT AVAILABLE -- clasp credentials appear to have expired or are missing."
@@ -109,7 +117,7 @@ else
       base="$(basename "$repo_file" .gs)"
       if [[ ! -f "$drift_dir/$base.js" ]]; then
         missing_live+=("$base")
-      elif diff -q "$repo_file" "$drift_dir/$base.js" >/dev/null 2>&1; then
+      elif same_content "$repo_file" "$drift_dir/$base.js"; then
         same=$((same + 1))
       else
         differ+=("$base")
@@ -124,7 +132,7 @@ else
 
     manifest_note=""
     if [[ -f "$drift_dir/appsscript.json" ]] && \
-       ! diff -q apps-script/appsscript.json "$drift_dir/appsscript.json" >/dev/null 2>&1; then
+       ! same_content apps-script/appsscript.json "$drift_dir/appsscript.json"; then
       manifest_note="appsscript.json DIFFERS (manifest controls OAuth scopes / executionApi)"
     fi
 
