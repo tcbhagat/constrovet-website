@@ -18,7 +18,7 @@
 
   const MAX_FILES = 10;
   const MAX_BYTES = 15 * 1024 * 1024;
-  const WORKSPACE_MAX_FILES = 3;
+  const WORKSPACE_MAX_FILES = 10;
   const WORKSPACE_MAX_BYTES = 10 * 1024 * 1024;
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const CASH_HIGH = 5000000;

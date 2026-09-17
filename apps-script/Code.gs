@@ -1,6 +1,6 @@
 const CONSTROVET_ROOT_FOLDER = "Constrovet";
 const CONSTROVET_PROJECTS_FOLDER = "projects";
-const MAX_FILES = 3;
+const MAX_FILES = 10;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 // EEV2-004: characters of text before a currency marker that count as that
 // figure's label region. Matches the 40-char preceding window live CHECK 5c
