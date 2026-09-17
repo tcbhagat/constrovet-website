@@ -159,8 +159,16 @@ function doPost(e) {
         MimeType.PLAIN_TEXT
       );
 
+      // Session.getActiveUser().getEmail() returns "" here: this web app is
+      // deployed ANYONE_ANONYMOUS, so there is no active user to read, and
+      // GmailApp then throws "Failed to send email: no recipient" -- which,
+      // being thrown inside the validation-failure branch, aborted doPost
+      // before the client ever got a response (confirmed live 2026-09-17,
+      // job cv-20260917174028-1svowy). VALIDATION_ALERT_EMAIL already exists
+      // for exactly this reason on the form-trigger path; this path was
+      // simply never switched over.
       GmailApp.sendEmail(
-        Session.getActiveUser().getEmail(),
+        VALIDATION_ALERT_EMAIL,
         `[VALIDATION FAILED] Constrovet Job ${payload.job_id}`,
         `Report for job ${payload.job_id} FAILED validation and was NOT sent to the client.\n\n` +
         `Errors:\n${validationResult.errors.join("\n")}\n\n` +
