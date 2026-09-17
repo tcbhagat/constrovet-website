@@ -113,6 +113,50 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **P0 — EEV2-018: PRIME DIRECTIVE VIOLATION, SHIPPED. Found 2026-09-18.**
+  **STOP CONDITION: no client job may be run until this is fixed.**
+  Job `cv-20260917223525-2z8936` delivered an "Executive Action Plan" headlining
+  **"Cited quantified recoverable leakage totals INR 5,400 across 12 finding(s)"** from a
+  source CSV denominated entirely in **US dollars**. The report's own Citations section
+  prints the proof: `"Budget: $45,000.00 | Actual: $46,000.00"` rendered as
+  `"overrun of INR 1,000"`. Every one of the 12 findings is a USD figure relabelled INR.
+  The arithmetic is correct ($5,400 total); **the currency is fabricated.** The charter
+  forbids exactly this: "no fabricated **or mislabeled** financial figure may ship."
+
+  **Root cause chain (verified, `Code.gs`):**
+  1. `boardroomParseAmount()` falls through to `/-?\d+(?:\.\d+)?/`, which matches digits
+     in any string and **discards the currency symbol entirely** — `"$45,000.00"` → `45000`.
+     No currency is captured, stored, or compared.
+  2. `boardroomCsvBudgetActualFinding()` (`:2405-2415`) then **hardcodes the label**:
+     `` `CSV row shows Actual - Budget overrun of INR ${formatInr(actual - budget)}.` ``
+  3. `formatInr()` applies `toLocaleString("en-IN")` — Indian digit grouping — to whatever
+     number it is handed, regardless of origin.
+  4. The value is stored in the `amount_inr` field, so every downstream total, Board
+     Decision, and action item inherits the false denomination.
+
+  **Why the validator did not catch it:** the currency guard (`hasCurrencyContext`, matching
+  `\bINR\b|\bRs\b\.?|₹`) protects the **narrative/cited-amount** path. These 12 findings
+  are `STRUCTURED_CITED_EVIDENCE`, computed arithmetically from parsed columns, which
+  bypasses the citation-text check. The report itself shows the gap: "Cited findings 12"
+  alongside **"Cited amount findings: 0"**. The structured path has **no currency guard at
+  all**. Any non-INR CSV — USD, EUR, GBP — is silently relabelled INR.
+
+  **Client exposure: none.** Sent to `admin@constrovet.com` (founder's own address) during
+  controlled testing; no client job has ever run. Prime directive is intact *in the field*,
+  but the capability to violate it is live in production right now.
+
+  **Also wrong in the same report (report-integrity defects, lower severity):**
+  - Headline says "across 12 finding(s)"; Board Decision says "across **2** finding(s)".
+  - Headline exposure INR 5,400; "Top 3 Decisions" says "**INR 1,000** cited exposure"
+    (the largest single row presented as the total exposure).
+  - "Cited findings 12" vs "Cited amount findings: 0" — contradictory on the same page.
+  - "No-signal docs" and "Critical / high" render blank or 0 with no basis shown.
+
+  **Minimum fix:** capture the currency symbol in `boardroomParseAmount()`, refuse to emit
+  an INR-labelled finding when the source token is not INR/Rs/₹, and extend the validator's
+  currency guard to cover `STRUCTURED_CITED_EVIDENCE`. A regression fixture with a USD CSV
+  must assert the report is blocked, not relabelled.
+
 - **RESOLVED 2026-09-18 — end-to-end live test submission PASSED on Version 21.**
   Job `cv-20260917214914-9jo4kb`, mode DEEP_ANALYSIS, generated 2026-09-17T21:49:37Z
   (03:19 IST 18 Sept), delivered by email. Three things this proves at once:
