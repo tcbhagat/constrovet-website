@@ -40,8 +40,10 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   branch `test/phase2-readiness-20260915`, pushed to origin)
 - **Status:** in-progress — the 11-day drift is closed and the deploy chain is verified end
   to end (repo → push → version 21 → the `/upload` deployment), and the exposed
-  `GEMINI_API_KEY` has been rotated. Remaining items are non-blocking hygiene: confirm the
-  new key out of band (HTTP 200), the `value || DEFAULT` zero-handling bug, and the
+  `GEMINI_API_KEY` has been rotated **and proven working by a real DEEP_ANALYSIS job**.
+  Remaining items are non-blocking: three reporting defects found by that test run
+  (`form_intake` unset on the `/upload` path, the processed/no-signal counter mismatch, and
+  the misdirected OCR guidance), plus the `value || DEFAULT` zero-handling bug and the
   failed-call-still-charges-budget behaviour.
 - **Reconciliation result (2026-09-18):** founder ran `clasp push` + `clasp create-version`
   from `main`. Verified independently, not from labels: `scripts/session-context.sh` now
@@ -75,9 +77,11 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
     captured first, push and version 21 both verified by pulling back and diffing.
   - ~~Confirm which version real `/upload` traffic runs~~ **DONE 2026-09-18** — editor's
     Manage deployments panel shows the deployment at Version 21. Chain verified end to end.
-  - ~~Rotate `GEMINI_API_KEY`~~ **DONE 2026-09-18** — rotated and Script Property updated.
-    Verify once with an out-of-band `curl` (HTTP 200) so a bad key cannot burn verifier
-    budget through repeated job failures.
+  - ~~Rotate `GEMINI_API_KEY`~~ **DONE 2026-09-18** — rotated, Script Property updated, and
+    proven working by job `cv-20260917214914-9jo4kb` completing a real DEEP_ANALYSIS run.
+  - **Next, before any client job:** fix the three `/upload` reporting defects below. A
+    client receiving "Files received: unknown" alongside "no findings" will read it as the
+    tool failing, not as an honest evidence exception.
   - **Still open, non-blocking:** the `value || DEFAULT` zero-handling bug, and the
     failed-call-still-charges-budget behaviour. Neither blocks client work.
   - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
