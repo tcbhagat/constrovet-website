@@ -38,8 +38,10 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 - **Current stage:** S1 = **PASS (live-verified 2026-09-18)**, S2 = **PASS (live-verified
   2026-09-18)**, S3 = PASS, S4 = PAUSED → resumable (day 4 of ~21, started 2026-09-15,
   branch `test/phase2-readiness-20260915`, pushed to origin)
-- **Status:** in-progress — the 11-day drift is closed; one confirmation still outstanding
-  (which deployment version real `/upload` traffic executes — see Known open items).
+- **Status:** in-progress — the 11-day drift is closed and the deploy chain is verified end
+  to end (repo → push → version 21 → the `/upload` deployment). Remaining items are hygiene,
+  not blockers: rotate the exposed `GEMINI_API_KEY`, and optionally fix the
+  `value || DEFAULT` zero-handling bug.
 - **Reconciliation result (2026-09-18):** founder ran `clasp push` + `clasp create-version`
   from `main`. Verified independently, not from labels: `scripts/session-context.sh` now
   reports **"IN SYNC -- live matches this working tree (43 files + manifest)"**, and a
