@@ -81,11 +81,23 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
     Manage deployments panel shows the deployment at Version 21. Chain verified end to end.
   - ~~Rotate `GEMINI_API_KEY`~~ **DONE 2026-09-18** — rotated, Script Property updated, and
     proven working by job `cv-20260917214914-9jo4kb` completing a real DEEP_ANALYSIS run.
-  - **Next, before any client job:** fix the three `/upload` reporting defects below. A
-    client receiving "Files received: unknown" alongside "no findings" will read it as the
-    tool failing, not as an honest evidence exception.
-  - **Still open, non-blocking:** the `value || DEFAULT` zero-handling bug, and the
-    failed-call-still-charges-budget behaviour. Neither blocks client work.
+  - ~~Fix the three `/upload` reporting defects~~ **DONE 2026-09-18** (`13d4d89`):
+    `report.form_intake` now set on the doPost path (was "Files received: unknown" on every
+    report); `documents_processed_count` / `documents_with_no_signal` now carried through
+    `buildEvidencePayload` (both read 0 even when a document was scanned and named in the
+    same email); and the OCR guidance rewritten to ask for a text-searchable PDF or a CSV
+    instead of telling clients to enable a server-side Drive service they cannot reach.
+  - ~~Fix the `value || DEFAULT` zero-handling bug~~ **DONE 2026-09-18** (`13d4d89`):
+    `geminiRelevanceDailyLimit()` and `geminiMaxClassifierBytes()` now use
+    `eev2ReadLimitProperty_`, so a property set to 0 is honoured as a deliberate hard stop.
+  - **Still open, deliberately NOT changed — failed Gemini calls still consume daily
+    budget.** `runGeminiVerifier()` calls `enforceGeminiVerifierBudget()` before
+    `UrlFetchApp.fetch` and throws on HTTP >= 400, so an invalid key or a Gemini outage
+    fails the job *and* charges one of the 20 daily calls. The ordering is **deliberate and
+    documented in the code**: DEEP_ANALYSIS can reach the paid path more than once per
+    submission, so charging before the call is what actually bounds spend. Reversing it
+    trades a spend guarantee for a resilience gain — a founder decision, not a cleanup.
+    Raise it only if a real outage makes it bite.
   - ~~2. Push the local wiki repo~~ **DONE 2026-09-18.** Founder added the remote and
     pushed to `tcbhagat/-llm-wiki-constrovet` branch `stage0-operations-wiki` (deliberately
     not `main`, which holds `sync-wiki.yml`-generated content with unrelated history).

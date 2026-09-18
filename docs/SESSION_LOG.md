@@ -463,3 +463,43 @@ and `dashboard-analyzer.js` — which drift independently. A fix to one is not a
 
 `STAGE_EXIT: EEV2-018 = PASS | USD figures no longer relabelled INR; blocked at source in the browser and by CHECK 5f server-side; verified on live traffic, not from a version label`
 `STAGE_EXIT: S1 = PASS (rescoped) | server-side fix confirmed 2026-09-08 and live; client-side truncation found and fixed 2026-09-18 — the original PASS covered only half the pipeline`
+
+---
+
+## 2026-09-18 (cont.) — Remaining report defects and the zero-limit trap closed
+
+Four fixes, all found by the EEV2-018 investigation rather than reported separately.
+
+**"Files received: unknown" on every `/upload` report.** `report.form_intake` was set only
+inside `handleBoardroomFormSubmit()`, so `renderIntakeKpisEmailHtml()` fell through to its
+`"unknown"` literal for both received and accepted counts — on the product's primary intake
+path. The counts were known all along and already written to job state. Now set on the
+doPost path from `payload.files.length` and `savedFiles.length`.
+
+**"Documents processed: 0" beside a named scanned document.** The browser computed the
+counters inside `executive_brief`, but `buildEvidencePayload()` — which is literally what
+the server receives as `browser_report` — never forwarded them, and the email reads them at
+the top level. Anything that payload omits renders as 0 no matter what was scanned. Counted
+in `buildOutput()` and carried explicitly, with a test asserting they survive the trip.
+
+**OCR guidance aimed at the wrong person.** The exception email told clients to "enable Apps
+Script Advanced Drive service OCR": an administrator action no client can take, on a path
+where extraction is client-side pdf.js with no OCR at all. Rewritten to ask for what the
+client can actually supply — a PDF whose text can be selected, or a CSV.
+
+**Zero-limit trap.** `geminiRelevanceDailyLimit()` and `geminiMaxClassifierBytes()` both did
+`value || DEFAULT`, so a property deliberately set to 0 silently became the default —
+contradicting `eev2ResolveLimitValue_`, whose own comment states 0 is a deliberate hard
+stop. Both now share that one correct reader.
+
+**Deliberately not changed.** Failed Gemini calls still consume daily budget:
+`enforceGeminiVerifierBudget()` runs before the fetch and the fetch throws on HTTP >= 400.
+The ordering is documented as intentional — DEEP_ANALYSIS can reach the paid path more than
+once per submission, so charging first is what bounds spend. Reversing it trades a spend
+guarantee for a resilience gain, which is a founder decision rather than a cleanup.
+
+**Verified.** `npm test` 33/33, harness 21/21 suites, 0 external calls. Cache-bust bumped to
+`v=20260918c`. **Not verified:** `form_intake` is on the doPost path, which the harness does
+not cover — the next real submission is what confirms the counters render.
+
+`STAGE_EXIT: upload-report-defects = PASS | intake counters, document counters, and client-facing OCR guidance all corrected; zero-limit trap closed; one budget-ordering item deferred to founder with reasons recorded`
