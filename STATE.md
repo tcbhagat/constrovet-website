@@ -127,6 +127,22 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **RESOLVED 2026-09-18 — `/upload` deployment at Version 24, all fixes verified live.**
+  `clasp redeploy ... -V 24` returned `Redeployed ... @24` and `clasp deployments` confirms
+  `@24 - Report defects fixed`. Contents verified by pulling version 24 back and grepping,
+  not from the label: `API_POST_PAYLOAD` (form_intake on the doPost path) ×1, the rewritten
+  OCR guidance ×1, `eev2ReadLimitProperty_(GEMINI_...)` ×3, `boardroomHasForeignCurrency` ×3.
+  Live HEAD reports IN SYNC (44 files + manifest). Site serves `?v=20260918c` with
+  `documents_processed_count` carried through `buildEvidencePayload` ×2.
+
+- **GOTCHA, resolved 2026-09-18 — `Read-only deployments may not be modified` does NOT mean
+  the deployment is read-only.** It is what `clasp redeploy` returns when `-V` is not a
+  valid version number. It appeared twice this session, both times from pasting the literal
+  placeholder `NN` instead of a real number, and the first occurrence cost a full
+  investigation cycle because the message was read as a permissions problem. With a real
+  number the same command succeeds immediately. **Always substitute the number before
+  pasting, and read this error as "bad -V argument", not "cannot deploy".**
+
 - **CORRECTION 2026-09-18 — S1/S2's "live-verified PASS" covered only half the pipeline.**
   `assets/js/dashboard-analyzer.js` held `quoted_span: span.slice(0, 500)` in its
   `finding()` helper — **the EEV2-005/008 defect itself, still live on the client** — for
