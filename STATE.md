@@ -38,9 +38,11 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 - **Current stage:** S1 = **PASS (live-verified 2026-09-18)**, S2 = **PASS (live-verified
   2026-09-18)**, S3 = PASS, S4 = PAUSED → resumable (day 4 of ~21, started 2026-09-15,
   branch `test/phase2-readiness-20260915`, pushed to origin)
-- **Status:** in-progress — the 11-day drift is closed and the deploy chain is verified end
-  to end (repo → push → version 21 → the `/upload` deployment), and the exposed
-  `GEMINI_API_KEY` has been rotated **and proven working by a real DEEP_ANALYSIS job**.
+- **Status:** in-progress — the 11-day drift is closed, the deploy chain is verified end to
+  end (repo → push → **version 23** → the `/upload` deployment), the exposed
+  `GEMINI_API_KEY` has been rotated and proven working by a real DEEP_ANALYSIS job, and
+  **EEV2-018 is fixed in both the server and browser layers and verified blocking on live
+  traffic** (job `cv-20260918044018-hf5eq5`). The prime-directive stop condition is lifted.
   Remaining items are non-blocking: three reporting defects found by that test run
   (`form_intake` unset on the `/upload` path, the processed/no-signal counter mismatch, and
   the misdirected OCR guidance), plus the `value || DEFAULT` zero-handling bug and the
@@ -127,7 +129,34 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   extraction or validation rule, check whether `dashboard-analyzer.js` holds a duplicate of
   the same logic — several rules exist in both copies and can drift independently.
 
-- **P0 EEV2-018 — FIX WRITTEN, NOT YET SERVING. Two deploys are required, not one.**
+- **RESOLVED 2026-09-18 — EEV2-018 CLOSED AND VERIFIED ON LIVE TRAFFIC. Stop condition
+  lifted.** Job `cv-20260918044018-hf5eq5` resubmitted the original USD CSV against the
+  redeployed Apps Script. Result: **all 12 findings blocked**, each with
+  `FOREIGN_CURRENCY_LABELLED_INR: Finding N claims INR <x> but its own citation shows a
+  non-INR currency`, the report **NOT sent to the client**, and the alert delivered to the
+  admin address with a Drive debug file and job folder link. Fail-closed, exactly as
+  designed. No INR-labelled dollar figure can now reach a report.
+
+  **Both layers are deployed and independently verified:**
+  - Apps Script: `/upload` deployment re-pointed to **Version 23** (`clasp redeploy`).
+    CHECK 5f live — proven by the block above, not by a label.
+  - Static site: Pages deploy succeeded; `https://www.constrovet.com/assets/js/dashboard-analyzer.js`
+    now serves `hasForeignCurrency` (2 occurrences) with `slice(0, 500)` gone (0
+    occurrences), and `/upload` references `?v=20260918b`.
+
+  **Defence in depth demonstrated for real.** The browser still emitted the 12 findings in
+  that job because the founder's open tab held the pre-fix JS — a cache-bust cannot help a
+  page already loaded (Pages completed 04:37Z, job ran 04:40Z). Layer 1 had not reached the
+  client; **layer 2 caught it anyway.** This is the concrete argument for keeping the guard
+  in both copies rather than trusting either alone.
+
+  **Remaining confirmation (cosmetic, not a blocker):** after a hard refresh of `/upload`,
+  the same CSV should produce an Evidence Intake Exception with **zero findings** instead of
+  a validation failure — i.e. refused at source rather than blocked at the gate. Both
+  outcomes are safe; the first is the better client experience.
+
+- ~~**P0 EEV2-018 — FIX WRITTEN, NOT YET SERVING. Two deploys are required, not one.**~~
+  *(resolved above; retained for the reasoning trail)*
   1. **Apps Script (`clasp`) — OUTSTANDING.** Versions 22 and 23 both contain the fix, but
      `clasp deployments` shows the `/upload` deployment still pinned at **`@21`**. The
      `clasp redeploy` step has not succeeded. Until it does, real traffic runs Version 21
