@@ -503,3 +503,38 @@ guarantee for a resilience gain, which is a founder decision rather than a clean
 not cover — the next real submission is what confirms the counters render.
 
 `STAGE_EXIT: upload-report-defects = PASS | intake counters, document counters, and client-facing OCR guidance all corrected; zero-limit trap closed; one budget-ordering item deferred to founder with reasons recorded`
+
+---
+
+## 2026-09-18 (cont.) — Manifest scope decision: analysed, deferred
+
+Picked up the `executionApi` / `oauthScopes` manifest question left over from the clasp-run
+investigation. Audited the branch's proposed scope list against actual service usage rather
+than deploying it: it is **both over-broad and incomplete**. It declares
+`https://mail.google.com/` — full Gmail, a Google *restricted* scope, and the specific cause
+of the 2026-09-15 "This app is blocked" screen — while omitting `script.scriptapp`
+(ScriptApp trigger calls ×7), `forms` (FormApp ×2), `documents` (DocumentApp ×1) and
+`userinfo.email` (Session ×2). Deploying it as written would have requested a restricted
+scope and still been wrong.
+
+Established what Gmail is actually needed for: `GmailApp.search` exists only in
+`EEV2AuditJob.gs`, serving 4-artifact audit artifacts 1 and 2. Artifact 1 falls back to the
+audit sheet; artifact 2 is Gmail-only and returns `held: false` on error, producing a false
+"alert was never sent" rather than a clean degrade.
+
+**Decision (founder, 2026-09-18): defer until after S4's canary window (~2026-10-06).**
+Reason: `/upload` runs `executeAs: USER_DEPLOYING` with `ANYONE_ANONYMOUS` access, and
+changing declared scopes commonly forces re-authorization — which would take down the live
+intake path, during the very weeks it is under daily S4 observation, to buy CLI convenience.
+The Apps Script editor fallback for `safety-gate-check` / `inconsistency-scan` /
+`xai-explain` continues to work and remains the standing path.
+
+**Verified:** service-usage audit run against all 44 `.gs` files; `clasp run
+eev2RunEvidenceHarnessV1` re-confirmed still returning "Unable to run script function";
+live manifest greps 0 for both `executionApi` and `oauthScopes`. **Not verified:** whether
+the Internal consent screen would now accept the restricted scope — deliberately untested,
+since testing it means requesting it. **Assumption stated:** that a scope change forces
+re-consent on this deployment is standard Apps Script behaviour but was not proven here;
+it is a reason to schedule the change deliberately, not a measured fact.
+
+`STAGE_EXIT: manifest-scope-decision = DEFERRED | analysed in full and recorded; founder deferred to after S4's canary window rather than risk /upload re-authorization for CLI convenience`

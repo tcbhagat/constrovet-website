@@ -129,6 +129,42 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **DEFERRED by founder decision 2026-09-18 — the `oauthScopes` / `executionApi` manifest
+  change stays OFF `main` until S4's canary window closes (~2026-10-06).** Revisit then; do
+  not re-open it mid-branch. The analysis below is done — reuse it, don't redo it.
+
+  **Why deferred:** `/upload` is deployed `executeAs: USER_DEPLOYING` with
+  `access: ANYONE_ANONYMOUS`. Changing the declared scope set commonly invalidates the
+  deploying user's authorization until re-consented, which would take down the live intake
+  path. The payoff is developer convenience (`clasp run`, so the S3 tools run from CLI
+  instead of the Apps Script editor); the downside lands on the product's primary path
+  while it is under daily S4 observation. Bad trade this month, reasonable trade later.
+
+  **The branch's proposed scope list is wrong — do not deploy it as-is.** It was never
+  derived from current code. Audited 2026-09-18 against real usage:
+  - Correct as declared: `drive` (DriveApp ×12 + advanced `Drive.Files`),
+    `spreadsheets` (SpreadsheetApp ×6), `script.external_request` (UrlFetchApp ×3),
+    `script.send_mail` (MailApp.sendEmail ×14).
+  - **Over-broad:** `https://mail.google.com/` is full Gmail and a Google **restricted**
+    scope — this is what produced the "This app is blocked" screen on 2026-09-15.
+  - **Missing entirely:** `script.scriptapp` (ScriptApp.newTrigger/deleteTrigger/
+    getProjectTriggers ×7), `forms` (FormApp.openById ×2), `documents`
+    (DocumentApp.openById ×1), `userinfo.email` (Session.getActiveUser().getEmail() ×2).
+
+  **What Gmail is actually for:** `GmailApp.search` appears only in `EEV2AuditJob.gs`, for
+  4-artifact audit artifacts 1 and 2 (searching the deploying account's own Sent mail).
+  Artifact 1 already falls back to the audit sheet. **Artifact 2 is Gmail-only and returns
+  `held: false` on failure** — i.e. a false "no VALIDATION FAILED alert was sent", which
+  reads as a safety failure rather than degrading cleanly. Dropping Gmail therefore costs
+  real audit fidelity, not just a nice-to-have.
+
+  **Trap for whoever picks this up:** the single `GmailApp.sendEmail` at `Code.gs:183` looks
+  like an easy swap to `MailApp.sendEmail` (its two sibling call sites at `:724` and `:1881`
+  already use MailApp for the same alert). **Do not swap it blind.** `EEV2AuditJob.gs`'s own
+  comment asserts the alert lands in Sent mail, which is how artifact 2 finds it — and
+  MailApp and GmailApp differ in whether they write to Sent. Verify empirically with a real
+  test alert before changing it, or artifact 2 breaks silently.
+
 - **RESOLVED 2026-09-18 — `/upload` deployment at Version 24, all fixes verified live.**
   `clasp redeploy ... -V 24` returned `Redeployed ... @24` and `clasp deployments` confirms
   `@24 - Report defects fixed`. Contents verified by pulling version 24 back and grepping,
