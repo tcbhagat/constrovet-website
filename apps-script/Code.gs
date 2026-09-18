@@ -147,6 +147,19 @@ function doPost(e) {
     }));
     const verifierResult = payload.mode === "DEEP_ANALYSIS" ? runGeminiVerifier(browserReport) : fallbackVerifier(browserReport);
     const report = buildReport(payload, browserReport, verifierResult, savedFiles);
+    // report.form_intake was only ever set on the Google Form path, so
+    // renderIntakeKpisEmailHtml() fell through to its "unknown" literal and every
+    // /upload report told the client "Files received: unknown / Files accepted:
+    // unknown" — while the counts were known all along and already written to
+    // job state above. A report that cannot say how many files it received
+    // undermines every other number on the page.
+    report.form_intake = {
+      submitted_at: new Date().toISOString(),
+      received_file_count: (payload.files || []).length,
+      accepted_file_count: savedFiles.length,
+      rejected_files: [],
+      submitter_email_source: "API_POST_PAYLOAD"
+    };
 
     // *** VALIDATION LAYER (PHASE 1) — runs ONCE, right after buildReport() ***
     const validationResult = validateReportOutput(report, browserReport);
@@ -3770,7 +3783,12 @@ function buildBoardroomIntakeRemediationPlan() {
   return {
     "7_days": [
       boardroomAction("Resubmit structured cost evidence", "Upload CSV evidence with columns such as Budget, Actual, Cost Incurred, Paid Amount, Invoice, Delay Days, Wastage, Rework, Diesel, Fuel, Energy, Water, or Emissions.", [], "LOW"),
-      boardroomAction("Confirm PDF OCR readiness", "If submitting PDFs, enable Apps Script Advanced Drive service OCR and use searchable PDFs or clear scans.", [], "LOW"),
+      // Previously told the reader to "enable Apps Script Advanced Drive service
+      // OCR" — an administrator action the client cannot take, and one that does
+      // not apply to /upload at all, where text extraction is client-side pdf.js
+      // with no OCR. A scanned PDF simply yields nothing there. Ask for what the
+      // client can actually supply.
+      boardroomAction("Submit a text-searchable PDF, or a CSV", "Scanned or photographed PDFs carry no text layer and produce no findings. Confirm you can select text in the PDF before submitting it; if you cannot, export the same data as CSV instead.", [], "LOW"),
       boardroomAction("Attach source traceability", "Include file names, BOQ line references, invoice IDs, payment references, or schedule row labels so every future finding can be cited.", [], "LOW")
     ],
     "30_days": [
@@ -4880,14 +4898,19 @@ function geminiRelevanceGateEnabled() {
   return String(PropertiesService.getScriptProperties().getProperty(GEMINI_RELEVANCE_GATE_PROPERTY) || "false").toLowerCase() === "true";
 }
 
+// Both readers previously did `value || DEFAULT`, so a property deliberately
+// set to 0 silently became the default — the opposite of what an operator
+// setting 0 intends, and a direct contradiction of eev2ResolveLimitValue_,
+// whose own comment states "0 is honoured as a real value (a deliberate hard
+// stop / maintenance mode)". Harmless while the relevance gate is off, but
+// exactly the trap that bites during an incident, when someone sets a limit to
+// 0 to stop something and it does not stop. Now share the one correct reader.
 function geminiRelevanceDailyLimit() {
-  const value = Number(PropertiesService.getScriptProperties().getProperty(GEMINI_DAILY_CALL_LIMIT_PROPERTY) || DEFAULT_GEMINI_DAILY_CALL_LIMIT);
-  return Math.max(0, Math.floor(value || DEFAULT_GEMINI_DAILY_CALL_LIMIT));
+  return eev2ReadLimitProperty_(GEMINI_DAILY_CALL_LIMIT_PROPERTY, DEFAULT_GEMINI_DAILY_CALL_LIMIT);
 }
 
 function geminiMaxClassifierBytes() {
-  const value = Number(PropertiesService.getScriptProperties().getProperty(GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER_PROPERTY) || DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER);
-  return Math.max(1, Math.floor(value || DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER));
+  return eev2ReadLimitProperty_(GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER_PROPERTY, DEFAULT_GEMINI_MAX_FILE_BYTES_FOR_CLASSIFIER);
 }
 
 function geminiRelevanceCallsUsedToday() {

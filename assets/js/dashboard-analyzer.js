@@ -301,6 +301,13 @@
     const executiveBrief = buildExecutiveBrief(citedFindings, documentsNotProcessed);
     return {
       findings: citedFindings,
+      // The email report reads these at the TOP level of browser_report. They
+      // previously existed only inside executive_brief, so every /upload report
+      // rendered "Documents processed: 0" and "No-signal documents: 0" even when
+      // a document had plainly been scanned and named in the Missing Evidence
+      // Request. Counted here, where the scan actually happens.
+      documents_processed_count: documents.length,
+      documents_with_no_signal: documentsNotProcessed.length,
       executive_brief: executiveBrief,
       top_5_actions: buildTopExecutiveActions(citedFindings),
       recoverable_cost_exposure: buildRecoverableCostExposure(citedFindings),
@@ -899,6 +906,11 @@
   function buildEvidencePayload(output) {
     return {
       findings: output.findings,
+      // Carried explicitly: this payload is what the server receives as
+      // browser_report, and anything omitted here reads as 0 in the client's
+      // report no matter what the scan actually found.
+      documents_processed_count: output.documents_processed_count,
+      documents_with_no_signal: output.documents_with_no_signal,
       executive_brief: output.executive_brief,
       top_5_actions: output.top_5_actions,
       recoverable_cost_exposure: output.recoverable_cost_exposure,

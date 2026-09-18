@@ -138,6 +138,20 @@ test("EEV2-018: the guard fails closed on a source tree without it", () => {
   assert.match(finding.statement, /INR 1,000/, "this is the mislabeling the guard prevents");
 });
 
+test("intake counters survive the trip to the server", () => {
+  // buildEvidencePayload is what the server receives as browser_report. Anything
+  // it omits renders as 0 in the client's report regardless of what was scanned,
+  // which is how every /upload report came to say "Documents processed: 0" while
+  // naming a scanned document in the same email.
+  const context = vm.createContext({ Number, String, Math, RegExp, JSON, Object, Array });
+  vm.runInContext(extractFunction("buildEvidencePayload"), context);
+  context.__output = { findings: [], documents_processed_count: 3, documents_with_no_signal: 1 };
+  const payload = JSON.parse(vm.runInContext("JSON.stringify(buildEvidencePayload(__output))", context));
+
+  assert.equal(payload.documents_processed_count, 3);
+  assert.equal(payload.documents_with_no_signal, 1);
+});
+
 test("EEV2-005/008: the browser must not truncate quoted_span before validation", () => {
   const context = loadAnalyzer();
   const longSpan = `Steel Framing budget line ${"x".repeat(900)} INR 46,000 invoiced`;
