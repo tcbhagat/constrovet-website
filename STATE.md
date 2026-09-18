@@ -36,8 +36,10 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 ## Track A — current position
 
 - **Current stage:** S1 = **PASS (live-verified 2026-09-18)**, S2 = **PASS (live-verified
-  2026-09-18)**, S3 = PASS, S4 = PAUSED → resumable (day 4 of ~21, started 2026-09-15,
-  branch `test/phase2-readiness-20260915`, pushed to origin)
+  2026-09-18)**, S3 = PASS, S4 = **IN PROGRESS, day 4 of ~21** (started 2026-09-15,
+  branch `test/phase2-readiness-20260915`, pushed to origin; wiki log updated 2026-09-18
+  and pushed to `stage0-operations-wiki`). Days 2 and 3 recorded as unlogged, deliberately
+  not back-filled. Readiness verdict NOT YET and not due — the clock cannot be compressed.
 - **Status:** in-progress — the 11-day drift is closed, the deploy chain is verified end to
   end (repo → push → **version 23** → the `/upload` deployment), the exposed
   `GEMINI_API_KEY` has been rotated and proven working by a real DEEP_ANALYSIS job, and
@@ -384,8 +386,18 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   hypothesis that cannot have been the cause, because the manifest it depended on was
   never live. Step 1's "added, pushed, confirmed live" was not true of live state.
   The three config fixes themselves remain real and correct — they simply have not been
-  deployed. Expect `clasp run` to start working once the live push below lands; do not
-  spend further time on Google OAuth policy until after that is verified.
+  deployed. **CORRECTION 2026-09-18: `clasp run` did NOT start working after the
+  reconciliation push, and the earlier expectation here was wrong.** The push came from
+  `main`, whose `appsscript.json` contains neither `executionApi` nor `oauthScopes` — those
+  edits exist only on branch `test/phase2-readiness-20260915`. Re-confirmed today:
+  `clasp run eev2RunEvidenceHarnessV1` still returns "Unable to run script function", and
+  the live manifest greps 0 for both keys. This is not a mystery and not a bug: deploying
+  the manifest would change the app's declared authorization surface, and it was
+  deliberately excluded from the code push so that any failure stayed unambiguous.
+  **To unblock `clasp run`, that manifest change has to be brought to `main` and deployed as
+  its own separate, deliberate decision** — never bundled with a code push. Until then the
+  Apps Script editor fallback stands, and no further time should go into Google OAuth
+  policy, which was never the cause.
 
 - SUPERSEDED 2026-09-18 by the two items above, retained for the investigation trail —
   original 2026-09-15 entry: `clasp run` Execution API permission ("Unable to run
