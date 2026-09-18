@@ -130,6 +130,35 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **OPEN, EEV2-019 candidate — found 2026-09-18 against REAL past-project data.** Founder
+  shared a completed-project corpus (Drive `1aSwKbwlgZBUIKnZb8N-ryBy31KPuHSNP`: `collected-TCB`,
+  `AHMEDABAD MALL-Savita`, `ESGdata-Nikita`). Two real documents were run through
+  `buildBoardroomOutput()` + `validateReportOutput()` **offline in the VM harness** (no
+  production call, no job created, no email). Results:
+  1. **`BOQ_Summary.pdf`** (real ₹50-crore BOQ, Rs. + Indian digit grouping): **0 findings**,
+     `documents_with_no_signal: 1`, `isValid: true`. Correct and honest — a baseline-only BOQ
+     has no variance to report. **Business consequence worth acting on:** a client submitting
+     only a BOQ will always receive an Evidence Intake Exception. Budget *and* actual must be
+     submitted together for the product to produce value. Worth saying so in the intake UI.
+  2. **`cashflow.pdf`** (real Q1 cash-flow statement, INR): **1 finding, and it is wrong.**
+     `amount_inr: 125000000` (the "Advance from Customers" *cash inflow*) categorised as
+     **`ESG_METRIC`**, `evidence_quality: CITED_AMOUNT`, and **`isValid: true`** — it passes
+     the gate. Only a warning fires:
+     `MULTI_AMOUNT_CITATION: Finding 0 cites INR 125000000 from a passage containing 52
+     separate currency figures`.
+     **Suspected root cause (not yet confirmed):** `boardroomEvidenceWindows()` splits on
+     sentence terminators, and a table-shaped document has almost none — so the entire
+     statement collapses into ONE window holding 52 figures. An ESG trigger term in that
+     window (the text contains "Equipment Fuel Hire") then claims the window, and
+     `boardroomFirstAmount()` attributes the *first* figure in it. This is the EEV2-004
+     trigger-term-ownership failure mode surviving on real table-shaped input.
+     **Severity:** not a fabrication — the figure exists in the document — but a customer
+     advance reported to a board as an ESG metric is a mislabel that would reach a client.
+     **Do not rush a fix:** changing windowing affects every extraction path. It needs its
+     own session with the full regression gate, not a change landed before a 10-day absence.
+     **Reproduction:** feed the document text as a single page to `buildBoardroomOutput()`;
+     the 52-figure warning is the marker.
+
 - **DEFERRED by founder decision 2026-09-18 — the `oauthScopes` / `executionApi` manifest
   change stays OFF `main` until S4's canary window closes (~2026-10-06).** Revisit then; do
   not re-open it mid-branch. The analysis below is done — reuse it, don't redo it.
