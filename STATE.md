@@ -41,14 +41,15 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
   and pushed to `stage0-operations-wiki`). Days 2 and 3 recorded as unlogged, deliberately
   not back-filled. Readiness verdict NOT YET and not due — the clock cannot be compressed.
 - **Status:** in-progress — the 11-day drift is closed, the deploy chain is verified end to
-  end (repo → push → **version 23** → the `/upload` deployment), the exposed
+  end (repo → push → **version 24** → the `/upload` deployment), the exposed
   `GEMINI_API_KEY` has been rotated and proven working by a real DEEP_ANALYSIS job, and
   **EEV2-018 is fixed in both the server and browser layers and verified blocking on live
   traffic** (job `cv-20260918044018-hf5eq5`). The prime-directive stop condition is lifted.
-  Remaining items are non-blocking: three reporting defects found by that test run
-  (`form_intake` unset on the `/upload` path, the processed/no-signal counter mismatch, and
-  the misdirected OCR guidance), plus the `value || DEFAULT` zero-handling bug and the
-  failed-call-still-charges-budget behaviour.
+  The three `/upload` reporting defects and the `value || DEFAULT` zero-limit trap are all
+  fixed and live in Version 24. Two items remain open **by deliberate decision, not
+  oversight**: failed Gemini calls still consume daily budget, and the `oauthScopes` /
+  `executionApi` manifest change is deferred until after S4 — both recorded with reasons
+  under Known open items.
 - **Reconciliation result (2026-09-18):** founder ran `clasp push` + `clasp create-version`
   from `main`. Verified independently, not from labels: `scripts/session-context.sh` now
   reports **"IN SYNC -- live matches this working tree (43 files + manifest)"**, and a
