@@ -113,6 +113,47 @@ this file is "where are we RIGHT NOW," overwritten each session, not appended to
 
 ## Known open items (carry forward until resolved)
 
+- **CORRECTION 2026-09-18 — S1/S2's "live-verified PASS" covered only half the pipeline.**
+  `assets/js/dashboard-analyzer.js` held `quoted_span: span.slice(0, 500)` in its
+  `finding()` helper — **the EEV2-005/008 defect itself, still live on the client** — for
+  ten days after `Code.gs` was fixed on 2026-09-08. `/upload` posts
+  `browser_report.findings` straight to the server, so the validator was checking claimed
+  figures against text the browser had already cut. The 2026-09-18 verification (live
+  `Code.js` byte-identical to repo, `boardroomDisplaySpan` present 8×) was true and still
+  is — it was simply **scoped to the server**. Fixed in `c6097a0`.
+  **Why it survived:** the regression gate loads only `.gs` files, so the browser analyzer
+  had *no test coverage of any kind*. That is the same reason EEV2-018 shipped.
+  **How to apply:** "verified live" now means server **and** client. When a fix touches an
+  extraction or validation rule, check whether `dashboard-analyzer.js` holds a duplicate of
+  the same logic — several rules exist in both copies and can drift independently.
+
+- **P0 EEV2-018 — FIX WRITTEN, NOT YET SERVING. Two deploys are required, not one.**
+  1. **Apps Script (`clasp`) — OUTSTANDING.** Versions 22 and 23 both contain the fix, but
+     `clasp deployments` shows the `/upload` deployment still pinned at **`@21`**. The
+     `clasp redeploy` step has not succeeded. Until it does, real traffic runs Version 21
+     and CHECK 5f does not exist for it. This is why job `cv-20260918042638-dwpb7h`
+     (2026-09-18T04:27Z) reproduced the violation byte for byte *after* the push:
+     **the push landed; the deployment never moved.** Second occurrence of this trap in
+     one day — `clasp push` updates HEAD only, see
+     [[constrovet-webapp-pinned-deployment]].
+     Command: `clasp redeploy AKfycbwKAbhU2WNR7BSNQS9XMMqhlvYMBb-QwKckfkiAiNIdf4pPD-dBBACO42lE5omKH4E9kQ -V 23 -d "EEV2-018 currency guard"`
+     then confirm `clasp deployments | grep AKfycbwKAbhU` reads `@23`.
+  2. **Static site (GitHub Pages) — automatic.** The browser fix ships with the push to
+     `main` via `pages-build-deployment` to www.constrovet.com. Cache-bust bumped to
+     `?v=20260918b` on `/upload` and `/app`, without which browsers keep the old file
+     (the trap fixed in `716dc67`).
+
+  **Proof the repo code is correct** (run against the exact shipped finding shape):
+  as the browser sends it → blocked by `UNVERIFIED_AMOUNT` + `NO_VERIFIED_EVIDENCE`;
+  with `evidence_quality` populated → blocked by `FOREIGN_CURRENCY_LABELLED_INR`.
+  Browser-side: the real 12-row USD CSV now yields **0 findings** (was 12 / "INR 5,400");
+  its INR twin still yields **12 totalling 5,400**. `npm test` 32/32, harness 21/21.
+
+  **Acceptance test, after the redeploy:** resubmit the original USD CSV. Expect **no**
+  report to `admin@constrovet.com`, and a `[VALIDATION FAILED]` alert to
+  **`bhagat.taran@gmail.com`** (that is where `VALIDATION_ALERT_EMAIL` points) naming
+  `FOREIGN_CURRENCY_LABELLED_INR`.
+
 - **P0 — EEV2-018: PRIME DIRECTIVE VIOLATION, SHIPPED. Found 2026-09-18.**
   **STOP CONDITION: no client job may be run until this is fixed.**
   Job `cv-20260917223525-2z8936` delivered an "Executive Action Plan" headlining
