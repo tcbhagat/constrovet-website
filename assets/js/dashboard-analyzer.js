@@ -356,17 +356,36 @@
     return findings;
   }
 
+  // EEV2-018: parseAmount() falls through to a bare digit match, so "$45,000.00"
+  // becomes 45000 with the symbol discarded, and every label below then says INR.
+  // Mirrors boardroomHasForeignCurrency() in Code.gs -- both copies must agree.
+  // A bare number carries no foreign marker and stays legitimate: an unmarked
+  // column is the common case and blocking it would break ordinary submissions.
+  function hasForeignCurrency(text) {
+    return /(\$|€|£|¥|\bUSD\b|\bEUR\b|\bGBP\b|\bAED\b|\bSAR\b)/i.test(String(text || ""));
+  }
+
   function csvBudgetActualFinding(file, pageOrSheet, span, headers, row) {
     let budget = null;
     let actual = null;
+    let budgetRaw = "";
+    let actualRaw = "";
     headers.forEach((header, index) => {
       const key = header.toLowerCase();
-      const value = parseAmount(row[index] || "");
+      const raw = row[index] || "";
+      const value = parseAmount(raw);
       if (value === null) return;
-      if (/budget|boq|planned|estimate|contract|baseline/.test(key)) budget = value;
-      if (/actual|spent|cost incurred|cost to date|paid amount|payment amount|expenditure|debit amount|deduction amount|back charge amount/.test(key)) actual = value;
+      if (/budget|boq|planned|estimate|contract|baseline/.test(key)) { budget = value; budgetRaw = raw; }
+      if (/actual|spent|cost incurred|cost to date|paid amount|payment amount|expenditure|debit amount|deduction amount|back charge amount/.test(key)) { actual = value; actualRaw = raw; }
     });
     if (budget === null || actual === null || actual <= budget) return null;
+    // EEV2-018 (prime directive): refuse rather than redenominate. This browser
+    // path is the one that actually produced the 2026-09-18 incident -- /upload
+    // sends browser_report.findings straight to the server, so the identical
+    // guard in Code.gs never ran for it. A USD CSV shipped as "INR 5,400 across
+    // 12 findings" with "Budget: $45,000.00" printed beside "overrun of
+    // INR 1,000". Server-side CHECK 5f is the backstop; this is the source fix.
+    if (hasForeignCurrency(budgetRaw) || hasForeignCurrency(actualRaw)) return null;
     return finding(`CSV row shows Actual - Budget overrun of INR ${formatInr(actual - budget)}.`, "LEAKAGE_AND_OVERRUN", actual - budget, 0, file, pageOrSheet, span, budget, actual, actual - budget, "HIGH");
   }
 
@@ -424,7 +443,14 @@
       financial_category: category,
       amount_inr: Number(amount || 0),
       days: Number(days || 0),
-      citations: [{ file, page_or_sheet: pageOrSheet, quoted_span: span.slice(0, 500) }],
+      // EEV2-005/008: do NOT truncate here. This is storage-time truncation of
+      // the span the server's validator reads -- the exact defect removed from
+      // Code.gs's boardroomFinding() on 2026-09-08 and replaced with
+      // render-only boardroomDisplaySpan(). The client copy survived that fix,
+      // so /upload submissions were still handing the validator a 500-char
+      // span and it was checking figures against text that had been cut.
+      // Truncate for display only, never before validation.
+      citations: [{ file, page_or_sheet: pageOrSheet, quoted_span: span }],
       calculation: {
         budget: Number(budget || 0),
         actual: Number(actual || 0),
