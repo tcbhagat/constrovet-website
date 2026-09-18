@@ -406,3 +406,60 @@ the first real client job rather than discovering it as a mid-job failure.
 `STAGE_EXIT: S1 = PASS | fix verified live by pulling version 21 back and diffing; live IN SYNC with main`
 `STAGE_EXIT: S2 = PASS | PR #20's merged code is now genuinely deployed and verified, not label-asserted`
 `STAGE_EXIT: S4 = RESUMABLE | blocker removed; resume daily log once /upload version is confirmed via Executions panel`
+
+---
+
+## 2026-09-18 (cont.) — EEV2-018 found, fixed in both layers, and verified blocking live
+
+**Found.** Job `cv-20260917223525-2z8936` shipped an Executive Action Plan headlining
+"INR 5,400 across 12 finding(s)" from a CSV denominated entirely in US dollars, its own
+citations printing "Budget: $45,000.00 | Actual: $46,000.00" beside "overrun of INR 1,000".
+Arithmetic correct, currency fabricated — the charter's prime directive forbids shipping a
+mislabeled financial figure. No client exposure: sent to the founder's own address during
+controlled testing, and no client job has ever run.
+
+**Two root causes, both needed.** Extraction discarded the currency symbol
+(`boardroomParseAmount` / `parseAmount` fall through to a bare digit match) and then
+hardcoded the INR label. Validation could not catch it because CHECK 5b exempts
+`STRUCTURED_ACTUAL_BUDGET` findings — correct about the computed arithmetic, silent about
+the currency of the inputs — leaving the structured path with no currency guard at all.
+The shipped report showed the hole in its own numbers: "Cited findings 12" beside
+"Cited amount findings: 0".
+
+**A wrong turn worth recording.** The first fix went into `Code.gs` only. That could never
+have stopped this incident: `/upload` posts `browser_report.findings` straight to the
+server, so the server extractor never runs for it. The real source is a duplicate of the
+same logic in `assets/js/dashboard-analyzer.js`. Tracing that also exposed
+`quoted_span: span.slice(0, 500)` still present in the browser — **the EEV2-005/008 defect
+itself, live on the client for ten days after `Code.gs` was fixed on 2026-09-08**, meaning
+the validator was checking claimed figures against text the browser had already cut. S1/S2's
+"live-verified PASS" was true but scoped to the server. Both bugs survived for the same
+reason: the regression gate loads only `.gs` files, so this path had no coverage of any kind.
+
+**A second wrong turn, same trap as this morning.** After the fix was pushed, the violation
+reproduced byte for byte in job `cv-20260918042638-dwpb7h`. Cause: `clasp push` landed and
+versions 22/23 were created, but the `/upload` deployment was still pinned at `@21`. The
+push updated HEAD; the deployment never moved. `clasp push` is not a deploy.
+
+**Verified.** Repo: `npm test` 32/32, harness 21/21 suites, 0 external calls. The real
+12-row USD CSV now yields 0 findings browser-side (was 12 / "INR 5,400"); its INR twin still
+yields 12 totalling 5,400. Live: job `cv-20260918044018-hf5eq5` blocked all 12 findings with
+`FOREIGN_CURRENCY_LABELLED_INR`, report not sent, admin alerted. `www.constrovet.com` serves
+the fixed analyzer (`hasForeignCurrency` present, `slice(0, 500)` gone) behind `?v=20260918b`.
+
+**Defence in depth, proven rather than argued.** In that blocking job the browser still
+emitted the findings, because the founder's open tab held pre-fix JS — a cache-bust cannot
+help a page already loaded. Layer 1 had not reached the client; layer 2 caught it anyway.
+
+**Not verified / still open.** After a hard refresh, the same CSV should produce an Evidence
+Intake Exception with zero findings rather than a gate block — both safe, the first better
+for clients. The three `/upload` reporting defects (`form_intake` unset so every report reads
+"Files received: unknown"; processed/no-signal counters both 0 while a document was scanned;
+OCR guidance naming a server-side admin action on a client-side pdf.js path) remain open, as
+do the `value || DEFAULT` zero-handling bug and failed-calls-charge-budget.
+
+**Coverage lesson.** Any extraction or validation rule may exist in two copies — `Code.gs`
+and `dashboard-analyzer.js` — which drift independently. A fix to one is not a fix.
+
+`STAGE_EXIT: EEV2-018 = PASS | USD figures no longer relabelled INR; blocked at source in the browser and by CHECK 5f server-side; verified on live traffic, not from a version label`
+`STAGE_EXIT: S1 = PASS (rescoped) | server-side fix confirmed 2026-09-08 and live; client-side truncation found and fixed 2026-09-18 — the original PASS covered only half the pipeline`
